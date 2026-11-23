@@ -95,7 +95,7 @@ export default async function ClassroomPage({ params }: { params: Promise<{ slug
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {isStudent && !isTeacher ? <Link href={`/join/classroom?school=${encodeURIComponent(slug)}`} className="inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-white px-4 py-2.5 text-sm font-semibold text-cyan-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-cyan-50"><UserPlus size={16}/> Ingresar con código o QR</Link> : null}
-              {isTeacher ? <Link href={`/dashboard/${slug}/classroom/create`} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-800"><Plus size={16}/> Crear nueva aula</Link> : null}
+              {isTeacher ? <Link href={`/dashboard/${slug}/classroom/create`} className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-100 px-4 py-2.5 text-sm font-semibold text-violet-950 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-200 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2"><Plus size={16}/> Crear nueva aula</Link> : null}
               <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm">
                 {classrooms?.length ?? 0} {(classrooms?.length ?? 0) === 1 ? "aula" : "aulas"}
               </div>
