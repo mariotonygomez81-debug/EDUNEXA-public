@@ -15,8 +15,8 @@ function redactToken(value: string, token: string, replacement: string) {
 function safeText(value: unknown, studentName: string, studentNumber: string | null) {
   if (typeof value !== "string") return "";
   const nameParts = studentName.split(/\s+/).filter((part) => part.length >= 3);
-  let text = redactToken(value, studentName, "[ALUMNO]");
-  for (const part of nameParts) text = redactToken(text, part, "[ALUMNO]");
+  let text = redactToken(value, studentName, "el alumno");
+  for (const part of nameParts) text = redactToken(text, part, "el alumno");
   if (studentNumber) text = text.replaceAll(studentNumber, "[IDENTIFICADOR]");
   return text
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[EMAIL]")
