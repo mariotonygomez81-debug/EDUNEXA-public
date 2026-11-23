@@ -1,76 +1,34 @@
-# Respaldo local para informes académicos
+# IA académica con Groq
 
-EDUNEXA puede intentar generar el informe con Ollama en la computadora del docente cuando Groq no responde. El modo local utiliza el modelo `qwen2.5:3b` y no envía el prompt académico a un proveedor de IA externo.
+EDUNEXA utiliza exclusivamente Groq para generar informes académicos asistidos por IA. No se implementa inferencia local, Ollama ni un proveedor alternativo automático.
 
-## Requisitos
+## Funcionamiento
 
-- Ollama instalado en la computadora docente: https://ollama.com/download
-- Modelo descargado previamente mientras exista conexión: `ollama pull qwen2.5:3b`
-- Ollama ejecutándose en `127.0.0.1:11434`.
-- Navegador con permiso para que el sitio EDUNEXA acceda al servicio local.
-- Configurar CORS de Ollama para permitir únicamente el origen HTTPS exacto de la instalación EDUNEXA. No usar `*`.
+1. El servidor EDUNEXA autentica al usuario y valida membresía, rol docente, permisos y acceso al alumno.
+2. El servidor recupera únicamente las fuentes autorizadas y prepara un prompt minimizado y seudonimizado.
+3. El servidor envía la solicitud a la API de Groq utilizando una clave almacenada exclusivamente en variables de entorno del servidor.
+4. La respuesta se devuelve sin caché, identificada como generada por Groq, para revisión y aprobación del docente.
 
-## Inicio en Windows (PowerShell)
+Si Groq no está disponible, rechaza la solicitud o alcanza sus límites, EDUNEXA informa el error y no utiliza otro motor. El docente podrá volver a intentar cuando el servicio esté disponible.
 
-Reemplazar el dominio de ejemplo por el origen exacto de EDUNEXA, sin barra final:
+## Configuración del servidor
 
-```powershell
-$env:OLLAMA_ORIGINS="https://edunexa.example.edu"
-ollama serve
-```
+- Configurar `GROQ_API_KEY` como secreto del entorno de ejecución del servidor (por ejemplo, en Render).
+- Nunca incluir la clave en el código cliente, repositorio, archivos públicos ni mensajes de chat.
+- `GROQ_REPORT_MODEL` permite seleccionar el modelo configurado; el valor inicial del código es `openai/gpt-oss-20b`.
+- `GROQ_ALLOW_STUDENT_DATA` debe permanecer en `false` hasta que la institución complete la revisión de privacidad, contratos, retención, transferencias y controles del proveedor y otorgue aprobación formal. El endpoint de informes reales responde con error mientras el gate no esté habilitado.
+- La casilla de autorización de la interfaz no sustituye la aprobación institucional ni el control del servidor.
 
-En otra ventana:
+## Datos y privacidad
 
-```powershell
-ollama pull qwen2.5:3b
-ollama list
-```
+El servidor omite el nombre y número de legajo del alumno, filtra identificadores directos comunes en textos y no envía UUID internos de períodos académicos. Esto reduce exposición, pero no garantiza anonimización completa: los textos libres pueden contener datos personales de terceros u otros datos sensibles que un filtro automático no detecte. La institución debe revisar las fuentes y los textos antes de autorizar el envío a Groq.
 
-Si Ollama ya se ejecuta como aplicación o servicio, cerrar esa instancia y reiniciarla con la variable de entorno aplicada. La variable debe estar presente en el proceso de Ollama.
+No habilitar el envío de datos académicos reales hasta completar la evaluación institucional de privacidad y seguridad. Las pruebas de conectividad con Groq utilizan exclusivamente datos ficticios y no consultan expedientes de estudiantes.
 
-## Inicio en macOS / Linux
+## Seguridad y revisión docente
 
-Cerrar primero cualquier instancia de Ollama que ya esté ejecutándose. Luego:
-
-```bash
-export OLLAMA_ORIGINS="https://edunexa.example.edu"
-ollama serve
-```
-
-En otra terminal:
-
-```bash
-ollama pull qwen2.5:3b
-ollama list
-```
-
-## Modalidades disponibles en la pantalla de informes
-
-- **Groq con respaldo local automático:** EDUNEXA prepara primero el prompt autorizado y minimizado; intenta generar el informe con Groq y, si el proveedor falla, utiliza Ollama en la computadora docente.
-- **Solo IA local:** el botón "Generar solo con IA local" prepara el mismo prompt autorizado y lo envía directamente a Ollama. No intenta llamar a Groq.
-- **Prueba de Groq:** utiliza exclusivamente un conjunto de datos inventados y sirve para comprobar la conexión con el proveedor sin consultar expedientes reales.
-- **Prueba de IA local:** utiliza datos inventados directamente desde el navegador y Ollama. No consulta EDUNEXA, Supabase ni expedientes de estudiantes; permite verificar Ollama y el modelo antes de usar la modalidad local.
-
-La variable de servidor `GROQ_ALLOW_STUDENT_DATA` debe permanecer en `false` hasta que la institución complete la revisión de privacidad, contratos y controles del proveedor. En ese estado, los informes reales no se envían a Groq; se puede utilizar la modalidad local si Ollama está instalado y disponible. La casilla de autorización de la interfaz no sustituye la aprobación institucional ni los controles del servidor.
-
-## Comportamiento de EDUNEXA
-
-1. El servidor EDUNEXA autentica al usuario, valida membresía, rol docente, permisos y acceso al alumno.
-2. Se construye el mismo conjunto de datos minimizados y seudonimizados utilizado para el informe remoto.
-3. Si Groq falla, el navegador solicita el prompt autorizado en modo local y lo envía directamente a `http://127.0.0.1:11434/api/chat`.
-4. El resultado indica que fue generado por IA local (Ollama). El docente debe revisarlo antes de utilizarlo.
-
-## Límites y seguridad
-
-- El modo local evita enviar el contenido del informe a Groq, pero la consulta inicial de los registros requiere conexión con el servidor EDUNEXA y Supabase.
-- Por lo tanto, esto habilita inferencia local y funcionamiento del motor sin Internet una vez que el prompt está disponible; no significa que toda la plataforma web funcione desconectada.
-- No exponer el puerto 11434 a la red pública ni configurar Ollama para escuchar en todas las interfaces. Mantenerlo ligado a loopback.
-- CORS no reemplaza autenticación del sistema operativo ni debe tratarse como una frontera de seguridad suficiente. Solo permitir el dominio EDUNEXA exacto.
-- La disponibilidad de acceso desde un sitio HTTPS a localhost depende de las políticas de seguridad y permisos del navegador. Debe validarse en los navegadores y equipos institucionales previstos.
-- El tamaño 3B es una configuración inicial de compatibilidad; el rendimiento y la calidad dependen de RAM, CPU/GPU y del equipo. Evaluar calidad pedagógica antes de uso institucional.
-- No habilitar uso de datos reales hasta completar la revisión institucional de privacidad, seguridad y protección de datos.
-- El resultado local debe identificarse como tal y permanecer sujeto a revisión docente. Nunca debe presentarse como diagnóstico ni como decisión automatizada.
-
-## Minimización de información
-
-El servidor omite el nombre y número de legajo del alumno, filtra identificadores directos comunes en los textos y no envía UUID internos de períodos académicos. Esto reduce exposición, pero no garantiza anonimización completa: los textos libres pueden contener datos personales de terceros u otros datos sensibles que un filtro automático no detecte. La institución debe revisar las fuentes y los textos antes de autorizar el envío a Groq. Mantener `GROQ_ALLOW_STUDENT_DATA=false` hasta completar esa evaluación. Las respuestas que contienen prompts o informes se marcan para no ser almacenadas en caché.
+- Las claves de Groq permanecen exclusivamente en el servidor.
+- Las respuestas con prompts o informes se marcan para no ser almacenadas en caché.
+- El informe es un borrador asistido por IA, no un diagnóstico ni una decisión automatizada.
+- El docente debe verificar los datos, contextualizar las conclusiones, corregir el contenido y aprobarlo antes de compartirlo.
+- Si Groq falla, no se utiliza un motor alternativo; se informa el error y se puede reintentar.
