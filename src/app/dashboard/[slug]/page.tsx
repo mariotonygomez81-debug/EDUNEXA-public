@@ -64,8 +64,8 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   const addQuick = (title: string, detail: string, href: string, icon: string, tone: string) =>
     quickLinks.push({ title, detail, href: `/dashboard/${slug}/${href}`, icon, tone });
   if (roleKeys.includes("teacher")) {
-    addQuick("Mis aulas y clases", "Divisiones, materias y actividades", "classroom", "classroom", "quick-violet");
-    addQuick("Mi perfil docente", "Foto, títulos y contacto", "teaching/profile", "profile", "quick-blue");
+    if (permissions.has("classroom.read")) addQuick("Aula virtual", "Clases, tareas y materiales", "classroom", "classroom", "quick-violet");
+    addQuick("Mi perfil docente", "Foto, títulos y contacto", "teaching/profile", "profile", "quick-mint");
     addQuick("Mensajes a tutores", "Contactar a las familias", "messages", "messages", "quick-cyan");
     addQuick("Citaciones", "Solicitar y hacer seguimiento", "appointments", "appointments", "quick-orange");
     addQuick("Informes de asistencia", "Reportes por división", "attendance/reports", "reports", "quick-green");
