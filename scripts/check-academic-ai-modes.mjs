@@ -17,6 +17,9 @@ assert.doesNotMatch(api, /period: row\.grading_period_id/, "Database UUIDs must 
 assert.match(api, /safeText\(row\.comment, studentName, student\.student_number\)/);
 assert.match(client, /async function generateLocalOnly\(\)/);
 assert.match(client, /Generar solo con IA local/);
+assert.match(client, /async function testLocal\(\)/);
+assert.match(client, /Probar IA local con datos ficticios/);
+assert.match(client, /ESTUDIANTE FICTICIO/);
 assert.match(client, /Groq \(respaldo local automático\)/);
 assert.match(client, /http:\/\/127\.0\.0\.1:11434\/api\/chat/);
 assert.match(client, /model: "qwen2\.5:3b"/);
