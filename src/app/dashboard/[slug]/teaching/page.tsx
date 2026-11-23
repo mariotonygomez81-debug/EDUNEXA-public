@@ -110,7 +110,7 @@ export default async function MyTeachingPage({ params }: { params: Promise<{ slu
           <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-indigo-100">
             <GraduationCap size={14} /> ESPACIO DE PERSONAL
           </span>
-          <div className="flex flex-wrap items-center justify-between gap-4"><h1 className="mt-5 text-3xl font-bold tracking-tight">Mis asignaciones institucionales</h1>{isTeacher ? <Link href={`/dashboard/${slug}/teaching/profile`} className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-100 px-4 py-2.5 text-sm font-semibold text-violet-900 shadow-sm transition-colors hover:bg-violet-200">Mi perfil docente</Link> : null}</div>
+          <div className="flex flex-wrap items-center justify-between gap-4"><h1 className="mt-5 text-3xl font-bold tracking-tight">Mis asignaciones institucionales</h1>{isTeacher ? <Link href={`/dashboard/${slug}/teaching/profile`} className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-100 px-4 py-2.5 text-sm font-semibold !text-violet-950 shadow-sm transition-colors hover:bg-violet-200">Mi perfil docente</Link> : null}</div>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-indigo-100">{institution.display_name} · Tus responsabilidades vigentes dentro del colegio.</p>
         </header>
 
