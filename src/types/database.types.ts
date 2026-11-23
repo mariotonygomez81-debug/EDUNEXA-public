@@ -2494,7 +2494,7 @@ export type Database = {
           institution_id: string
           observations: string | null
           school_year: string | null
-          status: string
+          status: "pending" | "in_progress" | "approved" | "equivalency" | "not_approved"
           student_id: string
           subject_name: string
           updated_at: string
