@@ -28,6 +28,17 @@ ollama list
 
 Si Ollama ya se ejecuta como aplicación o servicio, cerrar esa instancia y reiniciarla con la variable de entorno aplicada. La variable debe estar presente en el proceso de Ollama.
 
+### Verificación previa en Windows
+
+El repositorio incluye `scripts/windows/test-ollama.ps1`, un verificador de solo lectura. Desde PowerShell, ejecutá:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\\scripts\\windows\\test-ollama.ps1 -EdunexaOrigin "https://edunexa.example.edu"
+```
+
+Reemplazá el dominio por el origen real de EDUNEXA. El script comprueba que el comando Ollama exista, que la API local responda en loopback y que `qwen2.5:3b` esté descargado. Si falta el modelo, indica el comando para descargarlo. No instala software, no cambia variables persistentes, no detiene servicios, no genera texto y no consulta datos de estudiantes. Tampoco puede verificar qué valor `OLLAMA_ORIGINS` recibió el proceso Ollama ya iniciado; esa configuración debe aplicarse antes de iniciar el servicio.
+
 ## Inicio en macOS / Linux
 
 Cerrar primero cualquier instancia de Ollama que ya esté ejecutándose. Luego:
