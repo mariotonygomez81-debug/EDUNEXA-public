@@ -119,7 +119,7 @@ export default async function MyTeachingPage({ params }: { params: Promise<{ slu
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="font-semibold text-slate-900">Mensajes a tutores</h2>
               <p className="mt-1 text-sm text-slate-500">Contactá a las familias de alumnos vinculados a tus divisiones. Solo se mostrarán destinatarios autorizados.</p>
-              <Link href={`/dashboard/${slug}/messages`} className="mt-4 inline-flex rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800">Enviar mensaje</Link>
+              <Link href={`/dashboard/${slug}/messages`} className="mt-4 inline-flex rounded-xl border border-violet-200 bg-violet-100 px-4 py-2.5 text-sm font-semibold text-violet-900 hover:bg-violet-200">Enviar mensaje</Link>
             </article>
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="font-semibold text-slate-900">Solicitar una citación</h2>
@@ -129,7 +129,7 @@ export default async function MyTeachingPage({ params }: { params: Promise<{ slu
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="font-semibold text-slate-900">Seguimiento de citaciones</h2>
               <p className="mt-1 text-sm text-slate-500">Consultá respuestas de las familias, confirmá entrevistas y registrá su realización.</p>
-              <Link href={`/dashboard/${slug}/appointments`} className="mt-4 inline-flex rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-800 hover:bg-indigo-100">Abrir citaciones</Link>
+              <Link href={`/dashboard/${slug}/appointments`} className="mt-4 inline-flex rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-900 hover:bg-violet-100">Abrir citaciones</Link>
             </article>
           </section>
         ) : null}
@@ -137,9 +137,9 @@ export default async function MyTeachingPage({ params }: { params: Promise<{ slu
         
         {isTeacher ? (
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <article className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-indigo-700">Centro de informes</p><h2 className="mt-2 font-semibold text-slate-900">Informes académicos y conductuales</h2><p className="mt-1 text-sm text-slate-600">Accedé a reportes de alumno, calificaciones, convivencia, asistencia y boletines desde un solo lugar.</p><Link href={`/dashboard/${slug}/teaching/reports`} className="mt-4 inline-flex rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-800">Abrir centro de informes</Link></article>
+            <article className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-indigo-700">Centro de informes</p><h2 className="mt-2 font-semibold text-slate-900">Informes académicos y conductuales</h2><p className="mt-1 text-sm text-slate-600">Accedé a reportes de alumno, calificaciones, convivencia, asistencia y boletines desde un solo lugar.</p><Link href={`/dashboard/${slug}/teaching/reports`} className="mt-4 inline-flex rounded-xl border border-violet-200 bg-violet-100 px-4 py-2.5 text-sm font-semibold text-violet-900 hover:bg-violet-200">Abrir centro de informes</Link></article>
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-indigo-700">Informes docentes</p><h2 className="mt-2 font-semibold text-slate-900">Reportes de asistencia</h2><p className="mt-1 text-sm text-slate-500">Consultá porcentajes, ausencias, llegadas tarde y evolución por alumno o división.</p><Link href={`/dashboard/${slug}/attendance/reports`} className="mt-4 inline-flex rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-800 hover:bg-indigo-50">Abrir reportes</Link></article>
-            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-indigo-700">Trayectoria escolar</p><h2 className="mt-2 font-semibold text-slate-900">Boletines y resultados</h2><p className="mt-1 text-sm text-slate-500">Revisá calificaciones por período y los boletines oficiales publicados en PDF.</p><Link href={`/dashboard/${slug}/report-cards`} className="mt-4 inline-flex rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-800 hover:bg-indigo-100">Consultar boletines</Link></article>
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-indigo-700">Trayectoria escolar</p><h2 className="mt-2 font-semibold text-slate-900">Boletines y resultados</h2><p className="mt-1 text-sm text-slate-500">Revisá calificaciones por período y los boletines oficiales publicados en PDF.</p><Link href={`/dashboard/${slug}/report-cards`} className="mt-4 inline-flex rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-900 hover:bg-violet-100">Consultar boletines</Link></article>
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-indigo-700">Planificación</p><h2 className="mt-2 font-semibold text-slate-900">Aulas y clases</h2><p className="mt-1 text-sm text-slate-500">Ingresá a tus aulas, organizá materiales, actividades y permisos de docentes auxiliares.</p><Link href={`/dashboard/${slug}/classroom`} className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Administrar mis aulas</Link></article>
           </section>
         ) : null}
@@ -192,7 +192,7 @@ export default async function MyTeachingPage({ params }: { params: Promise<{ slu
                     </div>
                   )}
                   <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                    {permissions.has("classroom.read") && <Link href={`/dashboard/${slug}/classroom`} className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-800"><BookOpen size={15}/> Aula virtual</Link>}
+                    {permissions.has("classroom.read") && <Link href={`/dashboard/${slug}/classroom`} className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-100 px-3 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-200"><BookOpen size={15}/> Aula virtual</Link>}
                     {permissions.has("attendance.read") && <Link href={`/dashboard/${slug}/attendance`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><CalendarCheck size={15}/> Asistencia</Link>}
                     {permissions.has("grades.read") && <Link href={`/dashboard/${slug}/grades`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><ClipboardList size={15}/> Calificaciones</Link>}
                   </div>
