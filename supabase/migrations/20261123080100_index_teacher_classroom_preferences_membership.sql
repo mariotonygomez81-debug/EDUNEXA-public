@@ -1,0 +1,1 @@
+create index if not exists teacher_classroom_preferences_membership_idx on private.teacher_classroom_preferences(membership_id);
