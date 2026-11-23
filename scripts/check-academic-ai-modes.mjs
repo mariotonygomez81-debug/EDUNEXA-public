@@ -18,7 +18,7 @@ assert.match(api, /Cache-Control": "no-store, max-age=0"/);
 assert.doesNotMatch(api, /Ollama|qwen2\.5|127\.0\.0\.1|body\.mode|mode === "local"/);
 assert.equal((api.match(/fetch\(/g) ?? []).length, 1, "Academic reports must use exactly one provider request");
 
-assert.match(client, /Generar informe con Groq/);
+assert.match(client, /Generar con Groq/);
 assert.match(client, /Probar Groq con datos ficticios/);
 assert.match(client, /const reportName = "El alumno"/);
 assert.match(client, /Informe académico del alumno/);
