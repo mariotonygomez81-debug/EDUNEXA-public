@@ -49,8 +49,8 @@ export async function createClassroomAssignment(formData: FormData): Promise<{ok
  return {ok:true,message:"Actividad creada correctamente."};
 }
 export async function submitClassroomAssignment(formData: FormData): Promise<{ok:boolean;message:string}> {
- const slug=field(formData,"slug"),classroomId=field(formData,"classroom_id"),assignmentId=field(formData,"assignment_id"),body=field(formData,"body");
- if(!slug||!/^[0-9a-f-]{36}$/i.test(classroomId)||!/^[0-9a-f-]{36}$/i.test(assignmentId)||body.length<1||body.length>20000)return {ok:false,message:"La respuesta debe contener entre 1 y 20.000 caracteres."};
+ const slug=field(formData,"slug"),classroomId=field(formData,"classroom_id"),assignmentId=field(formData,"assignment_id"),body=field(formData,"body") || "Entrega realizada mediante archivos adjuntos.";
+ if(!slug||!/^[0-9a-f-]{36}$/i.test(classroomId)||!/^[0-9a-f-]{36}$/i.test(assignmentId)||body.length>20000)return {ok:false,message:"La respuesta no puede superar los 20.000 caracteres."};
  const {supabase}=await classroomContext(slug);
  const {error}=await supabase.rpc("submit_classroom_assignment",{p_assignment_id:assignmentId,p_body:body});
  if(error)return {ok:false,message:"No se pudo enviar la actividad. Verificá que siga habilitada para entregas."};
