@@ -198,13 +198,13 @@ export default async function DivisionRosterPage({
                 <div className="mt-3 space-y-3">{contacts.map(contact=><div key={contact.guardian_membership_id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 p-3">
                   <div><p className="text-sm font-semibold text-slate-800">{contact.guardian_name}</p><p className="text-xs text-slate-500">Tutor vinculado</p></div>
                   <div className="flex flex-wrap gap-2">
-                    <form action={createDirectConversation}><input type="hidden" name="slug" value={slug}/><input type="hidden" name="recipient_membership_id" value={contact.guardian_membership_id}/><input type="hidden" name="subject" value={`Seguimiento académico · ${student.last_name}, ${student.first_name}`}/><button className="rounded-lg bg-violet-700 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-800">Enviar mensaje</button></form>
+                    <form action={createDirectConversation}><input type="hidden" name="slug" value={slug}/><input type="hidden" name="recipient_membership_id" value={contact.guardian_membership_id}/><input type="hidden" name="subject" value={`Seguimiento académico · ${student.last_name}, ${student.first_name}`}/><button className="rounded-lg border border-violet-200 bg-violet-100 px-3 py-2 text-xs font-semibold text-violet-900 hover:bg-violet-200">Enviar mensaje</button></form>
                     <details className="w-full sm:w-auto"><summary className="cursor-pointer rounded-lg border border-violet-200 bg-white px-3 py-2 text-center text-xs font-semibold text-violet-800">Solicitar citación</summary>
                       <form action={createTeacherGuardianAppointment} className="mt-2 grid gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:min-w-72">
                         <input type="hidden" name="slug" value={slug}/><input type="hidden" name="division_id" value={divisionId}/><input type="hidden" name="student_id" value={student.id}/><input type="hidden" name="guardian_membership_id" value={contact.guardian_membership_id}/>
                         <label className="text-xs font-semibold">Fecha y hora<input name="scheduled_at" type="datetime-local" required className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"/></label>
                         <label className="text-xs font-semibold">Motivo<textarea name="reason" required minLength={3} maxLength={1000} rows={2} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm" placeholder="Motivo de la entrevista"/></label>
-                        <button className="rounded-lg bg-indigo-700 px-3 py-2 text-xs font-semibold text-white">Enviar citación</button>
+                        <button className="rounded-lg border border-emerald-200 bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-200">Enviar citación</button>
                       </form>
                     </details>
                   </div>
