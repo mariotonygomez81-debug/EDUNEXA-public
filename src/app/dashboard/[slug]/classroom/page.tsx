@@ -82,7 +82,7 @@ export default async function ClassroomPage({ params }: { params: Promise<{ slug
           </div>
           <div className="mt-8 flex flex-wrap gap-2">
             <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs text-blue-50">{institution.display_name}</span>
-            {roles.map((role) => <span key={role} className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-blue-100">{role}</span>)}
+            {roles.map((role) => <span key={role} className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-blue-100">{role === "teacher" ? "Docente" : role === "student" ? "Estudiante" : role === "admin" ? "Administrador" : role === "director" ? "Directivo" : role === "secretary" ? "Secretaría" : role === "preceptor" ? "Preceptor" : role === "tutor" || role === "guardian" ? "Familia" : role}</span>)}
           </div>
         </header>
 
