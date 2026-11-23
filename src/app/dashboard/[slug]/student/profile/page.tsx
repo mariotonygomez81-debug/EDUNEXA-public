@@ -5,6 +5,15 @@ import { ArrowLeft, BookOpen, Camera, GraduationCap, UserRound } from "lucide-re
 import { createClient } from "@/lib/supabase/server";
 import { saveStudentProfile } from "./actions";
 
+type PreviousSubject = {
+  id: string;
+  subject_name: string;
+  school_year: string | null;
+  final_grade: number | null;
+  status: "pending" | "in_progress" | "approved" | "equivalency" | "not_approved";
+  observations: string | null;
+};
+
 type StudentSummary = {
   student_id: string;
   first_name: string;
@@ -43,6 +52,18 @@ export default async function StudentProfilePage({ params, searchParams }: { par
     avatarUrl = data?.signedUrl ?? null;
   }
   const avatarStyle = profile?.avatar_style ?? "neutral";
+  const { data: previousSubjectRows, error: previousSubjectsError } = student
+    ? await supabase.from("student_previous_subjects")
+      .select("id,subject_name,school_year,final_grade,status,observations")
+      .eq("institution_id", institution.id)
+      .eq("student_id", student.student_id)
+      .order("school_year", { ascending: false })
+    : { data: [], error: null };
+  const previousSubjects = (previousSubjectRows ?? []) as PreviousSubject[];
+  const previousSubjectStatus: Record<PreviousSubject["status"], string> = {
+    pending: "Pendiente", in_progress: "En curso", approved: "Aprobada",
+    equivalency: "Por equivalencia", not_approved: "No aprobada",
+  };
 
   return <main className="min-h-screen bg-[#f5f7fb] px-4 py-6 pb-12 text-slate-800 sm:px-7 sm:py-8">
     <div className="mx-auto max-w-3xl space-y-5">
@@ -89,7 +110,13 @@ export default async function StudentProfilePage({ params, searchParams }: { par
       </form>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="flex items-center gap-2 font-bold text-slate-900"><BookOpen size={18} className="text-violet-700"/> Materias previas</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">La consulta y actualización de materias previas se habilitará mediante el registro académico institucional, para evitar que el alumno modifique sus propias calificaciones o antecedentes.</p>
+        <p className="mt-2 text-sm text-slate-600">Consultá el estado de las materias que tenés pendientes de años anteriores.</p>
+        {previousSubjectsError ? <p role="status" className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">El registro de materias previas estará disponible cuando la institución habilite su nueva estructura académica.</p> :
+          previousSubjects.length ? <ul className="mt-4 divide-y divide-slate-100">{previousSubjects.map((subject) => <li key={subject.id} className="py-3 first:pt-0 last:pb-0">
+            <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-semibold text-slate-900">{subject.subject_name}</p><p className="mt-1 text-xs text-slate-500">{subject.school_year ? `Ciclo ${subject.school_year} · ` : ""}{previousSubjectStatus[subject.status]}</p></div>
+              {subject.final_grade !== null ? <span className="rounded-lg bg-slate-100 px-3 py-1 text-sm font-bold text-slate-800">Nota: {subject.final_grade}</span> : null}</div>
+            {subject.observations ? <p className="mt-2 text-sm leading-5 text-slate-600">{subject.observations}</p> : null}
+          </li>)}</ul> : <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">No tenés materias previas registradas.</p>}
       </section>
     </div>
   </main>;
