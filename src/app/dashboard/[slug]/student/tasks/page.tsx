@@ -71,7 +71,7 @@ export default async function StudentTasksPage({ params }: { params: Promise<{ s
           <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50">Revisá las actividades de tus aulas, las fechas de entrega y las devoluciones de tus docentes.</p>
           <p className="mt-2 text-xs text-white/75">{institution.display_name}</p>
           <div className="mt-5 grid grid-cols-2 gap-3 sm:max-w-sm">
-            <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-xs text-emerald-50">Pendientes</p><p className="mt-1 text-2xl font-black">{pendingCount}</p></div>
+            <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-xs text-emerald-50">Sin entregar</p><p className="mt-1 text-2xl font-black">{pendingCount}</p></div>
             <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-xs text-emerald-50">Entregadas</p><p className="mt-1 text-2xl font-black">{submittedCount}</p></div>
           </div>
         </header>
