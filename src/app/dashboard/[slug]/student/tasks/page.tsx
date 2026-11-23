@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 
 type Classroom = { id: string; title: string; course_name: string; division_name: string; subject_name: string | null };
 type Assignment = { id: string; title: string; instructions: string | null; due_at: string | null; max_score: number | null };
-type Submission = { assignment_id: string; submitted_at: string | null; review_status: "visto" | "aprobado" | "desaprobado" | "corregir" | null; score: number | null; feedback: string | null };
+type Submission = { assignment_id: string; submitted_at: string | null; review_status?: "visto" | "aprobado" | "desaprobado" | "corregir" | null; score: number | null; feedback: string | null };
 type TaskItem = { assignment: Assignment; classroom: Classroom; submission: Submission | null };
 
 function statusFor(task: TaskItem, now: number) {
