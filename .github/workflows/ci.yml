@@ -39,3 +39,9 @@ jobs:
         run: npm run check:admin-documents
       - name: Build
         run: npm run build
+      - name: Smoke test public routes
+        run: |
+          npm run start -- --hostname 127.0.0.1 > /tmp/edunexa-next.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          npm run test:smoke
