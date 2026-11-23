@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, BookOpen, Palette, Save, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Palette, Save, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { updateTeacherOwnedClassroom, updateTeacherClassroomPreferences } from "./actions";
 import AjaxForm from "../ajax-form";
