@@ -40,6 +40,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   try {
     const { slug } = await params;
     const body = await request.json() as ReportRequest;
+    if (body.mode !== undefined && body.mode !== "groq" && body.mode !== "local") {
+      return NextResponse.json({ error: "La modalidad de IA solicitada no es válida." }, { status: 400 });
+    }
     const studentId = body.studentId ?? "";
     const from = body.from ?? null;
     const to = body.to ?? null;
@@ -106,7 +109,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     // The browser sends it directly to Ollama on the teacher's own computer; no student
     // academic payload is sent to a remote AI provider in this mode.
     if (body.mode === "local") {
-      return NextResponse.json({ prompt, coverage: facts.coverage, generatedAt: new Date().toISOString(), engine: "local" });
+      return NextResponse.json(
+        { prompt, coverage: facts.coverage, generatedAt: new Date().toISOString(), engine: "local" },
+        { headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache" } },
+      );
     }
     if (!process.env.GROQ_API_KEY) return NextResponse.json({ error: "Falta configurar GROQ_API_KEY en el servidor." }, { status: 503 });
     if (process.env.GROQ_ALLOW_STUDENT_DATA !== "true") {
@@ -140,7 +146,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const ai = await aiResponse.json() as { choices?: { message?: { content?: string | null } }[] };
     const analysis = ai.choices?.[0]?.message?.content?.trim() ?? "";
     if (!analysis) return NextResponse.json({ error: "La IA no devolvió un análisis utilizable." }, { status: 502 });
-    return NextResponse.json({ analysis, coverage: facts.coverage, generatedAt: new Date().toISOString() });
+    return NextResponse.json(
+      { analysis, coverage: facts.coverage, generatedAt: new Date().toISOString(), engine: "groq" },
+      { headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache" } },
+    );
   } catch {
     return NextResponse.json({ error: "Ocurrió un error al preparar el informe. No se modificaron los registros académicos." }, { status: 500 });
   }
