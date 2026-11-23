@@ -34,7 +34,7 @@ export default function CreateClassroomForm({ slug, children }: { slug: string; 
       {result ? <p role={result.ok ? "status" : "alert"} aria-live="polite" className={`rounded-xl px-4 py-3 text-sm ${result.ok ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"}`}>{result.message}</p> : null}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
         <p className="text-xs text-slate-500">Podrás compartir el acceso y configurar sus contenidos después de crearla.</p>
-        <button type="submit" disabled={pending} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-800 focus:outline-none focus:ring-4 focus:ring-indigo-200 disabled:cursor-wait disabled:opacity-70">
+        <button type="submit" disabled={pending} className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-100 px-5 py-3 text-sm font-bold text-violet-950 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-200 focus:outline-none focus:ring-4 focus:ring-violet-200 disabled:cursor-wait disabled:opacity-70">
           {pending ? <LoaderCircle size={17} className="animate-spin"/> : <Plus size={17}/>}
           {pending ? "Creando aula…" : "Crear aula virtual"}
         </button>
