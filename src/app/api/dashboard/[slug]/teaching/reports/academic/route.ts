@@ -155,7 +155,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     analysis = redactToken(analysis, studentName, "el alumno");
     for (const part of studentName.split(/\s+/).filter((item) => item.length >= 3)) analysis = redactToken(analysis, part, "el alumno");
     if (student.student_number) analysis = analysis.replaceAll(student.student_number, "");
-    analysis = analysis.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "").replace(/\b\d{7,12}\b/g, "").replace(/\s{2,}/g, " ").trim();
+    analysis = analysis.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "").replace(/\b\d{7,12}\b/g, "").replace(/[ \t]{2,}/g, " ").trim();
     if (!analysis) return NextResponse.json({ error: "La IA no devolvió un análisis utilizable." }, { status: 502 });
     return NextResponse.json(
       { analysis, coverage: facts.coverage, generatedAt: new Date().toISOString(), engine: "groq" },
