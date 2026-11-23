@@ -81,9 +81,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const gradeRows = (gradeResult.data ?? []) as unknown as { score: number | null; comment: string | null; assessments: { title: string; assessment_date: string | null; max_score: number; grading_periods: { name: string } | null; course_subjects: { subjects: { name: string } | null } | null } | null }[];
     const attendanceRows = (attendanceResult.data ?? []) as unknown as { status: string; note: string | null; attendance_sessions: { held_on: string; period_label: string | null } | null }[];
     const observationRows = (observationResult.data ?? []) as unknown as { observation: string; created_at: string; grading_period_id: string }[];
-    const grades = gradeRows.filter((row) => inRange(row.assessments?.assessment_date)).map((row) => ({ score: row.score, assessment: row.assessments?.title, date: row.assessments?.assessment_date, maxScore: row.assessments?.max_score, period: row.assessments?.grading_periods?.name, subject: row.assessments?.course_subjects?.subjects?.name, comment: safeText(row.comment, studentName, student.student_number) }));
-    const attendance = attendanceRows.filter((row) => inRange(row.attendance_sessions?.held_on)).map((row) => ({ date: row.attendance_sessions?.held_on, period: row.attendance_sessions?.period_label, status: row.status, note: safeText(row.note, studentName, student.student_number) }));
-    const observations = observationRows.filter((row) => inRange(row.created_at?.slice(0, 10))).map((row) => ({ period: row.grading_period_id, date: row.created_at, observation: safeText(row.observation, studentName, student.student_number) }));
+    const grades = gradeRows.filter((row) => inRange(row.assessments?.assessment_date)).map((row) => ({
+      score: row.score,
+      assessment: safeText(row.assessments?.title, studentName, student.student_number),
+      date: row.assessments?.assessment_date,
+      maxScore: row.assessments?.max_score,
+      period: safeText(row.assessments?.grading_periods?.name, studentName, student.student_number),
+      subject: safeText(row.assessments?.course_subjects?.subjects?.name, studentName, student.student_number),
+      comment: safeText(row.comment, studentName, student.student_number),
+    }));
+    const attendance = attendanceRows.filter((row) => inRange(row.attendance_sessions?.held_on)).map((row) => ({
+      date: row.attendance_sessions?.held_on,
+      period: safeText(row.attendance_sessions?.period_label, studentName, student.student_number),
+      status: row.status,
+      note: safeText(row.note, studentName, student.student_number),
+    }));
+    // Never send internal database identifiers such as grading_period_id to an AI provider.
+    const observations = observationRows.filter((row) => inRange(row.created_at?.slice(0, 10))).map((row) => ({
+      period: "Período académico",
+      date: row.created_at,
+      observation: safeText(row.observation, studentName, student.student_number),
+    }));
 
     const classroomRecords: unknown[] = [];
     if (sections.classroom) {
@@ -96,7 +114,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
           const { data: gradebook } = await supabase.rpc("list_classroom_term_gradebook", { p_classroom_id: classroom.id, p_grading_period_id: period.id });
           const payload = gradebook as { students?: { student_id: string; orientadora_1: number | null; orientadora_2: number | null; orientadora_3: number | null; trimestral: number | null; recuperacion: number | null; conduct: string | null; participates_in_class: boolean; submits_practical_work: boolean; demonstrates_interest: boolean; observation: string | null }[] } | null;
           const row = payload?.students?.find((item) => item.student_id === studentId);
-          if (row) classroomRecords.push({ classroom: classroom.title ?? "Aula docente", period: period.name, grades: { orientadora1: row.orientadora_1, orientadora2: row.orientadora_2, orientadora3: row.orientadora_3, quarterly: row.trimestral, recovery: row.recuperacion }, conductObservation: safeText(row.conduct, studentName, student.student_number), participates: row.participates_in_class, submitsPracticalWork: row.submits_practical_work, demonstratesInterest: row.demonstrates_interest, teacherObservation: safeText(row.observation, studentName, student.student_number) });
+          if (row) classroomRecords.push({ classroom: safeText(classroom.title ?? "Aula docente", studentName, student.student_number), period: safeText(period.name, studentName, student.student_number), grades: { orientadora1: row.orientadora_1, orientadora2: row.orientadora_2, orientadora3: row.orientadora_3, quarterly: row.trimestral, recovery: row.recuperacion }, conductObservation: safeText(row.conduct, studentName, student.student_number), participates: row.participates_in_class, submitsPracticalWork: row.submits_practical_work, demonstratesInterest: row.demonstrates_interest, teacherObservation: safeText(row.observation, studentName, student.student_number) });
         }
       }
     }
