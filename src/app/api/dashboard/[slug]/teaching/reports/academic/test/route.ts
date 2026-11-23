@@ -4,8 +4,6 @@ import { getMembershipPermissions } from "@/lib/auth/permissions";
 
 export async function POST(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
-    if (!process.env.GROQ_API_KEY) return NextResponse.json({ error: "Falta configurar GROQ_API_KEY en el servidor." }, { status: 503 });
-
     const { slug } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -21,6 +19,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ sl
     ]);
     if (!(roleRows.data ?? []).some((row) => row.roles?.key === "teacher") || !permissions.has("grades.read")) {
       return NextResponse.json({ error: "Esta prueba está disponible para docentes autorizados." }, { status: 403 });
+    }
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json({ error: "Groq no está configurado en el servidor." }, { status: 503 });
     }
 
     // Synthetic-only endpoint: intentionally does not query students or academic records.
