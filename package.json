@@ -11,7 +11,8 @@
     "test:smoke": "node scripts/smoke-test.mjs",
     "check:migrations": "node scripts/check-migration-files.mjs",
     "check:classroom-scope": "node scripts/check-classroom-scope-migration.mjs",
-    "check:admin-documents": "node scripts/check-admin-documents-migration.mjs"
+    "check:admin-documents": "node scripts/check-admin-documents-migration.mjs",
+    "check:secretary-scope": "node scripts/check-secretary-student-scope.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
