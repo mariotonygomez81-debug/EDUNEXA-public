@@ -134,7 +134,7 @@ export default function ClassroomAssignmentRoster({
                         <select name="review_status" defaultValue={row.review_status ?? "pending"} aria-label={`Estado de revisión de ${row.student_first_name} ${row.student_last_name}`} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-700">
                           <option value="pending">Pendiente</option><option value="visto">Visto</option><option value="aprobado">Aprobado</option><option value="desaprobado">Desaprobado</option><option value="corregir">Corregir</option>
                         </select>
-                        <button className="rounded-lg bg-indigo-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700">Guardar</button>
+                        <button className="rounded-lg border border-violet-200 bg-violet-100 px-3 py-2 text-xs font-semibold text-violet-950 transition hover:bg-violet-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700">Guardar</button>
                       </AjaxForm>
                     ) : <span className="text-xs text-slate-400">—</span>}
                   </div>
