@@ -33,7 +33,7 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
   if (!(roleRows ?? []).some((row) => row.roles?.key === "student")) redirect(`/dashboard/${slug}`);
   const student = ((studentRows ?? []) as StudentSummary[]).find((item) => item.is_self);
   const name = student ? `${student.first_name} ${student.last_name}` : profile?.display_name ?? "Perfil del alumno";
-  const initials = name.split(/\\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A";
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A";
 
   return <main className="min-h-screen bg-[#f5f7fb] px-4 py-6 pb-12 text-slate-800 sm:px-7 sm:py-8">
     <div className="mx-auto max-w-3xl space-y-5">
