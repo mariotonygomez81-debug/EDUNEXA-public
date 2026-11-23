@@ -60,6 +60,32 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
     (!assignment.starts_on || assignment.starts_on <= today) && (!assignment.ends_on || assignment.ends_on >= today)
   ).length;
 
+  const teacherCard = roleKeys.includes("teacher") ? await (async () => {
+    const [{ data: teacherProfile }, { data: teacherAssignments }] = await Promise.all([
+      supabase.from("profiles").select("first_name,last_name,display_name,avatar_path,avatar_style").eq("id", user.id).maybeSingle(),
+      supabase.from("staff_assignments").select("course_subject_id").eq("institution_id", institution.id)
+        .eq("membership_id", membership.id).eq("assignment_type", "teacher")
+        .or(`starts_on.is.null,starts_on.lte.${today}`).or(`ends_on.is.null,ends_on.gte.${today}`),
+    ]);
+    const subjectIds = [...new Set((teacherAssignments ?? []).map((item) => item.course_subject_id).filter((id): id is string => Boolean(id)))];
+    const { data: courseSubjects } = subjectIds.length
+      ? await supabase.from("course_subjects").select("subject_id").eq("institution_id", institution.id).in("id", subjectIds)
+      : { data: [] as { subject_id: string }[] };
+    const ids = [...new Set((courseSubjects ?? []).map((item) => item.subject_id))];
+    const { data: subjects } = ids.length
+      ? await supabase.from("subjects").select("name").eq("institution_id", institution.id).in("id", ids).order("name")
+      : { data: [] as { name: string }[] };
+    let avatarUrl: string | null = null;
+    if (teacherProfile?.avatar_path) {
+      const { data } = await supabase.storage.from("teacher-profile-photos").createSignedUrl(teacherProfile.avatar_path, 600);
+      avatarUrl = data?.signedUrl ?? null;
+    }
+    const name = [teacherProfile?.first_name, teacherProfile?.last_name].filter(Boolean).join(" ").trim()
+      || teacherProfile?.display_name || "Docente";
+    return { name, avatarUrl, avatarStyle: teacherProfile?.avatar_style ?? "neutral",
+      subjects: [...new Set((subjects ?? []).map((item) => item.name))] };
+  })() : null;
+
   const quickLinks: { title: string; detail: string; href: string; icon: string; tone: string }[] = [];
   const addQuick = (title: string, detail: string, href: string, icon: string, tone: string) =>
     quickLinks.push({ title, detail, href: `/dashboard/${slug}/${href}`, icon, tone });
@@ -90,6 +116,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   return <WorkspaceExperience
     institutionName={institution.display_name}
     roleNames={roleNames}
+    teacherCard={teacherCard}
     modules={modulesWithUnread}
     quickLinks={quickLinks}
     unreadCount={unreadNotificationCount ?? 0}
