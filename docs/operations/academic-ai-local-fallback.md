@@ -44,6 +44,14 @@ ollama pull qwen2.5:3b
 ollama list
 ```
 
+## Modalidades disponibles en la pantalla de informes
+
+- **Groq con respaldo local automático:** EDUNEXA prepara primero el prompt autorizado y minimizado; intenta generar el informe con Groq y, si el proveedor falla, utiliza Ollama en la computadora docente.
+- **Solo IA local:** el botón "Generar solo con IA local" prepara el mismo prompt autorizado y lo envía directamente a Ollama. No intenta llamar a Groq.
+- **Prueba de Groq:** utiliza exclusivamente un conjunto de datos inventados y sirve para comprobar la conexión con el proveedor sin consultar expedientes reales.
+
+La variable de servidor `GROQ_ALLOW_STUDENT_DATA` debe permanecer en `false` hasta que la institución complete la revisión de privacidad, contratos y controles del proveedor. En ese estado, los informes reales no se envían a Groq; se puede utilizar la modalidad local si Ollama está instalado y disponible. La casilla de autorización de la interfaz no sustituye la aprobación institucional ni los controles del servidor.
+
 ## Comportamiento de EDUNEXA
 
 1. El servidor EDUNEXA autentica al usuario, valida membresía, rol docente, permisos y acceso al alumno.
