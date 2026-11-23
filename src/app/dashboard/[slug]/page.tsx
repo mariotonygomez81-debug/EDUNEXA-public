@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 import { signOut } from "../actions";
@@ -63,15 +64,28 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   const teacherCard = roleKeys.includes("teacher") ? await (async () => {
     const [{ data: teacherProfile }, { data: teacherAssignments }] = await Promise.all([
       supabase.from("profiles").select("first_name,last_name,display_name,avatar_path,avatar_style").eq("id", user.id).maybeSingle(),
-      supabase.from("staff_assignments").select("course_subject_id").eq("institution_id", institution.id)
+      supabase.from("staff_assignments").select("division_id,course_subject_id").eq("institution_id", institution.id)
         .eq("membership_id", membership.id).eq("assignment_type", "teacher")
         .or(`starts_on.is.null,starts_on.lte.${today}`).or(`ends_on.is.null,ends_on.gte.${today}`),
     ]);
-    const subjectIds = [...new Set((teacherAssignments ?? []).map((item) => item.course_subject_id).filter((id): id is string => Boolean(id)))];
-    const { data: courseSubjects } = subjectIds.length
-      ? await supabase.from("course_subjects").select("subject_id").eq("institution_id", institution.id).in("id", subjectIds)
-      : { data: [] as { subject_id: string }[] };
-    const ids = [...new Set((courseSubjects ?? []).map((item) => item.subject_id))];
+    const assignments = teacherAssignments ?? [];
+    const divisionIds = [...new Set(assignments.map((item) => item.division_id).filter((id): id is string => Boolean(id)))];
+    const { data: assignedDivisions } = divisionIds.length
+      ? await supabase.from("divisions").select("id,course_id").eq("institution_id", institution.id).in("id", divisionIds)
+      : { data: [] as { id: string; course_id: string }[] };
+    const divisionCourse = new Map((assignedDivisions ?? []).map((item) => [item.id, item.course_id]));
+    const subjectAssignmentIds = new Set(assignments.map((item) => item.course_subject_id).filter((id): id is string => Boolean(id)));
+    const allSubjectCourseIds = [...new Set(assignments.filter((item) => !item.course_subject_id && item.division_id)
+      .map((item) => divisionCourse.get(item.division_id!)).filter((id): id is string => Boolean(id)))];
+    const [{ data: specificSubjects }, { data: divisionSubjects }] = await Promise.all([
+      subjectAssignmentIds.size
+        ? supabase.from("course_subjects").select("subject_id").eq("institution_id", institution.id).in("id", [...subjectAssignmentIds])
+        : Promise.resolve({ data: [] as { subject_id: string }[] }),
+      allSubjectCourseIds.length
+        ? supabase.from("course_subjects").select("subject_id").eq("institution_id", institution.id).in("course_id", allSubjectCourseIds)
+        : Promise.resolve({ data: [] as { subject_id: string }[] }),
+    ]);
+    const ids = [...new Set([...(specificSubjects ?? []), ...(divisionSubjects ?? [])].map((item) => item.subject_id))];
     const { data: subjects } = ids.length
       ? await supabase.from("subjects").select("name").eq("institution_id", institution.id).in("id", ids).order("name")
       : { data: [] as { name: string }[] };
