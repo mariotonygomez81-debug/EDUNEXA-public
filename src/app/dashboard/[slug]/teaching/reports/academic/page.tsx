@@ -16,14 +16,33 @@ export default async function AcademicStudentReportsPage({ params }: { params: P
   if (!institution) redirect("/dashboard");
   const { data: membership } = await supabase.from("memberships").select("id").eq("institution_id", institution.id).eq("user_id", user.id).eq("status", "active").maybeSingle();
   if (!membership) redirect("/dashboard");
-  const [permissions, roleRows, studentRows] = await Promise.all([
+  const [permissions, roleRows] = await Promise.all([
     getMembershipPermissions(supabase, membership.id),
     supabase.from("membership_roles").select("roles(key)").eq("membership_id", membership.id).eq("institution_id", institution.id),
-    supabase.from("students").select("id,first_name,last_name,student_number").eq("institution_id", institution.id).eq("status", "active").order("last_name").order("first_name"),
   ]);
   const isTeacher = (roleRows.data ?? []).some((row) => row.roles?.key === "teacher");
   if (!isTeacher || !permissions.has("grades.read")) redirect(`/dashboard/${slug}`);
-  const students = (studentRows.data ?? []) as StudentOption[];
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
+  const { data: assignments, error: assignmentsError } = await supabase.from("staff_assignments")
+    .select("division_id").eq("institution_id", institution.id).eq("membership_id", membership.id)
+    .eq("assignment_type", "teacher")
+    .or(`starts_on.is.null,starts_on.lte.${today}`).or(`ends_on.is.null,ends_on.gte.${today}`);
+  if (assignmentsError) throw new Error("No se pudieron verificar las divisiones asignadas.");
+  const divisionIds = [...new Set((assignments ?? []).map((item) => item.division_id).filter((id): id is string => Boolean(id)))];
+  const { data: enrollments, error: enrollmentsError } = divisionIds.length
+    ? await supabase.from("enrollments").select("student_id").eq("institution_id", institution.id)
+      .in("division_id", divisionIds).eq("status", "active").lte("enrolled_on", today)
+      .or(`ended_on.is.null,ended_on.gte.${today}`)
+    : { data: [] as { student_id: string }[], error: null };
+  if (enrollmentsError) throw new Error("No se pudieron consultar las matrículas autorizadas.");
+  const studentIds = [...new Set((enrollments ?? []).map((item) => item.student_id))];
+  const { data: studentRows, error: studentError } = studentIds.length
+    ? await supabase.from("students").select("id,first_name,last_name,student_number")
+      .eq("institution_id", institution.id).eq("status", "active").in("id", studentIds)
+      .order("last_name").order("first_name")
+    : { data: [] as StudentOption[], error: null };
+  if (studentError) throw new Error("No se pudo cargar la nómina autorizada para informes.");
+  const students = (studentRows ?? []) as StudentOption[];
   return <main className="min-h-screen bg-slate-50 px-4 py-7 text-slate-800 sm:px-7 lg:px-10">
     <div className="mx-auto max-w-6xl space-y-6">
       <Link href={`/dashboard/${slug}/teaching/reports`} className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-indigo-700"><ArrowLeft size={16}/> Volver a reportes</Link>
