@@ -150,7 +150,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       return NextResponse.json({ error: message }, { status: 502 });
     }
     const ai = await aiResponse.json() as { choices?: { message?: { content?: string | null } }[] };
-    let analysis = ai.choices?.[0]?.message?.content?.trim() ?? "";\n    // Defensa adicional: el texto final tampoco debe revelar identificadores directos.\n    analysis = redactToken(analysis, studentName, "el alumno");\n    for (const part of studentName.split(/\\s+/).filter((item) => item.length >= 3)) analysis = redactToken(analysis, part, "el alumno");\n    if (student.student_number) analysis = analysis.replaceAll(student.student_number, "");\n    analysis = analysis.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, "").replace(/\\b\\d{7,12}\\b/g, "").replace(/\\s{2,}/g, " ").trim();
+    let analysis = ai.choices?.[0]?.message?.content?.trim() ?? "";
+    // Defensa adicional: el texto final tampoco debe revelar identificadores directos.
+    analysis = redactToken(analysis, studentName, "el alumno");
+    for (const part of studentName.split(/\s+/).filter((item) => item.length >= 3)) analysis = redactToken(analysis, part, "el alumno");
+    if (student.student_number) analysis = analysis.replaceAll(student.student_number, "");
+    analysis = analysis.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "").replace(/\b\d{7,12}\b/g, "").replace(/\s{2,}/g, " ").trim();
     if (!analysis) return NextResponse.json({ error: "La IA no devolvió un análisis utilizable." }, { status: 502 });
     return NextResponse.json(
       { analysis, coverage: facts.coverage, generatedAt: new Date().toISOString(), engine: "groq" },
