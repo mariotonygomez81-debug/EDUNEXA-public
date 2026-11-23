@@ -63,6 +63,34 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const student = studentResult.data;
     if (!student) return NextResponse.json({ error: "No se encontró el alumno o no tenés permiso para consultar sus datos." }, { status: 404 });
     const studentName = [student.first_name, student.last_name].filter(Boolean).join(" ");
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
+    const [{ data: assignments, error: assignmentsError }, { data: enrollments, error: enrollmentsError }] = await Promise.all([
+      supabase.from("staff_assignments").select("division_id,course_subject_id")
+        .eq("institution_id", institution.id).eq("membership_id", membership.id).eq("assignment_type", "teacher")
+        .or(`starts_on.is.null,starts_on.lte.${today}`).or(`ends_on.is.null,ends_on.gte.${today}`),
+      supabase.from("enrollments").select("division_id").eq("institution_id", institution.id)
+        .eq("student_id", studentId).eq("status", "active").lte("enrolled_on", today)
+        .or(`ended_on.is.null,ended_on.gte.${today}`),
+    ]);
+    if (assignmentsError || enrollmentsError) return NextResponse.json({ error: "No se pudo verificar el alcance de tus asignaciones." }, { status: 403 });
+    const enrolledDivisionIds = [...new Set((enrollments ?? []).map((item) => item.division_id))];
+    const assignedDivisionIds = [...new Set((assignments ?? []).map((item) => item.division_id).filter((id): id is string => Boolean(id)))];
+    const eligibleDivisionIds = enrolledDivisionIds.filter((id) => assignedDivisionIds.includes(id));
+    if (!eligibleDivisionIds.length) return NextResponse.json({ error: "El alumno no pertenece a una división asignada a tu perfil docente." }, { status: 404 });
+    const scopedAssignments = (assignments ?? []).filter((item) => eligibleDivisionIds.includes(item.division_id ?? ""));
+    const specificSubjectIds = [...new Set(scopedAssignments.map((item) => item.course_subject_id).filter((id): id is string => Boolean(id)))];
+    if (specificSubjectIds.length) {
+      const [{ data: divisions, error: divisionsError }, { data: subjects, error: subjectsError }] = await Promise.all([
+        supabase.from("divisions").select("id,course_id").eq("institution_id", institution.id).in("id", eligibleDivisionIds),
+        supabase.from("course_subjects").select("id,course_id").eq("institution_id", institution.id).in("id", specificSubjectIds),
+      ]);
+      if (divisionsError || subjectsError) return NextResponse.json({ error: "No se pudo verificar la materia asignada." }, { status: 403 });
+      const divisionCourseIds = new Map((divisions ?? []).map((item) => [item.id, item.course_id]));
+      const validSubjectAssignment = scopedAssignments.some((item) => item.course_subject_id
+        && (subjects ?? []).some((subject) => subject.id === item.course_subject_id && subject.course_id === divisionCourseIds.get(item.division_id ?? "")));
+      const divisionWideAssignment = scopedAssignments.some((item) => !item.course_subject_id);
+      if (!validSubjectAssignment && !divisionWideAssignment) return NextResponse.json({ error: "No tenés una asignación vigente para la materia de este alumno." }, { status: 404 });
+    }
 
     const [gradeResult, attendanceResult, observationResult] = await Promise.all([
       sections.grades ? supabase.from("grade_records").select("score,comment,entered_at,assessments(title,assessment_date,max_score,course_subject_id,division_id,grading_periods(name),course_subjects(subject_id,subjects(name)))").eq("institution_id", institution.id).eq("student_id", studentId).order("entered_at", { ascending: true }).limit(120) : Promise.resolve({ data: [] as unknown[], error: null }),
@@ -102,13 +130,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
     const classroomRecords: unknown[] = [];
     if (sections.classroom) {
-      const { data: accessible } = await supabase.rpc("list_accessible_classrooms", { p_institution_id: institution.id });
+      const { data: accessible, error: classroomListError } = await supabase.rpc("list_accessible_classrooms", { p_institution_id: institution.id });
+      if (classroomListError) return NextResponse.json({ error: "No se pudo verificar el alcance de las aulas autorizadas." }, { status: 403 });
       for (const classroom of (accessible ?? []) as { id: string; title?: string }[]) {
-        const { data: caps } = await supabase.rpc("get_classroom_capabilities", { p_classroom_id: classroom.id });
+        const { data: caps, error: capabilityError } = await supabase.rpc("get_classroom_capabilities", { p_classroom_id: classroom.id });
+        if (capabilityError) return NextResponse.json({ error: "No se pudieron verificar los permisos de un aula." }, { status: 403 });
         if (!(caps as { can_grade?: boolean } | null)?.can_grade) continue;
-        const { data: periods } = await supabase.rpc("list_classroom_term_periods", { p_classroom_id: classroom.id });
+        const { data: periods, error: periodsError } = await supabase.rpc("list_classroom_term_periods", { p_classroom_id: classroom.id });
+        if (periodsError) return NextResponse.json({ error: "No se pudieron consultar los períodos de un aula autorizada." }, { status: 403 });
         for (const period of (periods ?? []) as { id: string; name: string }[]) {
-          const { data: gradebook } = await supabase.rpc("list_classroom_term_gradebook", { p_classroom_id: classroom.id, p_grading_period_id: period.id });
+          const { data: gradebook, error: gradebookError } = await supabase.rpc("list_classroom_term_gradebook", { p_classroom_id: classroom.id, p_grading_period_id: period.id });
+          if (gradebookError) return NextResponse.json({ error: "No se pudo consultar el registro de evaluación de un aula." }, { status: 403 });
           const payload = gradebook as { students?: { student_id: string; orientadora_1: number | null; orientadora_2: number | null; orientadora_3: number | null; trimestral: number | null; recuperacion: number | null; conduct: string | null; participates_in_class: boolean; submits_practical_work: boolean; demonstrates_interest: boolean; observation: string | null }[] } | null;
           const row = payload?.students?.find((item) => item.student_id === studentId);
           if (row) classroomRecords.push({ classroom: safeText(classroom.title ?? "Aula docente", studentName, student.student_number), period: safeText(period.name, studentName, student.student_number), grades: { orientadora1: row.orientadora_1, orientadora2: row.orientadora_2, orientadora3: row.orientadora_3, quarterly: row.trimestral, recovery: row.recuperacion }, conductObservation: safeText(row.conduct, studentName, student.student_number), participates: row.participates_in_class, submitsPracticalWork: row.submits_practical_work, demonstratesInterest: row.demonstrates_interest, teacherObservation: safeText(row.observation, studentName, student.student_number) });
