@@ -66,7 +66,7 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
   const classrooms = (classroomRows ?? []) as Classroom[];
   const firstName = student?.first_name ?? profile?.first_name ?? "Estudiante";
   const fullName = student ? `${student.first_name} ${student.last_name}` : profile?.display_name ?? "Mi perfil";
-  const initials = fullName.split(/\\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A";
+  const initials = fullName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A";
   const greeting = firstName.length > 18 ? firstName.slice(0, 18) : firstName;
 
   return (
