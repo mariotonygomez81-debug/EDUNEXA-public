@@ -37,6 +37,8 @@ jobs:
         run: npm run check:classroom-scope
       - name: Validate administrative document security migration
         run: npm run check:admin-documents
+      - name: Validate Secretary student read scope
+        run: npm run check:secretary-scope
       - name: Build
         run: npm run build
       - name: Smoke test public routes
