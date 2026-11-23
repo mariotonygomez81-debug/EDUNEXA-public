@@ -8,7 +8,7 @@ type StudentOption = { id: string; first_name: string; last_name: string; studen
 type ReportResult = { analysis: string; engine?: "groq"; coverage: { dataMayBeIncomplete?: boolean; grades: number; attendance: number; attendanceAvailable: boolean; observations: number; classroomRecords: number; subjects: string[] }; generatedAt: string };
 
 function pdfSafe(value: string) {
-  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7E]/g, " ");
+  return value.normalize("NFC").replace(/[^\x20-\xFF]/g, " ");
 }
 function wrapText(text: string, maxChars: number) {
   const words = pdfSafe(text).split(/\s+/);
