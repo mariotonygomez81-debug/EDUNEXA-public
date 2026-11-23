@@ -39,6 +39,8 @@ jobs:
         run: npm run check:admin-documents
       - name: Validate Secretary student read scope
         run: npm run check:secretary-scope
+      - name: Validate Groq and local AI modes
+        run: npm run check:academic-ai
       - name: Build
         run: npm run build
       - name: Smoke test public routes
