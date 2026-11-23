@@ -45,8 +45,8 @@ export async function createAdministrativeRecord(formData: FormData) {
   const dueDate=value(formData,"due_date");
   if (!slug || !categories.includes(category) || title.length<3 || title.length>160 ||
       !description || description.length>5000 || recordCode.length>50 ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(recordDate) ||
-      (dueDate && (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || dueDate<recordDate))) {
+      !isValidDate(recordDate) ||
+      (dueDate && (!isValidDate(dueDate) || dueDate<recordDate))) {
     redirect(`/dashboard/${encodeURIComponent(slug)}/administrative?error=invalid`);
   }
   const {supabase,institution,membership}=await context(slug);
