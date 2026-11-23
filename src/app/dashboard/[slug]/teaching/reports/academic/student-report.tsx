@@ -78,7 +78,7 @@ export default function AcademicStudentReport({ slug, students }: { slug: string
 
   async function downloadPdf() {
     if (!result || (!student && !isDemo)) return;
-    const reportName = isDemo ? "Alumno ficticio de demostración" : `${student!.last_name}, ${student!.first_name}`;
+    const reportName = "El alumno";
     const pdf = await PDFDocument.create();
     const regular = await pdf.embedFont(StandardFonts.Helvetica);
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -120,7 +120,7 @@ export default function AcademicStudentReport({ slug, students }: { slug: string
     }
     const bytes = await pdf.save();
     const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
-    const anchor = document.createElement("a"); anchor.href = url; anchor.download = `EDUNEXA-informe-${isDemo ? "demostracion" : `${student!.last_name.toLowerCase()}-${student!.first_name.toLowerCase()}`}.pdf`; anchor.click(); URL.revokeObjectURL(url);
+    const anchor = document.createElement("a"); anchor.href = url; anchor.download = `EDUNEXA-informe-del-alumno${isDemo ? "-demostracion" : ""}.pdf`; anchor.click(); URL.revokeObjectURL(url);
   }
 
   return <section className="space-y-5">
@@ -150,7 +150,7 @@ export default function AcademicStudentReport({ slug, students }: { slug: string
       {!students.length?<p className="mt-3 text-sm text-slate-500">No hay alumnos disponibles para los permisos de tu cuenta docente.</p>:null}
     </div>
     {result ? <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 p-5"><div><h2 className="text-lg font-bold text-slate-900">{isDemo ? "Prueba de Groq · datos ficticios" : `Análisis generado · ${student?.last_name}, ${student?.first_name}`}</h2><p className="mt-1 text-xs text-slate-500">{isDemo ? "Este resultado usa exclusivamente información inventada; no se consultaron expedientes de alumnos." : "Motor utilizado: Groq · Revisá y corregí el contenido antes de compartirlo."}</p></div><button type="button" onClick={downloadPdf} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-800"><Download size={16}/> Descargar PDF</button></header>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 p-5"><div><h2 className="text-lg font-bold text-slate-900">{isDemo ? "Prueba de Groq · datos ficticios" : "Informe académico del alumno"}</h2><p className="mt-1 text-xs text-slate-500">{isDemo ? "Este resultado usa exclusivamente información inventada; no se consultaron expedientes de alumnos." : "Motor utilizado: Groq · Revisá y corregí el contenido antes de compartirlo."}</p></div><button type="button" onClick={downloadPdf} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-800"><Download size={16}/> Descargar PDF</button></header>
       <div className="grid gap-2 border-b border-slate-100 p-4 text-xs text-slate-600 sm:grid-cols-4">{[["Calificaciones",result.coverage.grades],["Asistencia",result.coverage.attendance],["Observaciones",result.coverage.observations],["Registros de aula",result.coverage.classroomRecords]].map(([label,value])=><div key={String(label)} className="rounded-lg bg-slate-50 p-3"><strong className="block text-lg text-slate-900">{value}</strong>{label}</div>)}</div>
       {!result.coverage.attendanceAvailable?<div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">Tu perfil no tiene permiso para consultar la asistencia institucional. El análisis no incluye esa fuente.</div>:null}{result.coverage.dataMayBeIncomplete?<div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">La consulta alcanzó el límite de registros de alguna fuente. El informe puede no incluir todo el historial académico; verificá la cobertura antes de utilizarlo.</div>:null}<div className="whitespace-pre-wrap p-5 text-sm leading-7 text-slate-700">{result.analysis}</div>
       <footer className="border-t border-amber-100 bg-amber-50/70 px-5 py-3 text-xs leading-5 text-amber-900">{isDemo ? "Demostración con datos completamente ficticios. No representa a ningún alumno ni debe utilizarse como registro académico." : "Borrador asistido por IA. No constituye diagnóstico ni decisión automática. El docente es responsable de verificar cada dato, contextualizar las conclusiones y aprobar el informe."}</footer>
