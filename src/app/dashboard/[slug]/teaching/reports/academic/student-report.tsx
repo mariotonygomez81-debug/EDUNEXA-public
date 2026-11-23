@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { BrainCircuit, Download, FileSearch, LoaderCircle, Sparkles } from "lucide-react";
+import { Download, FileSearch, LoaderCircle, Sparkles } from "lucide-react";
 
 type StudentOption = { id: string; first_name: string; last_name: string; student_number: string | null };
 type ReportResult = { analysis: string; engine?: "groq"; coverage: { dataMayBeIncomplete?: boolean; grades: number; attendance: number; attendanceAvailable: boolean; observations: number; classroomRecords: number; subjects: string[] }; generatedAt: string };
@@ -53,27 +53,13 @@ export default function AcademicStudentReport({ slug, students }: { slug: string
         }),
       });
       const payload = await response.json() as ReportResult & { error?: string };
-      if (!response.ok) throw new Error(payload.error || "No se pudo generar el informe con Groq.");
+      if (!response.ok) throw new Error(payload.error || "No se pudo generar el informe con IA.");
       setResult(payload);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Groq no está disponible. No se generó el informe; volvé a intentar más tarde.");
+      setError(cause instanceof Error ? cause.message : "El servicio de IA no está disponible. No se generó el informe; volvé a intentar más tarde.");
     } finally {
       setBusy(false);
     }
-  }
-
-  async function testGroq() {
-    setBusy(true); setError(""); setResult(null); setIsDemo(false);
-    try {
-      const response = await fetch(`/api/dashboard/${encodeURIComponent(slug)}/teaching/reports/academic/test`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}),
-      });
-      const payload = await response.json() as ReportResult & { error?: string; isDemo?: boolean };
-      if (!response.ok) throw new Error(payload.error || "No se pudo probar Groq.");
-      setResult(payload); setIsDemo(true);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Ocurrió un error al probar Groq.");
-    } finally { setBusy(false); }
   }
 
   async function downloadPdf() {
@@ -138,19 +124,18 @@ export default function AcademicStudentReport({ slug, students }: { slug: string
       <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
         <label className="flex items-start gap-3 text-sm leading-6 text-amber-950">
           <input type="checkbox" checked={privacyConfirmed} onChange={(e)=>setPrivacyConfirmed(e.target.checked)} className="mt-1 h-4 w-4 accent-amber-700"/>
-          <span><strong>Autorización institucional y revisión docente.</strong> Confirmo que cuento con autorización institucional para elaborar este informe con IA. Se enviarán datos académicos minimizados a Groq, un proveedor externo. La identidad del alumno se omite y el informe será revisado por el docente.</span>
+          <span><strong>Autorización institucional y revisión docente.</strong> Confirmo que cuento con autorización institucional para elaborar este informe con IA. Se enviarán datos académicos minimizados a un proveedor externo de IA. La identidad del alumno se omite y el informe será revisado por el docente.</span>
         </label>
       </div>
       {error ? <p role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p> : null}
       <div className="mt-5 flex flex-wrap gap-3">
-        <button type="button" disabled={!studentId||!privacyConfirmed||busy||!(includeGrades||includeAttendance||includeObservations||includeClassroom)} onClick={generate} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50">{busy?<LoaderCircle className="animate-spin" size={17}/>:<Sparkles size={17}/>} {busy?"Procesando…":"Generar con Groq"}</button>
-        <button type="button" disabled={busy} onClick={testGroq} className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">{busy?<LoaderCircle className="animate-spin" size={17}/>:<BrainCircuit size={17}/>} Probar Groq con datos ficticios</button>
+        <button type="button" disabled={!studentId||!privacyConfirmed||busy||!(includeGrades||includeAttendance||includeObservations||includeClassroom)} onClick={generate} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50">{busy?<LoaderCircle className="animate-spin" size={17}/>:<Sparkles size={17}/>} {busy?"Procesando…":"Generar informe IA"}</button>
         </div>
-      <p className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-900">Los informes académicos se generan exclusivamente mediante Groq. Si el servicio no está disponible o alcanza sus límites, EDUNEXA mostrará un error y no utilizará un motor alternativo. La información enviada se minimiza y el docente debe revisar el resultado antes de utilizarlo.</p>
+      <p className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-900">Los informes académicos se generan mediante el servicio de IA configurado. Si no está disponible, EDUNEXA mostrará un error y no generará el informe. La información enviada se minimiza y el docente debe revisar el resultado antes de utilizarlo.</p>
       {!students.length?<p className="mt-3 text-sm text-slate-500">No hay alumnos disponibles para los permisos de tu cuenta docente.</p>:null}
     </div>
     {result ? <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 p-5"><div><h2 className="text-lg font-bold text-slate-900">{isDemo ? "Prueba de Groq · datos ficticios" : "Informe académico del alumno"}</h2><p className="mt-1 text-xs text-slate-500">{isDemo ? "Este resultado usa exclusivamente información inventada; no se consultaron expedientes de alumnos." : "Motor utilizado: Groq · Revisá y corregí el contenido antes de compartirlo."}</p></div><button type="button" onClick={downloadPdf} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-800"><Download size={16}/> Descargar PDF</button></header>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 p-5"><div><h2 className="text-lg font-bold text-slate-900">{"Informe académico del alumno"}</h2><p className="mt-1 text-xs text-slate-500">{"Revisá y corregí el contenido antes de compartirlo."}</p></div><button type="button" onClick={downloadPdf} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-800"><Download size={16}/> Descargar PDF</button></header>
       <div className="grid gap-2 border-b border-slate-100 p-4 text-xs text-slate-600 sm:grid-cols-4">{[["Calificaciones",result.coverage.grades],["Asistencia",result.coverage.attendance],["Observaciones",result.coverage.observations],["Registros de aula",result.coverage.classroomRecords]].map(([label,value])=><div key={String(label)} className="rounded-lg bg-slate-50 p-3"><strong className="block text-lg text-slate-900">{value}</strong>{label}</div>)}</div>
       {!result.coverage.attendanceAvailable?<div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">Tu perfil no tiene permiso para consultar la asistencia institucional. El análisis no incluye esa fuente.</div>:null}{result.coverage.dataMayBeIncomplete?<div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">La consulta alcanzó el límite de registros de alguna fuente. El informe puede no incluir todo el historial académico; verificá la cobertura antes de utilizarlo.</div>:null}<div className="whitespace-pre-wrap p-5 text-sm leading-7 text-slate-700">{result.analysis}</div>
       <footer className="border-t border-amber-100 bg-amber-50/70 px-5 py-3 text-xs leading-5 text-amber-900">{isDemo ? "Demostración con datos completamente ficticios. No representa a ningún alumno ni debe utilizarse como registro académico." : "Borrador asistido por IA. No constituye diagnóstico ni decisión automática. El docente es responsable de verificar cada dato, contextualizar las conclusiones y aprobar el informe."}</footer>
