@@ -12,6 +12,14 @@ type PublishedReportCard = {
     academic_year?: { name?: string };
     published_at?: string;
     workflow_version?: number;
+    grading_scale?: {
+      display_mode?: "numeric" | "descriptive" | "both";
+      levels?: { minimum_percentage: number; maximum_percentage: number; label: string; grade_value: number | null; is_passing: boolean }[];
+    } | null;
+    subjects?: {
+      subject: string;
+      assessments?: { title: string; score: number | null; maximum_score: number; weight_percent: number | null }[];
+    }[];
   };
 };
 
@@ -43,6 +51,35 @@ type PortalStudent = {
 function dateLabel(value: string | null) {
   if (!value) return "Sin registros";
   return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium" }).format(new Date(value));
+}
+
+function publishedSubjectGrades(snapshot: PublishedReportCard["snapshot"]) {
+  return (snapshot.subjects ?? []).map((subject) => {
+    const assessments = subject.assessments ?? [];
+    const completed = assessments.filter((item) => item.score !== null && item.maximum_score > 0);
+    const anyWeighted = assessments.some((item) => item.weight_percent !== null);
+    const totalWeight = assessments.reduce((sum, item) => sum + (item.weight_percent ?? 0), 0);
+    const weightsComplete = anyWeighted && assessments.every((item) => item.weight_percent !== null) &&
+      Math.abs(totalWeight - 100) < 0.001;
+    const allComplete = assessments.length > 0 && completed.length === assessments.length;
+    let percentage: number | null = null;
+    if (allComplete && !anyWeighted) {
+      percentage = completed.reduce((sum, item) => sum + (Number(item.score) / Number(item.maximum_score)) * 100, 0) / completed.length;
+    } else if (allComplete && weightsComplete) {
+      percentage = assessments.reduce((sum, item) =>
+        sum + (Number(item.score) / Number(item.maximum_score)) * Number(item.weight_percent), 0);
+    }
+    const level = percentage === null ? null : (snapshot.grading_scale?.levels ?? []).find((item) =>
+      percentage! >= Number(item.minimum_percentage) && percentage! <= Number(item.maximum_percentage));
+    return {
+      subject: subject.subject,
+      percentage,
+      levelLabel: level?.label ?? null,
+      gradeValue: level?.grade_value ?? null,
+      isPassing: level?.is_passing ?? null,
+      displayMode: snapshot.grading_scale?.display_mode ?? "numeric",
+    };
+  }).sort((a, b) => a.subject.localeCompare(b.subject, "es"));
 }
 
 export default async function StudentFamilyPortal({ params }: { params: Promise<{ slug: string }> }) {
@@ -180,6 +217,30 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                                   {card.snapshot.workflow_version && card.snapshot.workflow_version > 1 ? ` · v${card.snapshot.workflow_version}` : ""}
                                 </p>
                                 <p className="text-xs text-slate-500">Publicado: {dateLabel(card.snapshot.published_at ?? card.created_at)}</p>
+                                {publishedSubjectGrades(card.snapshot).length ? (
+                                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                    {publishedSubjectGrades(card.snapshot).map((grade) => (
+                                      <div key={grade.subject} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                        <p className="text-xs font-semibold text-slate-600">{grade.subject}</p>
+                                        {grade.percentage === null ? (
+                                          <p className="mt-1 text-xs text-slate-500">Calificación final no disponible</p>
+                                        ) : (
+                                          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                            {grade.displayMode !== "descriptive" && grade.gradeValue !== null ? (
+                                              <span className="text-lg font-bold text-slate-900">{grade.gradeValue}</span>
+                                            ) : null}
+                                            {grade.displayMode !== "numeric" && grade.levelLabel ? (
+                                              <span className="text-sm font-semibold text-slate-800">{grade.levelLabel}</span>
+                                            ) : null}
+                                            <span className={`text-[11px] font-semibold ${grade.isPassing === false ? "text-rose-700" : "text-emerald-700"}`}>
+                                              {grade.isPassing === false ? "A reforzar" : grade.isPassing === true ? "Aprobada" : "Publicada"}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : null}
                               </div>
                               <Link
                                 href={`/dashboard/${slug}/report-cards/${card.workflow_id}/pdf`}
