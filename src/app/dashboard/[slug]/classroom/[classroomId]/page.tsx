@@ -72,11 +72,11 @@ type ClassroomOverview = {
 };
 
 const classroomThemes = {
-  indigo: { header: "from-slate-950 via-indigo-950 to-violet-900", activeTab: "border-indigo-600 text-indigo-700", button: "bg-indigo-700 hover:bg-indigo-800", glow: "bg-indigo-500/30" },
-  ocean: { header: "from-slate-950 via-blue-950 to-cyan-900", activeTab: "border-cyan-600 text-cyan-700", button: "bg-cyan-700 hover:bg-cyan-800", glow: "bg-cyan-400/25" },
-  emerald: { header: "from-slate-950 via-emerald-950 to-teal-900", activeTab: "border-emerald-600 text-emerald-700", button: "bg-emerald-700 hover:bg-emerald-800", glow: "bg-emerald-400/25" },
-  sunset: { header: "from-slate-950 via-orange-950 to-rose-900", activeTab: "border-orange-600 text-orange-700", button: "bg-orange-700 hover:bg-orange-800", glow: "bg-orange-400/25" },
-  violet: { header: "from-slate-950 via-violet-950 to-fuchsia-900", activeTab: "border-violet-600 text-violet-700", button: "bg-violet-700 hover:bg-violet-800", glow: "bg-violet-400/25" },
+  indigo: { header: "from-slate-950 via-indigo-950 to-violet-900", activeTab: "border-indigo-600 text-indigo-700", button: "border border-violet-200 bg-violet-100 text-violet-950 hover:bg-violet-200", glow: "bg-indigo-500/30" },
+  ocean: { header: "from-slate-950 via-blue-950 to-cyan-900", activeTab: "border-cyan-600 text-cyan-700", button: "border border-teal-200 bg-teal-100 text-teal-950 hover:bg-teal-200", glow: "bg-cyan-400/25" },
+  emerald: { header: "from-slate-950 via-emerald-950 to-teal-900", activeTab: "border-emerald-600 text-emerald-700", button: "border border-emerald-200 bg-emerald-100 text-emerald-950 hover:bg-emerald-200", glow: "bg-emerald-400/25" },
+  sunset: { header: "from-slate-950 via-orange-950 to-rose-900", activeTab: "border-orange-600 text-orange-700", button: "border border-orange-200 bg-orange-100 text-orange-950 hover:bg-orange-200", glow: "bg-orange-400/25" },
+  violet: { header: "from-slate-950 via-violet-950 to-fuchsia-900", activeTab: "border-violet-600 text-violet-700", button: "border border-violet-200 bg-violet-100 text-violet-950 hover:bg-violet-200", glow: "bg-violet-400/25" },
 } as const;
 
 function formatDate(value: string | null) {
