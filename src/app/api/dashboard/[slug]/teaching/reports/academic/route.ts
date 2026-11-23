@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 
 type Sections = { grades: boolean; attendance: boolean; observations: boolean; classroom: boolean };
-type ReportRequest = { studentId?: string; from?: string | null; to?: string | null; mode?: "groq" | "local"; sections?: Partial<Sections> };
+type ReportRequest = { studentId?: string; from?: string | null; to?: string | null; sections?: Partial<Sections> };
 
 function redactToken(value: string, token: string, replacement: string) {
   if (!token) return value;
@@ -40,9 +40,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   try {
     const { slug } = await params;
     const body = await request.json() as ReportRequest;
-    if (body.mode !== undefined && body.mode !== "groq" && body.mode !== "local") {
-      return NextResponse.json({ error: "La modalidad de IA solicitada no es válida." }, { status: 400 });
-    }
     const studentId = body.studentId ?? "";
     const from = body.from ?? null;
     const to = body.to ?? null;
@@ -123,15 +120,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const subjects = [...new Set(grades.map((item) => item.subject).filter((item): item is string => Boolean(item)))];
     const facts = { studentReference: "Alumno/a (identidad omitida)", period: { from, to }, data: { grades, attendance, observations, classroomRecords }, coverage: { dataMayBeIncomplete, grades: grades.length, attendance: attendance.length, attendanceAvailable: !sections.attendance || permissions.has("attendance.read"), observations: observations.length, classroomRecords: classroomRecords.length, subjects } };
     const prompt = `Elaborá un informe pedagógico integral en español, claro, detallado y prudente, usando EXCLUSIVAMENTE los datos JSON adjuntos. No inventes hechos, causas, diagnósticos, trastornos, rasgos de personalidad ni intenciones. No etiquetes al alumno ni hagas predicciones. Diferenciá claramente: (1) datos objetivos y cantidades, (2) tendencias observables con fechas y materia cuando existan, (3) observaciones textuales del docente atribuidas como tales, (4) fortalezas respaldadas por evidencia, (5) aspectos que requieren acompañamiento sin juzgar, (6) recomendaciones pedagógicas concretas y proporcionadas, (7) limitaciones y datos faltantes. No conviertas un registro aislado en una tendencia. Si coverage.dataMayBeIncomplete es true, advertí explícitamente que la consulta alcanzó un límite de registros y que el análisis puede no incluir todo el historial. Si la asistencia o calificaciones están incompletas, aclará cobertura y no calcules porcentajes sobre denominadores desconocidos. Conducta debe describirse como observaciones situadas, nunca como etiqueta del alumno. Cerrá con una advertencia de revisión humana. Formato con títulos y párrafos, sin tabla.\n\nDATOS:\n${JSON.stringify(facts)}`;
-    // Local mode returns only the already-authorized, minimized and de-identified prompt.
-    // The browser sends it directly to Ollama on the teacher's own computer; no student
-    // academic payload is sent to a remote AI provider in this mode.
-    if (body.mode === "local") {
-      return NextResponse.json(
-        { prompt, coverage: facts.coverage, generatedAt: new Date().toISOString(), engine: "local" },
-        { headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache" } },
-      );
-    }
     if (!process.env.GROQ_API_KEY) return NextResponse.json({ error: "Falta configurar GROQ_API_KEY en el servidor." }, { status: 503 });
     if (process.env.GROQ_ALLOW_STUDENT_DATA !== "true") {
       return NextResponse.json({ error: "El envío de datos académicos a Groq está deshabilitado hasta contar con autorización institucional y habilitar GROQ_ALLOW_STUDENT_DATA." }, { status: 403 });
