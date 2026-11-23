@@ -52,6 +52,20 @@ export default async function StudentProfilePage({ params, searchParams }: { par
     avatarUrl = data?.signedUrl ?? null;
   }
   const avatarStyle = profile?.avatar_style ?? "neutral";
+  const { data: observationRows, error: observationsError } = student
+    ? await supabase.from("student_period_observations")
+      .select("id,observation,grading_period_id,created_at")
+      .eq("institution_id", institution.id)
+      .eq("student_id", student.student_id)
+      .order("created_at", { ascending: false })
+      .limit(20)
+    : { data: [], error: null };
+  const observations = observationRows ?? [];
+  const periodIds = [...new Set(observations.map((item) => item.grading_period_id).filter(Boolean))];
+  const { data: periodRows } = periodIds.length
+    ? await supabase.from("grading_periods").select("id,name").in("id", periodIds)
+    : { data: [] };
+  const periodNames = new Map((periodRows ?? []).map((period) => [period.id, period.name]));
   const { data: previousSubjectRows, error: previousSubjectsError } = student
     ? await supabase.from("student_previous_subjects")
       .select("id,subject_name,school_year,final_grade,status,observations")
@@ -108,6 +122,15 @@ export default async function StudentProfilePage({ params, searchParams }: { par
         </label>
         <div className="flex justify-end"><button type="submit" className="rounded-xl border border-violet-200 bg-violet-100 px-5 py-2.5 text-sm font-semibold text-violet-950 hover:bg-violet-200">Guardar perfil</button></div>
       </form>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="flex items-center gap-2 font-bold text-slate-900"><GraduationCap size={18} className="text-emerald-700"/> Orientaciones de tus docentes</h2>
+        <p className="mt-2 text-sm text-slate-600">Consejos y observaciones para acompañar tu aprendizaje.</p>
+        {observationsError ? <p role="status" className="mt-3 text-sm text-amber-800">No fue posible consultar las orientaciones en este momento.</p> :
+          observations.length ? <ul className="mt-4 space-y-3">{observations.map((item) => <li key={item.id} className="rounded-xl bg-emerald-50/70 p-4">
+            <p className="text-xs font-semibold text-emerald-900">{periodNames.get(item.grading_period_id) ?? "Seguimiento académico"} · {new Intl.DateTimeFormat("es-AR", { dateStyle: "medium" }).format(new Date(item.created_at))}</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.observation}</p>
+          </li>)}</ul> : <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Todavía no hay orientaciones publicadas por tus docentes.</p>}
+      </section>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="flex items-center gap-2 font-bold text-slate-900"><BookOpen size={18} className="text-violet-700"/> Materias previas</h2>
         <p className="mt-2 text-sm text-slate-600">Consultá el estado de las materias que tenés pendientes de años anteriores.</p>
