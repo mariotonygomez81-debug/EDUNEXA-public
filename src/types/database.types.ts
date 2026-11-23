@@ -2486,6 +2486,53 @@ export type Database = {
           },
         ]
       }
+      student_previous_subjects: {
+        Row: {
+          created_at: string
+          final_grade: number | null
+          id: string
+          institution_id: string
+          observations: string | null
+          school_year: string | null
+          status: string
+          student_id: string
+          subject_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          final_grade?: number | null
+          id?: string
+          institution_id: string
+          observations?: string | null
+          school_year?: string | null
+          status?: string
+          student_id: string
+          subject_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          final_grade?: number | null
+          id?: string
+          institution_id?: string
+          observations?: string | null
+          school_year?: string | null
+          status?: string
+          student_id?: string
+          subject_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_previous_subjects_student_institution_fk"
+            columns: ["student_id", "institution_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id", "institution_id"]
+          },
+        ]
+      }
       students: {
         Row: {
           birth_date: string | null
