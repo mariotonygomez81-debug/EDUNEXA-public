@@ -26,7 +26,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ sl
 
     // Synthetic-only endpoint: intentionally does not query students or academic records.
     const syntheticFacts = {
-      studentReference: "ESTUDIANTE FICTICIO DE DEMOSTRACIÓN",
+      studentReference: "el alumno",
       period: "Primer trimestre (período inventado)",
       data: {
         grades: [
@@ -43,7 +43,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ sl
       },
       notice: "Todos los datos son inventados y no corresponden a ninguna persona real.",
     };
-    const prompt = `Generá un informe pedagógico breve en español a partir EXCLUSIVAMENTE del JSON ficticio. Identificálo expresamente como DEMOSTRACIÓN CON DATOS FICTICIOS. Organizá el texto en: resumen, evidencias académicas por materia, asistencia, participación, fortalezas observables, oportunidades de acompañamiento, recomendaciones pedagógicas y limitaciones. No inventes diagnósticos, causas, rasgos de personalidad ni datos adicionales. No presentes el ejemplo como un caso real. Cerrá indicando que el contenido es ilustrativo y requiere revisión docente.\n\nDATOS FICTICIOS:\n${JSON.stringify(syntheticFacts)}`;
+    const prompt = `Generá un informe pedagógico breve en español a partir EXCLUSIVAMENTE del JSON ficticio. REGLA OBLIGATORIA DE IDENTIDAD: referite a la persona exclusivamente como "el alumno" en todo el informe. No uses nombres, iniciales ni códigos identificatorios. Identificálo expresamente como DEMOSTRACIÓN CON DATOS FICTICIOS. Organizá el texto en: resumen, evidencias académicas por materia, asistencia, participación, fortalezas observables, oportunidades de acompañamiento, recomendaciones pedagógicas y limitaciones. No inventes diagnósticos, causas, rasgos de personalidad ni datos adicionales. No presentes el ejemplo como un caso real. Cerrá indicando que el contenido es ilustrativo y requiere revisión docente.\n\nDATOS FICTICIOS:\n${JSON.stringify(syntheticFacts)}`;
     const model = process.env.GROQ_REPORT_MODEL || "openai/gpt-oss-20b";
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
