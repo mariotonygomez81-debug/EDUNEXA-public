@@ -79,10 +79,10 @@ export function WorkspaceExperience({
             <h1>{institutionName}<br/><em>Todo conectado.</em></h1>
             <p className="edx-hero-description">Una visión clara de la vida institucional. Encontrá tus herramientas, seguí la actividad y avanzá con menos pasos.</p>
             <div className="edx-role-tags">{roleNames.map((role) => <span key={role}>{role}</span>)}</div>
-            {quickLinks.some((item) => item.href === "classroom" || item.href === "teaching/profile") && <nav aria-label="Accesos rápidos docentes" className="mt-6 flex flex-wrap gap-3">
-              {quickLinks.filter((item) => item.href === "classroom" || item.href === "teaching/profile").map((item) => {
+            {quickLinks.some((item) => item.href.endsWith("/classroom") || item.href.endsWith("/teaching/profile")) && <nav aria-label="Accesos rápidos docentes" className="mt-6 flex flex-wrap gap-3">
+              {quickLinks.filter((item) => item.href.endsWith("/classroom") || item.href.endsWith("/teaching/profile")).map((item) => {
                 const Icon = iconMap[item.icon as keyof typeof iconMap] || ArrowRight;
-                const isClassroom = item.href === "classroom";
+                const isClassroom = item.href.endsWith("/classroom");
                 return <Link key={item.href} href={item.href} className={isClassroom ? "inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-100 px-4 py-3 text-sm font-semibold text-emerald-950 shadow-sm transition-colors hover:bg-emerald-200" : "inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-100 px-4 py-3 text-sm font-semibold text-violet-950 shadow-sm transition-colors hover:bg-violet-200"}><Icon size={17}/>{item.title}</Link>;
               })}
             </nav>}
@@ -105,9 +105,9 @@ export function WorkspaceExperience({
           <article className="edx-insight-card insight-green"><span className="edx-insight-icon"><CalendarCheck size={19}/></span><div><small>ASIGNACIONES ACTIVAS</small><strong>{assignmentCount}</strong><span>Responsabilidades vigentes</span></div><i><Activity size={17}/></i></article>
         </section>
 
-        {quickLinks.filter((item) => item.href !== "classroom" && item.href !== "teaching/profile").length > 0 && <section className="edx-quick-section">
+        {quickLinks.filter((item) => !item.href.endsWith("/classroom") && !item.href.endsWith("/teaching/profile")).length > 0 && <section className="edx-quick-section">
           <div className="edx-section-heading"><div><span className="edx-section-kicker">ACCESO DIRECTO</span><h2>Atajos para tu jornada</h2><p>Las herramientas que más necesitás, a un solo clic.</p></div><span className="edx-heading-spark"><Sparkles size={19}/></span></div>
-          <div className="edx-quick-grid">{quickLinks.filter((item) => item.href !== "classroom" && item.href !== "teaching/profile").map((item) => {
+          <div className="edx-quick-grid">{quickLinks.filter((item) => !item.href.endsWith("/classroom") && !item.href.endsWith("/teaching/profile")).map((item) => {
             const Icon = iconMap[item.icon as keyof typeof iconMap] || ArrowRight;
             return <Link href={item.href} className={`edx-quick-card ${item.tone}`} key={item.href}><span className="edx-quick-icon"><Icon size={20}/></span><span className="edx-quick-copy"><strong>{item.title}</strong><small>{item.detail}</small></span><ArrowUpRightIcon/></Link>;
           })}</div>
