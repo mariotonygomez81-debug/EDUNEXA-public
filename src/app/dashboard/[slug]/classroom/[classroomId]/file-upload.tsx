@@ -79,6 +79,8 @@ export default function ClassroomFileUpload({
         ? `${uploaded} archivo(s) cargado(s). ${errors.join(" ")}`
         : `${uploaded} archivo(s) cargado(s) correctamente.`);
       if (uploaded) router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudieron cargar los archivos.");
     } finally {
       setBusy(false);
     }
