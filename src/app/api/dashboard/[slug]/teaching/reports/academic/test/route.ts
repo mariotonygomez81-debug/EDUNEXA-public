@@ -66,7 +66,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ sl
     const analysis = result.choices?.[0]?.message?.content?.trim() ?? "";
     if (!analysis) return NextResponse.json({ error: "Groq no devolvió un análisis utilizable." }, { status: 502 });
     return NextResponse.json({
-      analysis, isDemo: true,
+      analysis, engine: "groq", isDemo: true,
       coverage: { dataMayBeIncomplete: false, grades: 3, attendance: 20, attendanceAvailable: true, observations: 2, classroomRecords: 1, subjects: ["Matemática", "Lengua", "Ciencias"] },
       generatedAt: new Date().toISOString(),
     });
