@@ -83,7 +83,7 @@ export function WorkspaceExperience({
               {quickLinks.filter((item) => item.href.endsWith("/classroom") || item.href.endsWith("/teaching/profile")).map((item) => {
                 const Icon = iconMap[item.icon as keyof typeof iconMap] || ArrowRight;
                 const isClassroom = item.href.endsWith("/classroom");
-                return <Link key={item.href} href={item.href} className={isClassroom ? "inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-100 px-4 py-3 text-sm font-semibold text-emerald-950 shadow-sm transition-colors hover:bg-emerald-200" : "inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-100 px-4 py-3 text-sm font-semibold text-violet-950 shadow-sm transition-colors hover:bg-violet-200"}><Icon size={17}/>{item.title}</Link>;
+                return <Link key={item.href} href={item.href} style={{ color: isClassroom ? "#064E3B" : "#2E1065" }} className={isClassroom ? "inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-100 px-4 py-3 text-sm font-bold shadow-sm transition-colors hover:bg-emerald-200" : "inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-100 px-4 py-3 text-sm font-bold shadow-sm transition-colors hover:bg-violet-200"}><Icon size={17} color={isClassroom ? "#064E3B" : "#2E1065"}/>{item.title}</Link>;
               })}
             </nav>}
           </div>
