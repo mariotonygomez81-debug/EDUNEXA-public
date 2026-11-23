@@ -11,11 +11,7 @@
     "test:smoke": "node scripts/smoke-test.mjs",
     "check:migrations": "node scripts/check-migration-files.mjs",
     "check:classroom-scope": "node scripts/check-classroom-scope-migration.mjs",
-    "check:admin-documents": "node scripts/check-admin-documents-migration.mjs",
-    "test:profiles": "node scripts/test-eight-profile-permissions.mjs",
-    "test:classroom-auth": "node scripts/test-classroom-authenticated.mjs",
-    "test:admin-documents-auth": "node scripts/test-admin-documents-authenticated.mjs",
-    "test:appointments-auth": "node scripts/test-appointments-authenticated.mjs"
+    "check:admin-documents": "node scripts/check-admin-documents-migration.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
