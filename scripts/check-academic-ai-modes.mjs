@@ -13,6 +13,8 @@ assert.ok(api.indexOf('if (body.mode === "local")') < api.indexOf("if (!process.
 assert.match(api, /GROQ_ALLOW_STUDENT_DATA !== "true"/);
 assert.match(api, /Cache-Control": "no-store, max-age=0"/);
 assert.match(api, /engine: "groq"/);
+assert.doesNotMatch(api, /period: row\.grading_period_id/, "Database UUIDs must not be included in AI facts");
+assert.match(api, /safeText\(row\.comment, studentName, student\.student_number\)/);
 assert.match(client, /async function generateLocalOnly\(\)/);
 assert.match(client, /Generar solo con IA local/);
 assert.match(client, /Groq \(respaldo local automático\)/);
