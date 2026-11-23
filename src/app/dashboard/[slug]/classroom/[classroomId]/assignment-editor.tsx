@@ -26,7 +26,7 @@ export default function ClassroomAssignmentEditor({slug,classroomId,assignment}:
       <p className="text-xs text-slate-500">Elegí si la actividad se calificará sobre 100% o si tendrá solamente devolución cualitativa.</p>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="publish" defaultChecked={Boolean(assignment.published_at)}/> Publicada y visible para los participantes</label>
       <p className="text-xs text-slate-500">No se podrá cambiar a “Sin puntaje” si la actividad ya tiene calificaciones numéricas guardadas.</p>
-      <button className="inline-flex w-fit items-center gap-2 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white"><Save size={15}/> Guardar configuración</button>
+      <button className="inline-flex w-fit items-center gap-2 rounded-lg border border-violet-200 bg-violet-100 px-4 py-2 text-sm font-semibold text-violet-950 hover:bg-violet-200"><Save size={15}/> Guardar configuración</button>
     </AjaxForm>
   </details>;
 }
