@@ -34,10 +34,16 @@ El repositorio incluye `scripts/windows/test-ollama.ps1`, un verificador de solo
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\\scripts\\windows\\test-ollama.ps1 -EdunexaOrigin "https://edunexa.example.edu"
+.\\scripts\\windows\\test-ollama.ps1
+
+Cuando EDUNEXA tenga un dominio HTTPS definitivo, también podés pasarlo explícitamente:
+
+```powershell
+.\\scripts\\windows\\test-ollama.ps1 -EdunexaOrigin "https://tu-dominio-real"
+```
 ```
 
-Reemplazá el dominio por el origen real de EDUNEXA. El script comprueba que el comando Ollama exista, que la API local responda en loopback y que `qwen2.5:3b` esté descargado. Si falta el modelo, indica el comando para descargarlo. No instala software, no cambia variables persistentes, no detiene servicios, no genera texto y no consulta datos de estudiantes. Tampoco puede verificar qué valor `OLLAMA_ORIGINS` recibió el proceso Ollama ya iniciado; esa configuración debe aplicarse antes de iniciar el servicio.
+El parámetro de origen es opcional mientras EDUNEXA no tenga un dominio HTTPS definitivo. El script comprueba que el comando Ollama exista, que la API local responda en loopback y que `qwen2.5:3b` esté descargado. Si falta el modelo, indica el comando para descargarlo. No instala software, no cambia variables persistentes, no detiene servicios, no genera texto y no consulta datos de estudiantes. Tampoco puede verificar qué valor `OLLAMA_ORIGINS` recibió el proceso Ollama ya iniciado; esa configuración debe aplicarse antes de iniciar el servicio.
 
 ## Inicio en macOS / Linux
 
