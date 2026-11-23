@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { Download, FileSearch, LoaderCircle, Sparkles } from "lucide-react";
+import { BrainCircuit, Download, FileSearch, LoaderCircle, Sparkles } from "lucide-react";
 
 type StudentOption = { id: string; first_name: string; last_name: string; student_number: string | null };
 type ReportResult = { analysis: string; engine?: "groq"; coverage: { dataMayBeIncomplete?: boolean; grades: number; attendance: number; attendanceAvailable: boolean; observations: number; classroomRecords: number; subjects: string[] }; generatedAt: string };
