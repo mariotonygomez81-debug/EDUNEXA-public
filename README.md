@@ -13,16 +13,14 @@ EDUNEXA reúne herramientas para la gestión institucional, estudiantes, asisten
 - Next.js, React y TypeScript
 - Supabase: PostgreSQL, autenticación y almacenamiento
 - Tailwind CSS
-- Groq para generación remota de informes académicos (configuración opcional)
-- Ollama para inferencia local de respaldo en el equipo docente
+- Groq como único proveedor de IA para informes académicos
 
 ## Requisitos
 
 - Node.js 22 o compatible con la versión declarada en el proyecto
 - npm
 - Un proyecto Supabase propio para desarrollo
-- Opcional: una clave de API de Groq para probar informes académicos
-- Opcional: Ollama y el modelo local `qwen2.5:3b`
+- Una clave de API de Groq para probar informes académicos
 
 ## Puesta en marcha local
 
@@ -45,9 +43,7 @@ No reutilizar credenciales, proyectos de infraestructura ni datos de otras insta
 
 ## IA para informes académicos
 
-La integración remota utiliza Groq. La alternativa local puede utilizar Ollama en el equipo docente. Consultar [la guía de respaldo local](docs/operations/academic-ai-local-fallback.md).
-
-La inferencia local no convierte automáticamente toda la aplicación web ni el acceso a registros del servidor en un sistema offline. La aplicación requiere conectividad con su backend para recuperar información institucional.
+EDUNEXA utiliza exclusivamente Groq para generar informes académicos. Si Groq no está disponible o alcanza sus límites, se informa el error y no se cambia a otro proveedor. Consultar [la guía de IA académica con Groq](docs/operations/academic-ai-groq.md).
 
 ## Seguridad y privacidad
 
