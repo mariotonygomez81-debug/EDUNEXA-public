@@ -37,6 +37,63 @@ export default function AcademicStudentReport({ slug, students }: { slug: string
   const [isDemo, setIsDemo] = useState(false);
   const student = useMemo(() => students.find((item) => item.id === studentId), [students, studentId]);
 
+  async function prepareLocalPrompt() {
+    const response = await fetch(`/api/dashboard/${encodeURIComponent(slug)}/teaching/reports/academic`, {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        studentId,
+        from: from || null,
+        to: to || null,
+        mode: "local",
+        sections: { grades: includeGrades, attendance: includeAttendance, observations: includeObservations, classroom: includeClassroom },
+      }),
+    });
+    const payload = await response.json() as { prompt?: string; coverage?: ReportResult["coverage"]; error?: string };
+    if (!response.ok || !payload.prompt || !payload.coverage) {
+      throw new Error(payload.error || "EDUNEXA no pudo preparar los datos autorizados para el análisis local.");
+    }
+    return payload;
+  }
+
+  async function runOllama(prompt: string) {
+    let response: Response;
+    try {
+      response = await fetch("http://127.0.0.1:11434/api/chat", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "qwen2.5:3b", messages: [{ role: "user", content: prompt }], stream: false, options: { temperature: 0.2 } }),
+        signal: AbortSignal.timeout(180000),
+      });
+    } catch {
+      throw new Error("No se pudo conectar con Ollama en esta computadora. Verificá que esté iniciado, que OLLAMA_ORIGINS permita el dominio HTTPS exacto de EDUNEXA y que el navegador autorice el acceso a la red local.");
+    }
+    if (!response.ok) {
+      if (response.status === 404) throw new Error("Ollama no encuentra qwen2.5:3b. Ejecutá ollama pull qwen2.5:3b.");
+      throw new Error(`Ollama respondió con el estado ${response.status}. Verificá que el servicio local esté funcionando.`);
+    }
+    const payload = await response.json() as { message?: { content?: string } };
+    const analysis = payload.message?.content?.trim() || "";
+    if (!analysis) throw new Error("El modelo local no devolvió un informe utilizable.");
+    return analysis;
+  }
+
+  async function generateLocalOnly() {
+    if (!studentId || !privacyConfirmed) return;
+    setBusy(true); setError(""); setResult(null); setIsDemo(false);
+    try {
+      const localData = await prepareLocalPrompt();
+      const analysis = await runOllama(localData.prompt!);
+      setResult({ analysis, engine: "local", coverage: localData.coverage!, generatedAt: new Date().toISOString() });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo generar el informe con IA local.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function generate() {
     if (!studentId || !privacyConfirmed) return;
     setBusy(true); setError(""); setResult(null); setIsDemo(false);
@@ -45,11 +102,7 @@ export default function AcademicStudentReport({ slug, students }: { slug: string
       // Prepare an authorized local copy before calling Groq. If the provider fails
       // or connectivity drops after this point, inference can still run on localhost.
       try {
-        const preparedResponse = await fetch(`/api/dashboard/${encodeURIComponent(slug)}/teaching/reports/academic`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ studentId, from: from || null, to: to || null, mode: "local", sections: { grades: includeGrades, attendance: includeAttendance, observations: includeObservations, classroom: includeClassroom } }),
-        });
-        if (preparedResponse.ok) localPrepared = await preparedResponse.json() as { prompt?: string; coverage?: ReportResult["coverage"]; error?: string };
+        localPrepared = await prepareLocalPrompt();
       } catch {
         // Groq may still work even if local preparation is unavailable.
       }
@@ -66,15 +119,7 @@ export default function AcademicStudentReport({ slug, students }: { slug: string
       try {
         const localData = localPrepared;
         if (!localData?.prompt || !localData.coverage) throw new Error("No se pudieron preparar los datos académicos para el respaldo local. Verificá la conexión con EDUNEXA e intentá nuevamente.");
-        const localResponse = await fetch("http://127.0.0.1:11434/api/chat", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model: "qwen2.5:3b", messages: [{ role: "user", content: localData.prompt }], stream: false, options: { temperature: 0.2 } }),
-          signal: AbortSignal.timeout(180000),
-        });
-        if (!localResponse.ok) throw new Error("Ollama no pudo completar el análisis local. Comprobá que esté iniciado y que el modelo qwen2.5:3b esté instalado.");
-        const localResult = await localResponse.json() as { message?: { content?: string } };
-        const analysis = localResult.message?.content?.trim() || "";
-        if (!analysis) throw new Error("El modelo local no devolvió un informe utilizable.");
+        const analysis = await runOllama(localData.prompt);
         setResult({ analysis, engine: "local", coverage: localData.coverage, generatedAt: new Date().toISOString() });
       } catch (localCause) {
         const groqMessage = groqCause instanceof Error ? groqCause.message : "Groq no está disponible.";
@@ -160,12 +205,13 @@ export default function AcademicStudentReport({ slug, students }: { slug: string
       <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
         <label className="flex items-start gap-3 text-sm leading-6 text-amber-950">
           <input type="checkbox" checked={privacyConfirmed} onChange={(e)=>setPrivacyConfirmed(e.target.checked)} className="mt-1 h-4 w-4 accent-amber-700"/>
-          <span><strong>Autorización institucional y revisión docente.</strong> Confirmo que la institución autorizó el tratamiento de estos registros mediante Groq. Antes del envío se omite la identidad del alumno y se minimizan los datos; las observaciones se filtran para retirar identificadores directos. El informe generado será revisado por el docente.</span>
+          <span><strong>Autorización institucional y revisión docente.</strong> Confirmo que cuento con autorización institucional para elaborar este informe con IA. Si se utiliza Groq, se enviarán datos académicos minimizados a un proveedor externo; si se utiliza IA local, el procesamiento se realizará en esta computadora. La identidad del alumno se omite y el informe será revisado por el docente.</span>
         </label>
       </div>
       {error ? <p role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p> : null}
       <div className="mt-5 flex flex-wrap gap-3">
-        <button type="button" disabled={!studentId||!privacyConfirmed||busy||!(includeGrades||includeAttendance||includeObservations||includeClassroom)} onClick={generate} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50">{busy?<LoaderCircle className="animate-spin" size={17}/>:<Sparkles size={17}/>} {busy?"Procesando…":"Generar informe del alumno"}</button>
+        <button type="button" disabled={!studentId||!privacyConfirmed||busy||!(includeGrades||includeAttendance||includeObservations||includeClassroom)} onClick={generate} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50">{busy?<LoaderCircle className="animate-spin" size={17}/>:<Sparkles size={17}/>} {busy?"Procesando…":"Generar con Groq (respaldo local automático)"}</button>
+        <button type="button" disabled={!studentId||!privacyConfirmed||busy||!(includeGrades||includeAttendance||includeObservations||includeClassroom)} onClick={generateLocalOnly} className="inline-flex items-center gap-2 rounded-xl border border-sky-300 bg-sky-50 px-5 py-3 text-sm font-bold text-sky-900 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"><BrainCircuit size={17}/> Generar solo con IA local</button>
         <button type="button" disabled={busy} onClick={testGroq} className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">{busy?<LoaderCircle className="animate-spin" size={17}/>:<BrainCircuit size={17}/>} Probar Groq con datos ficticios</button>
       </div>
       <p className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-900">Respaldo local: si Groq falla, EDUNEXA intentará generar el informe en esta computadora mediante Ollama y el modelo qwen2.5:3b. Requiere Ollama instalado, el modelo descargado previamente y permitir el origen exacto de EDUNEXA en la configuración CORS de Ollama. El análisis local no envía el contenido académico a Groq. La aplicación y la consulta de registros siguen necesitando conexión con EDUNEXA; este modo permite inferencia local sin Internet, no convierte toda la plataforma en una aplicación offline.</p>
