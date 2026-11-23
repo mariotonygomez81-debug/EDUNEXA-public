@@ -12,7 +12,7 @@ export default async function TeacherProfilePage({params,searchParams}:{params:P
   if(!institution) redirect("/dashboard");
   const {data:membership}=await supabase.from("memberships").select("id").eq("institution_id",institution.id).eq("user_id",user.id).eq("status","active").maybeSingle();
   if(!membership) redirect("/dashboard");
-  const {data:roleRows}=await supabase.from("membership_roles").select("roles(key)").eq("membership_id",membership.id);
+  const {data:roleRows}=await supabase.from("membership_roles").select("roles(key)").eq("membership_id",membership.id).eq("institution_id",institution.id);
   if(!(roleRows??[]).some((row)=>row.roles?.key==="teacher")) redirect(`/dashboard/${slug}`);
   const {data:profile}=await supabase.from("profiles").select("first_name,last_name,display_name,phone,avatar_path,address,professional_titles,avatar_style").eq("id",user.id).maybeSingle();
   let avatarUrl:string|null=null;
@@ -21,7 +21,7 @@ export default async function TeacherProfilePage({params,searchParams}:{params:P
     <Link href={`/dashboard/${slug}/teaching`} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-violet-700"><ArrowLeft size={16}/> Volver a mi sección docente</Link>
     <header className="rounded-3xl bg-gradient-to-br from-[#10264b] via-[#174b86] to-[#315fbd] p-7 text-white shadow-xl shadow-blue-950/10 sm:p-9"><span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold"><GraduationCap size={14}/> PERFIL PROFESIONAL</span><h1 className="mt-4 text-3xl font-bold">Mi perfil docente</h1><p className="mt-2 text-sm text-indigo-100">{institution.display_name} · Administrá tus datos de contacto y formación.</p></header>
     {query.saved?<div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Perfil actualizado correctamente.</div>:null}
-    {query.error?<div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{query.error==="photo"?"La foto debe ser JPG, PNG o WEBP y pesar hasta 5 MB.":"No se pudo guardar el perfil. Revisá los datos e intentá nuevamente."}</div>:null}
+    {query.error?<div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{query.error==="photo"?"La foto debe ser un archivo JPG, PNG o WEBP válido y pesar hasta 5 MB.":query.error==="upload"?"No se pudo cargar la fotografía. Verificá tu conexión e intentá nuevamente.":query.error==="invalid"?"Revisá los datos ingresados.":"No se pudo guardar el perfil. Revisá los datos e intentá nuevamente."}</div>:null}
     <form action={saveTeacherProfile} className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <input type="hidden" name="slug" value={slug}/>
       <div className="flex flex-wrap items-center gap-5 rounded-2xl bg-slate-50 p-5">
