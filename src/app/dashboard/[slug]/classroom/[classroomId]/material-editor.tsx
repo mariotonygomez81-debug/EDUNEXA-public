@@ -12,7 +12,7 @@ export default function ClassroomMaterialEditor({slug,classroomId,material}:{slu
       <label className="block text-sm font-medium">Título<input name="title" required minLength={3} maxLength={160} defaultValue={material.title} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2"/></label>
       <label className="block text-sm font-medium">Contenido<textarea name="body" maxLength={20000} rows={4} defaultValue={material.body??""} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2"/></label>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="publish" defaultChecked={Boolean(material.published_at)}/> Publicado y visible para los participantes</label>
-      <button className="inline-flex w-fit items-center gap-2 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white"><Save size={15}/> Guardar material</button>
+      <button className="inline-flex w-fit items-center gap-2 rounded-lg border border-violet-200 bg-violet-100 px-4 py-2 text-sm font-semibold text-violet-950 hover:bg-violet-200"><Save size={15}/> Guardar material</button>
     </AjaxForm>
   </details>;
 }
