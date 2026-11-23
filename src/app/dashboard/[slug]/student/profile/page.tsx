@@ -1,7 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { ArrowLeft, BookOpen, Camera, GraduationCap, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { saveStudentProfile } from "./actions";
 
 type StudentSummary = {
   student_id: string;
@@ -15,8 +17,9 @@ type StudentSummary = {
   enrollment_status: string;
 };
 
-export default async function StudentProfilePage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function StudentProfilePage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ saved?: string; error?: string }> }) {
   const { slug } = await params;
+  const query = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -34,6 +37,12 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
   const student = ((studentRows ?? []) as StudentSummary[]).find((item) => item.is_self);
   const name = student ? `${student.first_name} ${student.last_name}` : profile?.display_name ?? "Perfil del alumno";
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A";
+  let avatarUrl: string | null = null;
+  if (profile?.avatar_path) {
+    const { data } = await supabase.storage.from("student-profile-photos").createSignedUrl(profile.avatar_path, 600);
+    avatarUrl = data?.signedUrl ?? null;
+  }
+  const avatarStyle = profile?.avatar_style ?? "neutral";
 
   return <main className="min-h-screen bg-[#f5f7fb] px-4 py-6 pb-12 text-slate-800 sm:px-7 sm:py-8">
     <div className="mx-auto max-w-3xl space-y-5">
@@ -41,10 +50,12 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
       <header className="rounded-3xl bg-gradient-to-br from-[#17345b] via-[#285a83] to-[#3b668c] p-6 text-white shadow-lg sm:p-8">
         <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-bold tracking-[.16em] text-sky-100"><GraduationCap size={14}/> PERFIL DEL ALUMNO</span>
         <div className="mt-5 flex items-center gap-4">
-          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl border border-white/25 bg-white/15 text-2xl font-extrabold">{initials}</div>
+          {avatarUrl ? <Image src={avatarUrl} alt="Foto de perfil del alumno" width={96} height={96} unoptimized className="h-20 w-20 shrink-0 rounded-3xl border border-white/25 object-cover shadow-sm"/> : <div aria-label={`Avatar ${avatarStyle}`} className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl border border-white/25 bg-white/15 text-2xl font-extrabold">{avatarStyle === "masculino" ? "👨🏻‍🎓" : avatarStyle === "femenino" ? "👩🏻‍🎓" : initials}</div>}
           <div className="min-w-0"><h1 className="text-2xl font-extrabold">{name}</h1><p className="mt-1 text-sm text-sky-100">{institution.display_name}</p></div>
         </div>
       </header>
+      {query.saved ? <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Perfil actualizado correctamente.</div> : null}
+      {query.error ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{query.error === "photo" ? "La foto debe ser JPG, PNG o WEBP y pesar hasta 5 MB." : query.error === "upload" ? "No se pudo cargar la fotografía. Intentá nuevamente." : "No se pudo guardar el perfil."}</div> : null}
       {error ? <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">No fue posible cargar los datos académicos. Intentá nuevamente más tarde.</div> : null}
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <h2 className="flex items-center gap-2 font-bold text-slate-900"><UserRound size={18} className="text-violet-700"/> Datos personales</h2>
@@ -62,9 +73,23 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
           <div><dt className="text-xs font-semibold text-slate-500">Estado de matrícula</dt><dd className="mt-1 font-semibold text-slate-900">{student?.enrollment_status === "active" ? "Activa" : "Pendiente de confirmar"}</dd></div>
         </dl>
       </section>
-      <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-        <h2 className="flex items-center gap-2 font-bold text-amber-950"><Camera size={18}/> Fotografía y materias previas</h2>
-        <p className="mt-2 text-sm leading-6 text-amber-900">La carga segura de la foto personal y el registro de materias previas forman parte de la siguiente etapa del perfil. No se habilitó todavía la edición de estos datos para evitar modificar información institucional sin controles.</p>
+      <form action={saveStudentProfile} encType="multipart/form-data" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <input type="hidden" name="slug" value={slug}/>
+        <h2 className="flex items-center gap-2 font-bold text-slate-900"><Camera size={18} className="text-violet-700"/> Fotografía y avatar</h2>
+        <label className="block text-sm font-semibold text-slate-700">Subir fotografía
+          <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" className="mt-2 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-100 file:px-3 file:py-2 file:font-semibold file:text-violet-900"/>
+          <span className="mt-1 block text-xs font-normal text-slate-500">JPG, PNG o WEBP · Máximo 5 MB. La imagen se guarda en un espacio privado.</span>
+        </label>
+        <label className="block text-sm font-semibold text-slate-700">Avatar si todavía no tenés una foto
+          <select name="avatar_style" defaultValue={avatarStyle} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
+            <option value="neutral">Neutro</option><option value="masculino">Masculino</option><option value="femenino">Femenino</option>
+          </select>
+        </label>
+        <div className="flex justify-end"><button type="submit" className="rounded-xl border border-violet-200 bg-violet-100 px-5 py-2.5 text-sm font-semibold text-violet-950 hover:bg-violet-200">Guardar perfil</button></div>
+      </form>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="flex items-center gap-2 font-bold text-slate-900"><BookOpen size={18} className="text-violet-700"/> Materias previas</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">La consulta y actualización de materias previas se habilitará mediante el registro académico institucional, para evitar que el alumno modifique sus propias calificaciones o antecedentes.</p>
       </section>
     </div>
   </main>;
