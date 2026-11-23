@@ -129,6 +129,35 @@ export default function AcademicStudentReport({ slug, students }: { slug: string
     } finally { setBusy(false); }
   }
 
+  async function testLocal() {
+    setBusy(true); setError(""); setResult(null); setIsDemo(false);
+    try {
+      // Synthetic-only local smoke test: does not call EDUNEXA's student-data endpoint.
+      const syntheticFacts = {
+        studentReference: "ESTUDIANTE FICTICIO",
+        grades: [
+          { subject: "Matemática", score: 8, maxScore: 10 },
+          { subject: "Lengua", score: 9, maxScore: 10 },
+        ],
+        attendance: { present: 18, absent: 1, late: 1, total: 20 },
+        observations: ["Participa en actividades grupales (dato inventado)."],
+      };
+      const prompt = `Redactá un breve informe pedagógico en español usando exclusivamente estos datos inventados. No infieras diagnósticos ni causas. Identificá el texto como demostración ficticia, mencioná fortalezas respaldadas y una recomendación prudente. Datos: ${JSON.stringify(syntheticFacts)}`;
+      const analysis = await runOllama(prompt);
+      setResult({
+        analysis,
+        engine: "local",
+        coverage: { dataMayBeIncomplete: false, grades: 2, attendance: 20, attendanceAvailable: true, observations: 1, classroomRecords: 0, subjects: ["Matemática", "Lengua"] },
+        generatedAt: new Date().toISOString(),
+      });
+      setIsDemo(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo completar la prueba local ficticia.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function testGroq() {
     setBusy(true); setError(""); setResult(null); setIsDemo(false);
     try {
@@ -213,12 +242,13 @@ export default function AcademicStudentReport({ slug, students }: { slug: string
         <button type="button" disabled={!studentId||!privacyConfirmed||busy||!(includeGrades||includeAttendance||includeObservations||includeClassroom)} onClick={generate} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50">{busy?<LoaderCircle className="animate-spin" size={17}/>:<Sparkles size={17}/>} {busy?"Procesando…":"Generar con Groq (respaldo local automático)"}</button>
         <button type="button" disabled={!studentId||!privacyConfirmed||busy||!(includeGrades||includeAttendance||includeObservations||includeClassroom)} onClick={generateLocalOnly} className="inline-flex items-center gap-2 rounded-xl border border-sky-300 bg-sky-50 px-5 py-3 text-sm font-bold text-sky-900 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"><BrainCircuit size={17}/> Generar solo con IA local</button>
         <button type="button" disabled={busy} onClick={testGroq} className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">{busy?<LoaderCircle className="animate-spin" size={17}/>:<BrainCircuit size={17}/>} Probar Groq con datos ficticios</button>
+        <button type="button" disabled={busy} onClick={testLocal} className="inline-flex items-center gap-2 rounded-xl border border-violet-300 bg-violet-50 px-5 py-3 text-sm font-bold text-violet-900 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"><BrainCircuit size={17}/> Probar IA local con datos ficticios</button>
       </div>
       <p className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-900">Respaldo local: si Groq falla, EDUNEXA intentará generar el informe en esta computadora mediante Ollama y el modelo qwen2.5:3b. Requiere Ollama instalado, el modelo descargado previamente y permitir el origen exacto de EDUNEXA en la configuración CORS de Ollama. El análisis local no envía el contenido académico a Groq. La aplicación y la consulta de registros siguen necesitando conexión con EDUNEXA; este modo permite inferencia local sin Internet, no convierte toda la plataforma en una aplicación offline.</p>
       {!students.length?<p className="mt-3 text-sm text-slate-500">No hay alumnos disponibles para los permisos de tu cuenta docente.</p>:null}
     </div>
     {result ? <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 p-5"><div><h2 className="text-lg font-bold text-slate-900">{isDemo ? "Prueba de Groq · datos ficticios" : `Análisis generado · ${student?.last_name}, ${student?.first_name}`}</h2><p className="mt-1 text-xs text-slate-500">{isDemo ? "Este resultado usa exclusivamente información inventada; no se consultaron expedientes de alumnos." : `Motor utilizado: ${result.engine === "local" ? "IA local (Ollama en esta computadora)" : "Groq"} · Revisá y corregí el contenido antes de compartirlo.`}</p></div><button type="button" onClick={downloadPdf} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-800"><Download size={16}/> Descargar PDF</button></header>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 p-5"><div><h2 className="text-lg font-bold text-slate-900">{isDemo ? (result.engine === "local" ? "Prueba de IA local · datos ficticios" : "Prueba de Groq · datos ficticios") : `Análisis generado · ${student?.last_name}, ${student?.first_name}`}</h2><p className="mt-1 text-xs text-slate-500">{isDemo ? "Este resultado usa exclusivamente información inventada; no se consultaron expedientes de alumnos." : `Motor utilizado: ${result.engine === "local" ? "IA local (Ollama en esta computadora)" : "Groq"} · Revisá y corregí el contenido antes de compartirlo.`}</p></div><button type="button" onClick={downloadPdf} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-800"><Download size={16}/> Descargar PDF</button></header>
       <div className="grid gap-2 border-b border-slate-100 p-4 text-xs text-slate-600 sm:grid-cols-4">{[["Calificaciones",result.coverage.grades],["Asistencia",result.coverage.attendance],["Observaciones",result.coverage.observations],["Registros de aula",result.coverage.classroomRecords]].map(([label,value])=><div key={String(label)} className="rounded-lg bg-slate-50 p-3"><strong className="block text-lg text-slate-900">{value}</strong>{label}</div>)}</div>
       {!result.coverage.attendanceAvailable?<div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">Tu perfil no tiene permiso para consultar la asistencia institucional. El análisis no incluye esa fuente.</div>:null}{result.coverage.dataMayBeIncomplete?<div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">La consulta alcanzó el límite de registros de alguna fuente. El informe puede no incluir todo el historial académico; verificá la cobertura antes de utilizarlo.</div>:null}<div className="whitespace-pre-wrap p-5 text-sm leading-7 text-slate-700">{result.analysis}</div>
       <footer className="border-t border-amber-100 bg-amber-50/70 px-5 py-3 text-xs leading-5 text-amber-900">{isDemo ? "Demostración con datos completamente ficticios. No representa a ningún alumno ni debe utilizarse como registro académico." : "Borrador asistido por IA. No constituye diagnóstico ni decisión automática. El docente es responsable de verificar cada dato, contextualizar las conclusiones y aprobar el informe."}</footer>
