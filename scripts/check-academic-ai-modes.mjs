@@ -10,18 +10,24 @@ const docs = readFileSync("docs/operations/academic-ai-groq.md", "utf8");
 assert.match(api, /GROQ_API_KEY/);
 assert.match(api, /GROQ_ALLOW_STUDENT_DATA !== "true"/);
 assert.match(api, /https:\/\/api\.groq\.com\/openai\/v1\/chat\/completions/);
-assert.match(api, /engine: "groq"/);\nassert.match(api, /studentReference: "el alumno"/);\nassert.match(api, /referite a la persona exclusivamente como "el alumno"/);\nassert.match(api, /redactToken\\(analysis, studentName, "el alumno"\\)/);
+assert.match(api, /engine: "groq"/);
+assert.match(api, /studentReference: "el alumno"/);
+assert.match(api, /referite a la persona exclusivamente como "el alumno"/);
+assert.match(api, /redactToken\\(analysis, studentName, "el alumno"\\)/);
 assert.match(api, /Cache-Control": "no-store, max-age=0"/);
 assert.doesNotMatch(api, /Ollama|qwen2\.5|127\.0\.0\.1|body\.mode|mode === "local"/);
 assert.equal((api.match(/fetch\(/g) ?? []).length, 1, "Academic reports must use exactly one provider request");
 
 assert.match(client, /Generar informe con Groq/);
-assert.match(client, /Probar Groq con datos ficticios/);\nassert.match(client, /const reportName = "El alumno"/);\nassert.match(client, /Informe académico del alumno/);
+assert.match(client, /Probar Groq con datos ficticios/);
+assert.match(client, /const reportName = "El alumno"/);
+assert.match(client, /Informe académico del alumno/);
 assert.match(client, /engine\?: "groq"/);
 assert.doesNotMatch(client, /Ollama|qwen2\.5|127\.0\.0\.1|IA local|respaldo local|testLocal|generateLocalOnly/);
 
 assert.match(demo, /Synthetic-only endpoint/);
-assert.match(demo, /studentReference: "el alumno"/);\nassert.match(demo, /referite a la persona exclusivamente como "el alumno"/);
+assert.match(demo, /studentReference: "el alumno"/);
+assert.match(demo, /referite a la persona exclusivamente como "el alumno"/);
 assert.match(demo, /engine: "groq"/);
 assert.match(demo, /GROQ_API_KEY/);
 assert.doesNotMatch(demo, /GROQ_ALLOW_STUDENT_DATA/);
