@@ -36,7 +36,7 @@ export default async function TeacherProfilePage({params,searchParams}:{params:P
       </div></div>
       <div><h2 className="mb-3 text-lg font-bold text-slate-900">Formación profesional</h2><label className="block text-sm font-semibold">Títulos y formación profesional<textarea name="professional_titles" defaultValue={profile?.professional_titles??""} maxLength={2000} rows={5} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-3 font-normal" placeholder="Títulos, profesorados, licenciaturas, especializaciones y cursos..."/></label></div>
       <p className="text-xs leading-5 text-slate-500">Estos datos personales se mantienen privados en tu perfil. La foto se almacena en un espacio privado y no se publica mediante un enlace abierto.</p>
-      <div className="flex justify-end"><button className="rounded-xl bg-violet-700 px-5 py-3 text-sm font-semibold text-white hover:bg-violet-800">Guardar perfil</button></div>
+      <div className="flex justify-end"><button className="rounded-xl border border-emerald-200 bg-emerald-100 px-5 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-200">Guardar perfil</button></div>
     </form>
   </div></main>;
 }
