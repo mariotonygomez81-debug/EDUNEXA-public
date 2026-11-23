@@ -1913,6 +1913,7 @@ export type Database = {
           address: string | null
           professional_titles: string | null
           avatar_path: string | null
+          avatar_style: string
           created_at: string
           display_name: string | null
           first_name: string | null
@@ -1925,6 +1926,7 @@ export type Database = {
           address?: string | null
           professional_titles?: string | null
           avatar_path?: string | null
+          avatar_style?: string
           created_at?: string
           display_name?: string | null
           first_name?: string | null
