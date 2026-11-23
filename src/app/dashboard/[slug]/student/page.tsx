@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import {
   ArrowRight, Bell, BookOpen, CalendarClock, CheckCircle2, ClipboardList,
@@ -67,6 +68,12 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
   const firstName = student?.first_name ?? profile?.first_name ?? "Estudiante";
   const fullName = student ? `${student.first_name} ${student.last_name}` : profile?.display_name ?? "Mi perfil";
   const initials = fullName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A";
+  let avatarUrl: string | null = null;
+  if (profile?.avatar_path) {
+    const { data } = await supabase.storage.from("student-profile-photos").createSignedUrl(profile.avatar_path, 600);
+    avatarUrl = data?.signedUrl ?? null;
+  }
+  const avatarStyle = profile?.avatar_style ?? "neutral";
   const greeting = firstName.length > 18 ? firstName.slice(0, 18) : firstName;
 
   return (
@@ -75,7 +82,7 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
         <header className="mb-5 flex items-center justify-between gap-3">
           <Link href={`/dashboard/${slug}`} className="text-lg font-black tracking-[.18em] text-slate-900">EDUNEXA</Link>
           <Link href={`/dashboard/${slug}/student/profile`} aria-label="Mi perfil" className="grid h-11 w-11 place-items-center overflow-hidden rounded-full border-2 border-white bg-violet-100 text-sm font-bold text-violet-900 shadow-sm ring-1 ring-slate-200">
-            {initials}
+            {avatarUrl ? <Image src={avatarUrl} alt="" width={44} height={44} unoptimized className="h-full w-full object-cover"/> : avatarStyle === "masculino" ? "👨🏻‍🎓" : avatarStyle === "femenino" ? "👩🏻‍🎓" : initials}
           </Link>
         </header>
 
