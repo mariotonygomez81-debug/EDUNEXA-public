@@ -85,7 +85,7 @@ export default async function StudentProfilePage({ params, searchParams }: { par
       <header className="rounded-3xl bg-gradient-to-br from-[#17345b] via-[#285a83] to-[#3b668c] p-6 text-white shadow-lg sm:p-8">
         <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-bold tracking-[.16em] text-sky-100"><GraduationCap size={14}/> PERFIL DEL ALUMNO</span>
         <div className="mt-5 flex items-center gap-4">
-          {avatarUrl ? <Image src={avatarUrl} alt="Foto de perfil del alumno" width={96} height={96} unoptimized className="h-20 w-20 shrink-0 rounded-3xl border border-white/25 object-cover shadow-sm"/> : <div aria-label={`Avatar ${avatarStyle}`} className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl border border-white/25 bg-white/15 text-2xl font-extrabold">{avatarStyle === "masculino" ? "👨🏻‍🎓" : avatarStyle === "femenino" ? "👩🏻‍🎓" : initials}</div>}
+          {avatarUrl ? <Image src={avatarUrl} alt="Foto de perfil del alumno" width={128} height={128} unoptimized className="h-28 w-28 shrink-0 rounded-[2rem] border-2 border-white/30 object-cover shadow-md sm:h-32 sm:w-32"/> : <div aria-label={`Avatar ${avatarStyle}`} className="grid h-28 w-28 shrink-0 place-items-center rounded-[2rem] border-2 border-white/30 bg-white/15 text-6xl leading-none shadow-inner sm:h-32 sm:w-32 sm:text-7xl">{avatarStyle === "masculino" ? "👨🏻‍🎓" : avatarStyle === "femenino" ? "👩🏻‍🎓" : <span className="text-4xl font-extrabold sm:text-5xl">{initials}</span>}</div>}
           <div className="min-w-0"><h1 className="text-2xl font-extrabold">{name}</h1><p className="mt-1 text-sm text-sky-100">{institution.display_name}</p></div>
         </div>
       </header>
