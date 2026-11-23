@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import {
   Activity, ArrowDownRight, ArrowRight, Bell, BookOpen, CalendarCheck,
@@ -81,7 +82,7 @@ export function WorkspaceExperience({
             <p className="edx-hero-description">Una visión clara de la vida institucional. Encontrá tus herramientas, seguí la actividad y avanzá con menos pasos.</p>
             <div className="edx-role-tags">{roleNames.map((role) => <span key={role}>{role}</span>)}</div>
             {teacherCard ? <section aria-label="Perfil del docente" className="mt-6 flex max-w-2xl flex-wrap items-center gap-4 rounded-2xl border border-white/20 bg-slate-950/25 p-4 backdrop-blur-sm">
-              {teacherCard.avatarUrl ? <img src={teacherCard.avatarUrl} alt={`Foto de ${teacherCard.name}`} className="h-20 w-20 rounded-2xl border-2 border-white/70 object-cover shadow-lg"/> : <TeacherAvatar style={teacherCard.avatarStyle} name={teacherCard.name}/>}
+              {teacherCard.avatarUrl ? <Image src={teacherCard.avatarUrl} alt={`Foto de ${teacherCard.name}`} width={80} height={80} unoptimized className="h-20 w-20 rounded-2xl border-2 border-white/70 object-cover shadow-lg"/> : <TeacherAvatar style={teacherCard.avatarStyle} name={teacherCard.name}/>}
               <div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wider text-cyan-100">Docente</p><h2 className="mt-1 text-xl font-bold text-white">{teacherCard.name}</h2><p className="mt-1 text-sm font-medium text-white/95">{teacherCard.subjects.length ? teacherCard.subjects.join(" · ") : "Sin materias asignadas"}</p></div>
             </section> : null}
 
