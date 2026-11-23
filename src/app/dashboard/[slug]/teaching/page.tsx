@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BookOpen, CalendarCheck, ClipboardList, GraduationCap, Users } from "lucide-react";
+import { ArrowLeft, BookOpen, GraduationCap, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 
@@ -24,8 +24,8 @@ const typeLabels: Record<string, string> = {
   administrative: "Administrativo",
 };
 
-function dateLabel(value: string | null) {
-  if (!value) return "Sin fecha de finalización";
+function dateLabel(value: string | null, emptyLabel: string) {
+  if (!value) return emptyLabel;
   return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeZone: "UTC" })
     .format(new Date(`${value}T00:00:00Z`));
 }
@@ -177,7 +177,7 @@ export default async function MyTeachingPage({ params }: { params: Promise<{ slu
                     </div>
                     <div className="rounded-xl bg-violet-100 p-3 text-violet-700"><BookOpen size={22} /></div>
                   </div>
-                  <p className="mt-4 text-xs text-slate-500">Vigencia: {dateLabel(assignment.starts_on)} – {dateLabel(assignment.ends_on)}</p>
+                  <p className="mt-4 text-xs text-slate-500">Vigencia: {dateLabel(assignment.starts_on, "Desde el inicio de la asignación")} – {dateLabel(assignment.ends_on, "Sin fecha de finalización")}</p>
                   {permissions.has("students.read") && assignedDivisions.length > 0 && (
                     <div className="mt-5 border-t border-slate-100 pt-4">
                       <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700"><Users size={16} /> Nóminas de alumnos</p>
@@ -191,11 +191,7 @@ export default async function MyTeachingPage({ params }: { params: Promise<{ slu
                       </div>
                     </div>
                   )}
-                  <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                    {permissions.has("classroom.read") && <Link href={`/dashboard/${slug}/classroom`} className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-100 px-3 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-200"><BookOpen size={15}/> Aula virtual</Link>}
-                    {permissions.has("attendance.read") && <Link href={`/dashboard/${slug}/attendance`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><CalendarCheck size={15}/> Asistencia</Link>}
-                    {permissions.has("grades.read") && <Link href={`/dashboard/${slug}/grades`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><ClipboardList size={15}/> Calificaciones</Link>}
-                  </div>
+
                 </article>
               );
             })}
