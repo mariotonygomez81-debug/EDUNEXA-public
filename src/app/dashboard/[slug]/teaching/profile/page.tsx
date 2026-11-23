@@ -14,7 +14,7 @@ export default async function TeacherProfilePage({params,searchParams}:{params:P
   if(!membership) redirect("/dashboard");
   const {data:roleRows}=await supabase.from("membership_roles").select("roles(key)").eq("membership_id",membership.id);
   if(!(roleRows??[]).some((row)=>row.roles?.key==="teacher")) redirect(`/dashboard/${slug}`);
-  const {data:profile}=await supabase.from("profiles").select("first_name,last_name,display_name,phone,avatar_path,address,professional_titles").eq("id",user.id).maybeSingle();
+  const {data:profile}=await supabase.from("profiles").select("first_name,last_name,display_name,phone,avatar_path,address,professional_titles,avatar_style").eq("id",user.id).maybeSingle();
   let avatarUrl:string|null=null;
   if(profile?.avatar_path){const {data}=await supabase.storage.from("teacher-profile-photos").createSignedUrl(profile.avatar_path,600);avatarUrl=data?.signedUrl??null;}
   return <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8"><div className="mx-auto max-w-5xl space-y-6">
@@ -34,6 +34,7 @@ export default async function TeacherProfilePage({params,searchParams}:{params:P
         <label className="text-sm font-semibold">Teléfono de contacto<input name="phone" defaultValue={profile?.phone??""} maxLength={40} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="+54..."/></label>
         <label className="text-sm font-semibold">Dirección<input name="address" defaultValue={profile?.address??""} maxLength={240} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="Domicilio"/></label>
       </div></div>
+      <div><h2 className="mb-3 text-lg font-bold text-slate-900">Avatar cuando no hay foto</h2><label className="block text-sm font-semibold">Elegí el avatar que querés mostrar<select name="avatar_style" defaultValue={profile?.avatar_style??"neutral"} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal"><option value="neutral">Neutro</option><option value="masculino">Masculino</option><option value="femenino">Femenino</option></select></label><p className="mt-1 text-xs text-slate-500">Se utiliza únicamente cuando no hay una fotografía cargada.</p></div>
       <div><h2 className="mb-3 text-lg font-bold text-slate-900">Formación profesional</h2><label className="block text-sm font-semibold">Títulos y formación profesional<textarea name="professional_titles" defaultValue={profile?.professional_titles??""} maxLength={2000} rows={5} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-3 font-normal" placeholder="Títulos, profesorados, licenciaturas, especializaciones y cursos..."/></label></div>
       <p className="text-xs leading-5 text-slate-500">Estos datos personales se mantienen privados en tu perfil. La foto se almacena en un espacio privado y no se publica mediante un enlace abierto.</p>
       <div className="flex justify-end"><button className="rounded-xl border border-emerald-200 bg-emerald-100 px-5 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-200">Guardar perfil</button></div>
