@@ -31,5 +31,11 @@ jobs:
         run: npm run lint
       - name: TypeScript
         run: npm run typecheck
+      - name: Validate migration filenames
+        run: npm run check:migrations
+      - name: Validate classroom authorization migration
+        run: npm run check:classroom-scope
+      - name: Validate administrative document security migration
+        run: npm run check:admin-documents
       - name: Build
         run: npm run build
