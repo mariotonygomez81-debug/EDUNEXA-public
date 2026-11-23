@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { Copy, QrCode, RefreshCw, Check, Link2, Users } from "lucide-react";
 import { rotateClassroomInvite } from "./actions";
 import ClassroomPdfButton from "./classroom-pdf-button";
@@ -91,7 +92,7 @@ export default function ClassroomInvitePanel({
           <p className="text-xs leading-5 text-slate-500">Solo podrán unirse estudiantes con matrícula activa en la división de esta aula. Renovar la invitación invalida el código y enlace anteriores.</p>
         </div>
         <div className="mx-auto w-fit rounded-2xl border border-slate-200 bg-white p-3 text-center">
-          {qrUrl ? <img src={qrUrl} width="160" height="160" alt="Código QR de invitación al aula" className="h-40 w-40" /> : <div className="grid h-40 w-40 place-items-center bg-slate-50 text-slate-400"><QrCode size={38}/></div>}
+          {qrUrl ? <Image src={qrUrl} width={160} height={160} unoptimized alt="Código QR de invitación al aula" className="h-40 w-40" /> : <div className="grid h-40 w-40 place-items-center bg-slate-50 text-slate-400"><QrCode size={38}/></div>}
           <p className="mt-2 text-xs font-semibold text-slate-600">Escaneá y escribí el código</p>
         </div>
       </div>
