@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { randomUUID } from "node:crypto";
 
 export async function saveTeacherProfile(formData: FormData) {
   const slug = String(formData.get("slug") ?? "").trim();
@@ -23,9 +24,15 @@ export async function saveTeacherProfile(formData: FormData) {
   const { data: membership } = await supabase.from("memberships").select("id")
     .eq("institution_id", institution.id).eq("user_id", user.id).eq("status", "active").maybeSingle();
   if (!membership) redirect("/dashboard");
-  const { count } = await supabase.from("staff_assignments").select("id", { count: "exact", head: true })
-    .eq("institution_id", institution.id).eq("membership_id", membership.id).eq("assignment_type", "teacher");
-  if (!count) redirect(`/dashboard/${slug}`);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
+  const [{ data: roleRows }, { count }] = await Promise.all([
+    supabase.from("membership_roles").select("roles(key)").eq("membership_id", membership.id).eq("institution_id", institution.id),
+    supabase.from("staff_assignments").select("id", { count: "exact", head: true })
+      .eq("institution_id", institution.id).eq("membership_id", membership.id).eq("assignment_type", "teacher")
+      .or(`starts_on.is.null,starts_on.lte.${today}`).or(`ends_on.is.null,ends_on.gte.${today}`),
+  ]);
+  if (!(roleRows ?? []).some((row) => row.roles?.key === "teacher") || !count) redirect(`/dashboard/${slug}`);
+  const { data: existingProfile } = await supabase.from("profiles").select("avatar_path").eq("id", user.id).maybeSingle();
 
   let avatarPath: string | undefined;
   if (file instanceof File && file.size > 0) {
@@ -34,7 +41,12 @@ export async function saveTeacherProfile(formData: FormData) {
     if (!ext || file.size > 5 * 1024 * 1024) {
       redirect(`/dashboard/${slug}/teaching/profile?error=photo`);
     }
-    avatarPath = `${user.id}/${Date.now()}.${ext}`;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const isJpeg = ext === "jpg" && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    const isPng = ext === "png" && bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a;
+    const isWebp = ext === "webp" && bytes.length >= 12 && String.fromCharCode(...bytes.slice(0,4)) === "RIFF" && String.fromCharCode(...bytes.slice(8,12)) === "WEBP";
+    if (!(isJpeg || isPng || isWebp)) redirect(`/dashboard/${slug}/teaching/profile?error=photo`);
+    avatarPath = `${user.id}/${randomUUID()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from("teacher-profile-photos")
       .upload(avatarPath, file, { contentType: file.type, upsert: false });
     if (uploadError) redirect(`/dashboard/${slug}/teaching/profile?error=upload`);
@@ -45,7 +57,14 @@ export async function saveTeacherProfile(formData: FormData) {
   };
   if (avatarPath) update.avatar_path = avatarPath;
   const { error } = await supabase.from("profiles").update(update).eq("id", user.id);
-  if (error) redirect(`/dashboard/${slug}/teaching/profile?error=save`);
+  if (error) {
+    if (avatarPath) await supabase.storage.from("teacher-profile-photos").remove([avatarPath]);
+    redirect(`/dashboard/${slug}/teaching/profile?error=save`);
+  }
+  if (avatarPath && existingProfile?.avatar_path && existingProfile.avatar_path !== avatarPath
+      && existingProfile.avatar_path.startsWith(`${user.id}/`)) {
+    await supabase.storage.from("teacher-profile-photos").remove([existingProfile.avatar_path]);
+  }
   revalidatePath(`/dashboard/${slug}/teaching/profile`);
   revalidatePath(`/dashboard/${slug}`);
   redirect(`/dashboard/${slug}/teaching/profile?saved=1`);
