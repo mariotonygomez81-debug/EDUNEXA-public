@@ -28,63 +28,57 @@ export default function ClassroomFileUpload({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  async function uploadFile(file: File | undefined) {
-    if (!file) return;
+  async function uploadFiles(files: FileList | null) {
+    const selected = Array.from(files ?? []);
+    if (!selected.length) return;
     setMessage("");
-
     if (!materialId && !submissionId) {
       setMessage("No se indicó el destino del archivo.");
       return;
     }
-    if (!ALLOWED_MIME_TYPES.has(file.type)) {
-      setMessage("Tipo de archivo no permitido. Usá PDF, JPG, PNG, TXT, DOCX, PPTX o XLSX.");
-      return;
-    }
-    if (file.size < 1 || file.size > MAX_FILE_SIZE) {
-      setMessage("El archivo debe pesar como máximo 10 MB.");
-      return;
-    }
-
     setBusy(true);
+    let uploaded = 0;
+    const errors: string[] = [];
     try {
       const supabase = createClient();
-      const { data: intentRows, error: intentError } = await supabase.rpc(
-        "create_classroom_file_upload_intent",
-        {
-          p_material_id: materialId ?? null,
-          p_submission_id: submissionId ?? null,
-          p_original_filename: file.name,
-          p_mime_type: file.type,
-          p_byte_size: file.size,
-        },
-      );
-
-      if (intentError) throw intentError;
-      const intent = intentRows?.[0];
-      if (!intent) throw new Error("No se pudo crear la autorización de carga.");
-
-      const { error: uploadError } = await supabase.storage
-        .from("classroom-files")
-        .upload(intent.object_path, file, {
-          cacheControl: "3600",
-          contentType: file.type,
-          upsert: false,
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { error: finalizeError } = await supabase.rpc(
-        "finalize_classroom_file_upload",
-        { p_file_id: intent.file_id },
-      );
-      if (finalizeError) {
-        throw new Error("El archivo se cargó, pero no pudo validarse. No estará disponible para descarga hasta completar la validación.");
+      for (const file of selected) {
+        if (!ALLOWED_MIME_TYPES.has(file.type)) {
+          errors.push(`${file.name}: formato no permitido.`);
+          continue;
+        }
+        if (file.size < 1 || file.size > MAX_FILE_SIZE) {
+          errors.push(`${file.name}: debe pesar hasta 10 MB.`);
+          continue;
+        }
+        try {
+          const { data: intentRows, error: intentError } = await supabase.rpc(
+            "create_classroom_file_upload_intent",
+            {
+              p_material_id: materialId ?? null,
+              p_submission_id: submissionId ?? null,
+              p_original_filename: file.name,
+              p_mime_type: file.type,
+              p_byte_size: file.size,
+            },
+          );
+          if (intentError) throw intentError;
+          const intent = intentRows?.[0];
+          if (!intent) throw new Error("No se pudo autorizar la carga.");
+          const { error: uploadError } = await supabase.storage.from("classroom-files").upload(
+            intent.object_path, file, { cacheControl: "3600", contentType: file.type, upsert: false },
+          );
+          if (uploadError) throw uploadError;
+          const { error: finalizeError } = await supabase.rpc("finalize_classroom_file_upload", { p_file_id: intent.file_id });
+          if (finalizeError) throw new Error("No se pudo validar el archivo cargado.");
+          uploaded += 1;
+        } catch (error) {
+          errors.push(`${file.name}: ${error instanceof Error ? error.message : "error de carga"}`);
+        }
       }
-
-      setMessage("Archivo cargado correctamente.");
-      router.refresh();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "No se pudo cargar el archivo.");
+      setMessage(errors.length
+        ? `${uploaded} archivo(s) cargado(s). ${errors.join(" ")}`
+        : `${uploaded} archivo(s) cargado(s) correctamente.`);
+      if (uploaded) router.refresh();
     } finally {
       setBusy(false);
     }
@@ -93,7 +87,7 @@ export default function ClassroomFileUpload({
   return (
     <div className="mt-3 flex flex-col gap-2">
       <label className="w-fit cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-        {busy ? "Cargando archivo..." : "Adjuntar archivo"}
+        {busy ? "Cargando archivos..." : "Adjuntar uno o varios archivos"}
         <input
           type="file"
           accept=".pdf,.jpg,.jpeg,.png,.txt,.docx,.pptx,.xlsx"
@@ -101,7 +95,7 @@ export default function ClassroomFileUpload({
           className="sr-only"
           onChange={(event) => {
             const file = event.currentTarget.files?.[0];
-            void uploadFile(file);
+            void uploadFiles(event.currentTarget.files);
             event.currentTarget.value = "";
           }}
         />
@@ -111,7 +105,7 @@ export default function ClassroomFileUpload({
           {message}
         </p>
       ) : null}
-      <p className="text-xs text-slate-400">Máximo 10 MB. Los archivos se guardan en un espacio privado.</p>
+      <p className="text-xs text-slate-400">Podés seleccionar varios archivos. Máximo 10 MB por archivo. Se guardan en un espacio privado.</p>
     </div>
   );
 }
