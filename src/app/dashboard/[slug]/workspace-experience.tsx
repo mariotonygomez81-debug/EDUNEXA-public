@@ -35,10 +35,11 @@ const palettes: Record<string, string> = {
 };
 
 export function WorkspaceExperience({
-  institutionName, roleNames, modules, quickLinks, unreadCount, assignmentCount, signOutAction,
+  institutionName, roleNames, teacherCard, modules, quickLinks, unreadCount, assignmentCount, signOutAction,
 }: {
   institutionName: string;
   roleNames: string[];
+  teacherCard: { name: string; avatarUrl: string | null; avatarStyle: string; subjects: string[] } | null;
   modules: WorkspaceModule[];
   quickLinks: QuickLink[];
   unreadCount: number;
@@ -79,6 +80,11 @@ export function WorkspaceExperience({
             <h1>{institutionName}<br/><em>Todo conectado.</em></h1>
             <p className="edx-hero-description">Una visión clara de la vida institucional. Encontrá tus herramientas, seguí la actividad y avanzá con menos pasos.</p>
             <div className="edx-role-tags">{roleNames.map((role) => <span key={role}>{role}</span>)}</div>
+            {teacherCard ? <section aria-label="Perfil del docente" className="mt-6 flex max-w-2xl flex-wrap items-center gap-4 rounded-2xl border border-white/20 bg-slate-950/25 p-4 backdrop-blur-sm">
+              {teacherCard.avatarUrl ? <img src={teacherCard.avatarUrl} alt={`Foto de ${teacherCard.name}`} className="h-20 w-20 rounded-2xl border-2 border-white/70 object-cover shadow-lg"/> : <TeacherAvatar style={teacherCard.avatarStyle} name={teacherCard.name}/>}
+              <div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wider text-cyan-100">Docente</p><h2 className="mt-1 text-xl font-bold text-white">{teacherCard.name}</h2><p className="mt-1 text-sm font-medium text-white/95">{teacherCard.subjects.length ? teacherCard.subjects.join(" · ") : "Sin materias asignadas"}</p></div>
+            </section> : null}
+
             {quickLinks.some((item) => item.href.endsWith("/classroom") || item.href.endsWith("/teaching/profile")) && <nav aria-label="Accesos rápidos docentes" className="mt-6 flex flex-wrap gap-3">
               {quickLinks.filter((item) => item.href.endsWith("/classroom") || item.href.endsWith("/teaching/profile")).map((item) => {
                 const Icon = iconMap[item.icon as keyof typeof iconMap] || ArrowRight;
@@ -131,6 +137,19 @@ export function WorkspaceExperience({
       </div>
     </main>
   );
+}
+
+function TeacherAvatar({ style, name }: { style: string; name: string }) {
+  const isFemale = style === "femenino";
+  const isMale = style === "masculino";
+  const description = isFemale ? "femenino" : isMale ? "masculino" : "neutro";
+  return <div role="img" aria-label={`Avatar ilustrado ${description} de ${name}`} className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-white/70 bg-gradient-to-br from-amber-100 to-rose-100 shadow-lg">
+    <svg viewBox="0 0 80 80" className="h-full w-full" aria-hidden="true">
+      <circle cx="40" cy="29" r="17" fill={isFemale ? "#8B5E5A" : isMale ? "#5B4638" : "#806B5B"}/>
+      {isFemale ? <path d="M20 34 Q18 8 40 9 Q63 10 60 38 L55 27 Q40 18 25 29Z" fill="#4B342F"/> : isMale ? <path d="M23 25 Q26 8 42 11 Q55 10 58 24 Q42 18 23 25Z" fill="#3E332C"/> : <path d="M23 24 Q28 8 43 11 Q56 11 58 25Z" fill="#6B5B4D"/>}
+      <path d="M12 80 Q14 51 40 51 Q66 51 68 80" fill={isFemale ? "#A78BFA" : isMale ? "#60A5FA" : "#94A3B8"}/><path d="M31 51 L40 62 L49 51" fill="#F8FAFC"/>
+    </svg>
+  </div>;
 }
 
 function ArrowUpRightIcon() {
