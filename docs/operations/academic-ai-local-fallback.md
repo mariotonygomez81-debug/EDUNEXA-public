@@ -69,3 +69,7 @@ La variable de servidor `GROQ_ALLOW_STUDENT_DATA` debe permanecer en `false` has
 - El tamaño 3B es una configuración inicial de compatibilidad; el rendimiento y la calidad dependen de RAM, CPU/GPU y del equipo. Evaluar calidad pedagógica antes de uso institucional.
 - No habilitar uso de datos reales hasta completar la revisión institucional de privacidad, seguridad y protección de datos.
 - El resultado local debe identificarse como tal y permanecer sujeto a revisión docente. Nunca debe presentarse como diagnóstico ni como decisión automatizada.
+
+## Minimización de información
+
+El servidor omite el nombre y número de legajo del alumno, filtra identificadores directos comunes en los textos y no envía UUID internos de períodos académicos. Esto reduce exposición, pero no garantiza anonimización completa: los textos libres pueden contener datos personales de terceros u otros datos sensibles que un filtro automático no detecte. La institución debe revisar las fuentes y los textos antes de autorizar el envío a Groq. Mantener `GROQ_ALLOW_STUDENT_DATA=false` hasta completar esa evaluación. Las respuestas que contienen prompts o informes se marcan para no ser almacenadas en caché.
