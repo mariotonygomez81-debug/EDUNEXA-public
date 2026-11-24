@@ -9,7 +9,7 @@ const checks = [
   ["direct client access is denied", /student_assignment_drafts_deny_direct_client_access[\s\S]*USING \(false\)[\s\S]*WITH CHECK \(false\)/.test(migration) && /REVOKE ALL ON TABLE public\.student_assignment_drafts FROM PUBLIC, anon, authenticated, service_role/.test(migration)],
   ["draft reads and writes validate the signed-in student and classroom submission permission", /auth\.uid\(\)/.test(migration) && /private\.can_submit_to_assignment/.test(migration) && /cm\.member_role = 'student'/.test(migration)],
   ["optimistic concurrency uses an expected revision and returns conflicts", /p_expected_revision integer/.test(migration) && /d\.revision = p_expected_revision/.test(migration) && /'conflict', true/.test(migration)],
-  ["draft HTML has size and active-content guards", /octet_length\(p_html\) > 5242880/.test(migration) && /javascript/.test(migration) && /<\(script\|iframe/.test(migration)],
+  ["draft HTML has size and active-content guards", /octet_length\(p_html\) > 5242880/.test(migration) && migration.includes("p_html ~* '<(script|iframe") && /javascript/.test(migration)],
   ["official submission removes only the matching student's private draft", /DELETE FROM public\.student_assignment_drafts[\s\S]*assignment_id = p_assignment_id[\s\S]*student_id = v_student_id/.test(migration)],
   ["the existing submission RPC can still invoke its protected implementation", /GRANT EXECUTE ON FUNCTION private\.submit_classroom_assignment_impl\(uuid, text\) TO authenticated/.test(rpcGrant)],
   ["editor restores cloud drafts and sanitizes restored HTML", /get_my_student_assignment_draft/.test(editor) && /sanitizeDraftHtml\(remote\.html\)/.test(editor)],
