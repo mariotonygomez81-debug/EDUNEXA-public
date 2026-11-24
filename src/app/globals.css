@@ -721,3 +721,35 @@ body{
  .student-card,.student-quick-link,.student-classroom-card,.student-task-item,.student-dashboard nav a{transition:none!important}
  .student-hero:hover,.student-card:hover,.student-quick-link:hover,.student-classroom-card:hover,.student-task-item:hover{transform:none!important}
 }
+
+
+/* Extended student portal experience: tasks, messages, profile and submissions. */
+.student-subpage-content{animation:student-page-in .42s cubic-bezier(.2,.75,.25,1) both}
+.student-subpage-hero{position:relative;isolation:isolate;overflow:hidden;box-shadow:0 18px 44px #142c451c;transition:box-shadow .25s ease,transform .25s ease}
+.student-subpage-hero:after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(115deg,transparent 18%,#ffffff12 48%,transparent 76%);transform:translateX(-110%);animation:student-hero-shine 9s ease-in-out infinite}
+.student-subpage-hero:hover{box-shadow:0 22px 52px #142c4528}
+.student-panel,.student-task-card,.student-chat-panel,.student-assignment-editor{transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+.student-panel:hover,.student-task-card:hover{border-color:#b7d9ca;box-shadow:0 14px 32px #142c4510}
+.student-task-card{animation:student-card-in .35s ease both}
+.student-task-card:nth-child(2){animation-delay:35ms}.student-task-card:nth-child(3){animation-delay:70ms}.student-task-card:nth-child(4){animation-delay:105ms}
+.student-message-row{border:1px solid #e8edf1;border-radius:1rem;padding:1rem;transition:transform .2s ease,background-color .2s ease,border-color .2s ease,box-shadow .2s ease}
+.student-message-row:hover{transform:translateY(-2px);border-color:#c4b5fd;background:#fcfbff;box-shadow:0 10px 24px #312e8110}
+.student-chat-bubble{animation:student-chat-in .28s ease both;box-shadow:0 3px 12px #17243b0a}
+.student-chat-panel{scroll-behavior:smooth}
+.student-interactive-form input,.student-interactive-form textarea,.student-interactive-form select{transition:border-color .18s ease,box-shadow .18s ease,background-color .18s ease}
+.student-interactive-form input:focus,.student-interactive-form textarea:focus,.student-interactive-form select:focus{border-color:#8b5cf6;box-shadow:0 0 0 4px #8b5cf61a;outline:none;background:#fff}
+.student-interactive-form button[type=submit],.student-assignment-editor button{transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}
+.student-interactive-form button[type=submit]:hover,.student-assignment-editor button:hover{transform:translateY(-1px);filter:brightness(1.04);box-shadow:0 8px 18px #312e811a}
+.student-interactive-form button[type=submit]:active,.student-assignment-editor button:active{transform:scale(.98)}
+.student-subpage a:focus-visible,.student-subpage button:focus-visible,.student-assignment-editor button:focus-visible{outline:3px solid #10a36b;outline-offset:3px}
+.student-subpage input[type=file]{max-width:100%;border-radius:.9rem;background:#f8fafc;padding:.65rem;transition:background-color .18s ease,border-color .18s ease}
+.student-subpage input[type=file]:hover{background:#f0fdf4}
+.student-assignment-editor [contenteditable=true]{transition:box-shadow .18s ease,border-color .18s ease}
+.student-assignment-editor [contenteditable=true]:focus{outline:none;border-color:#8b5cf6;box-shadow:0 0 0 4px #8b5cf61a}
+@keyframes student-chat-in{from{opacity:0;transform:translateY(7px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(hover:none){.student-subpage-hero:hover,.student-panel:hover,.student-task-card:hover,.student-message-row:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){
+ .student-subpage-content,.student-subpage-hero:after,.student-task-card,.student-chat-bubble{animation:none!important}
+ .student-subpage-hero,.student-panel,.student-task-card,.student-chat-panel,.student-assignment-editor,.student-message-row,.student-interactive-form input,.student-interactive-form textarea,.student-interactive-form select{transition:none!important}
+ .student-subpage-hero:hover,.student-panel:hover,.student-task-card:hover,.student-message-row:hover{transform:none!important}
+}
