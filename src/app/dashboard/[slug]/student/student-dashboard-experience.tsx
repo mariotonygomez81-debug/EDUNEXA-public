@@ -164,6 +164,8 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
           </>}
         </section>
 
+        <section className="mt-6 rounded-2xl border border-sky-200 bg-sky-50/70 p-4 shadow-sm sm:p-5"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-sky-100 text-sky-900"><UserRound size={19}/></span><div className="min-w-0 flex-1"><h2 className="font-bold text-slate-900">Mi trayectoria escolar</h2><p className="mt-1 text-sm text-slate-600">Consultá tus datos personales, año de cursado y materias previas.</p></div><Link href={profileHref} className="shrink-0 rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-bold text-sky-900 hover:bg-sky-100">Ver perfil</Link></div></section>
+
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex items-center gap-3">
             <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-emerald-100 text-2xl font-bold text-emerald-900">{student.avatarUrl ? <Image src={student.avatarUrl} alt="" width={48} height={48} unoptimized className="h-full w-full object-cover"/> : student.avatarStyle === "masculino" ? "👨🏻‍🎓" : student.avatarStyle === "femenino" ? "👩🏻‍🎓" : student.initials}</span>
