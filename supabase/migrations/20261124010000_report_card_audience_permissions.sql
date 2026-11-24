@@ -175,3 +175,64 @@ end;
 $function$;
 revoke all on function public.set_report_card_publication_audience(uuid,text) from public,anon;
 grant execute on function public.set_report_card_publication_audience(uuid,text) to authenticated;
+
+
+-- Keep dashboard counts private too: only count report cards visible to this exact account.
+create or replace function public.list_my_portal_students(p_institution_id uuid)
+returns table(
+  student_id uuid,
+  first_name text,
+  last_name text,
+  student_number text,
+  is_self boolean,
+  division_id uuid,
+  division_name text,
+  course_name text,
+  academic_year_id uuid,
+  academic_year_name text,
+  enrollment_status text,
+  can_view_grades boolean,
+  can_view_attendance boolean,
+  attendance_present integer,
+  attendance_absent integer,
+  attendance_late integer,
+  attendance_justified integer,
+  attendance_early_departure integer,
+  attendance_total integer,
+  last_attendance_on date,
+  published_report_card_count integer,
+  latest_report_card_at timestamptz
+)
+language sql stable set search_path = ''
+as $function$
+  select
+    p.student_id,p.first_name,p.last_name,p.student_number,p.is_self,
+    p.division_id,p.division_name,p.course_name,p.academic_year_id,
+    p.academic_year_name,p.enrollment_status,p.can_view_grades,
+    p.can_view_attendance,p.attendance_present,p.attendance_absent,
+    p.attendance_late,p.attendance_justified,p.attendance_early_departure,
+    p.attendance_total,p.last_attendance_on,
+    case when exists (
+      select 1 from public.report_card_workflows w
+      where w.institution_id=p_institution_id
+        and w.student_id=p.student_id
+        and w.status='published'
+        and private.can_view_report_card(w.student_id,w.institution_id,w.publication_audience)
+    ) then (
+      select count(*)::integer from public.report_card_workflows w
+      where w.institution_id=p_institution_id
+        and w.student_id=p.student_id
+        and w.status='published'
+        and private.can_view_report_card(w.student_id,w.institution_id,w.publication_audience)
+    ) else 0 end,
+    (
+      select max(w.published_at) from public.report_card_workflows w
+      where w.institution_id=p_institution_id
+        and w.student_id=p.student_id
+        and w.status='published'
+        and private.can_view_report_card(w.student_id,w.institution_id,w.publication_audience)
+    )
+  from private.list_my_portal_students_impl(p_institution_id) p;
+$function$;
+revoke all on function public.list_my_portal_students(uuid) from public,anon;
+grant execute on function public.list_my_portal_students(uuid) to authenticated;
