@@ -92,6 +92,7 @@ export default function ClassroomFileUpload({
         {busy ? "Cargando archivos..." : "Adjuntar uno o varios archivos"}
         <input
           type="file"
+          multiple
           accept=".pdf,.jpg,.jpeg,.png,.txt,.docx,.pptx,.xlsx"
           disabled={busy}
           className="sr-only"
