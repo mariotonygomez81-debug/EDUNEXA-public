@@ -280,3 +280,156 @@ end;
 $function$;
 revoke all on function public.publish_report_card_with_audience(uuid,text) from public,anon;
 grant execute on function public.publish_report_card_with_audience(uuid,text) to authenticated;
+
+
+-- Restrict student/staff conversations to teachers of an actual classroom
+-- in the student's active division; keep the separate previous-subject path.
+create or replace function private.is_staff_assigned_to_student_classroom(
+  p_student_membership_id uuid,
+  p_staff_membership_id uuid,
+  p_institution_id uuid
+) returns boolean
+language sql stable security definer set search_path = ''
+as $function$
+  select exists (
+    select 1
+    from public.student_memberships sm
+    join public.enrollments e
+      on e.student_id=sm.student_id
+      and e.institution_id=sm.institution_id
+    join public.virtual_classrooms vc
+      on vc.institution_id=e.institution_id
+      and vc.division_id=e.division_id
+    join public.staff_assignments sa
+      on sa.membership_id=p_staff_membership_id
+      and sa.institution_id=vc.institution_id
+      and sa.assignment_type='teacher'
+      and sa.division_id=vc.division_id
+      and (sa.starts_on is null or sa.starts_on<=current_date)
+      and (sa.ends_on is null or sa.ends_on>=current_date)
+      and (
+        sa.course_subject_id is null
+        or (vc.course_subject_id is not null and sa.course_subject_id=vc.course_subject_id)
+      )
+    where sm.membership_id=p_student_membership_id
+      and sm.institution_id=p_institution_id
+      and e.status='active'
+      and e.enrolled_on<=current_date
+      and (e.ended_on is null or e.ended_on>=current_date)
+  );
+$function$;
+revoke all on function private.is_staff_assigned_to_student_classroom(uuid,uuid,uuid) from public,anon,authenticated;
+
+create or replace function private.can_message_members(
+  p_institution_id uuid,
+  p_sender_membership_id uuid,
+  p_recipient_membership_id uuid
+) returns boolean
+language plpgsql stable security definer set search_path = ''
+as $function$
+declare
+  v_sender_roles text[];
+  v_recipient_roles text[];
+  v_sender_admin boolean;
+  v_sender_staff boolean;
+  v_sender_student boolean;
+  v_sender_guardian boolean;
+  v_recipient_admin boolean;
+  v_recipient_staff boolean;
+  v_recipient_student boolean;
+  v_recipient_guardian boolean;
+begin
+  if p_institution_id is null or p_sender_membership_id is null
+    or p_recipient_membership_id is null
+    or p_sender_membership_id=p_recipient_membership_id then
+    return false;
+  end if;
+
+  if not exists (
+    select 1 from public.memberships m
+    where m.id=p_sender_membership_id and m.institution_id=p_institution_id and m.status='active'
+  ) or not exists (
+    select 1 from public.memberships m
+    where m.id=p_recipient_membership_id and m.institution_id=p_institution_id and m.status='active'
+  ) then
+    return false;
+  end if;
+
+  select coalesce(array_agg(r.key),array[]::text[]) into v_sender_roles
+  from public.membership_roles mr join public.roles r on r.id=mr.role_id
+  where mr.membership_id=p_sender_membership_id and mr.institution_id=p_institution_id;
+
+  select coalesce(array_agg(r.key),array[]::text[]) into v_recipient_roles
+  from public.membership_roles mr join public.roles r on r.id=mr.role_id
+  where mr.membership_id=p_recipient_membership_id and mr.institution_id=p_institution_id;
+
+  v_sender_admin:=v_sender_roles && array['institution_admin','director','administrative'];
+  v_sender_staff:=v_sender_roles && array['teacher','prefect'];
+  v_sender_student:='student'=any(v_sender_roles);
+  v_sender_guardian:='guardian'=any(v_sender_roles);
+  v_recipient_admin:=v_recipient_roles && array['institution_admin','director','administrative'];
+  v_recipient_staff:=v_recipient_roles && array['teacher','prefect'];
+  v_recipient_student:='student'=any(v_recipient_roles);
+  v_recipient_guardian:='guardian'=any(v_recipient_roles);
+
+  if v_sender_admin or v_recipient_admin then return true; end if;
+  if v_sender_staff and v_recipient_staff then return true; end if;
+
+  -- Symmetric scope: staff can contact a student only if the student
+  -- has a current enrollment in a classroom assigned to that teacher.
+  if v_sender_staff and v_recipient_student then
+    return private.is_staff_assigned_to_student_classroom(
+      p_recipient_membership_id,p_sender_membership_id,p_institution_id
+    );
+  end if;
+
+  -- Guardian-to-staff communication retains its linked-student division scope.
+  if v_sender_staff and v_recipient_guardian then
+    return exists (
+      select 1 from public.enrollments e
+      where e.institution_id=p_institution_id and e.status='active'
+        and e.enrolled_on<=current_date and (e.ended_on is null or e.ended_on>=current_date)
+        and exists (
+          select 1 from public.guardians g
+          join public.student_guardians sg on sg.guardian_id=g.id and sg.institution_id=g.institution_id
+          where g.membership_id=p_recipient_membership_id
+            and g.institution_id=p_institution_id and sg.student_id=e.student_id
+        )
+        and private.is_staff_assigned_to_division(
+          p_sender_membership_id,p_institution_id,e.division_id
+        )
+    );
+  end if;
+
+  if v_sender_student and v_recipient_staff then
+    if private.is_staff_assigned_to_student_classroom(
+      p_sender_membership_id,p_recipient_membership_id,p_institution_id
+    ) then
+      return true;
+    end if;
+    return private.is_staff_assigned_to_previous_subject(
+      p_sender_membership_id,p_recipient_membership_id,p_institution_id
+    );
+  end if;
+
+  if v_sender_guardian and v_recipient_staff then
+    return exists (
+      select 1 from public.enrollments e
+      where e.institution_id=p_institution_id and e.status='active'
+        and e.enrolled_on<=current_date and (e.ended_on is null or e.ended_on>=current_date)
+        and exists (
+          select 1 from public.guardians g
+          join public.student_guardians sg on sg.guardian_id=g.id and sg.institution_id=g.institution_id
+          where g.membership_id=p_sender_membership_id
+            and g.institution_id=p_institution_id and sg.student_id=e.student_id
+        )
+        and private.is_staff_assigned_to_division(
+          p_recipient_membership_id,p_institution_id,e.division_id
+        )
+    );
+  end if;
+
+  return false;
+end;
+$function$;
+revoke all on function private.can_message_members(uuid,uuid,uuid) from public,anon,authenticated;
