@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Undo2, Redo2, FileDown, Send, LoaderCircle, CheckCircle2, AlignLeft, AlignCenter, AlignRight, Link2, Quote, Strikethrough, Highlighter, Subscript, Superscript, Indent, Outdent, Eraser, Table2, Minus, Palette } from "lucide-react";
+import { Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Undo2, Redo2, FileDown, Send, LoaderCircle, CheckCircle2, AlignLeft, AlignCenter, AlignRight, Link2, Quote, Strikethrough, Highlighter, Subscript, Superscript, Indent, Outdent, Eraser, Table2, Minus, Palette, ImagePlus, Eye, Save, X, FileText } from "lucide-react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { createClient } from "@/lib/supabase/client";
 import { submitClassroomAssignment } from "./actions";
@@ -152,6 +152,13 @@ export default function StudentAssignmentEditor({
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
   const [html, setHtml] = useState((initialBody || "").split("\n").map(escapeHtml).join("<br>"));
+  const [header, setHeader] = useState("");
+  const [footer, setFooter] = useState("");
+  const [draftStatus, setDraftStatus] = useState("Sin cambios guardados");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const draftKey = "edunexa:draft:" + slug + ":" + classroomId + ":" + assignmentId;
+  useEffect(() => { try { const raw = sessionStorage.getItem(draftKey); if (raw && !initialBody) { const d = JSON.parse(raw); if (typeof d.html === "string" && d.html.length < 1000000) { setHtml(d.html); setHeader(d.header || ""); setFooter(d.footer || ""); setDraftStatus("Borrador recuperado"); } } } catch { setDraftStatus("No se pudo recuperar"); } }, [draftKey, initialBody]);
+  useEffect(() => { if (locked || saved) return; const timer = window.setTimeout(() => { try { sessionStorage.setItem(draftKey, JSON.stringify({html,header,footer})); setDraftStatus("Borrador guardado en este dispositivo"); } catch { setDraftStatus("No se pudo guardar"); } }, 700); return () => window.clearTimeout(timer); }, [draftKey, html, header, footer, locked, saved]);
 
   function syncEditor() {
     const value = editorRef.current?.innerHTML ?? "";
