@@ -39,8 +39,8 @@ export async function createAcademicEvent(formData: FormData) {
 
   const { error } = await supabase.from("academic_calendar_events").insert({
     institution_id: institution.id, created_by_membership_id: membership.id,
-    title, description, category, starts_at: new Date(startsAt).toISOString(),
-    ends_at: endsAt ? new Date(endsAt).toISOString() : null,
+    title, description, category, starts_at: new Date(startsAt + ":00-03:00").toISOString(),
+    ends_at: endsAt ? new Date(endsAt + ":00-03:00").toISOString() : null,
     audience, location: location || null,
   });
   if (error) return { ok: false, message: "No se pudo guardar el evento. Intentá nuevamente." };
