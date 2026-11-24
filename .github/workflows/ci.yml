@@ -51,6 +51,8 @@ jobs:
         run: npm run check:academic-history
       - name: Validate Tutor notification security and UI
         run: npm run check:guardian-notifications
+      - name: Validate Tutor child-scoped academic progress access
+        run: npm run check:guardian-progress
       - name: Build
         run: npm run build
       - name: Smoke test public routes
