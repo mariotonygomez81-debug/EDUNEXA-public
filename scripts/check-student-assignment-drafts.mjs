@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 
-const migration = readFileSync("supabase/migrations/20261124050000_student_assignment_drafts.sql", "utf8");
-const rpcGrant = readFileSync("supabase/migrations/20261124051000_restore_submission_rpc_execute.sql", "utf8");
+const migration = readFileSync("supabase/migrations/20261124025805_student_assignment_drafts.sql", "utf8");
+const rpcGrant = readFileSync("supabase/migrations/20261124025839_restore_submission_rpc_execute.sql", "utf8");
 const editor = readFileSync("src/app/dashboard/[slug]/classroom/[classroomId]/student-assignment-editor.tsx", "utf8");
 
 const checks = [
