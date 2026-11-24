@@ -23,7 +23,8 @@
     "check:guardian-progress": "node scripts/check-guardian-assignment-progress.mjs",
     "check:tutor-integration": "node scripts/check-tutor-integration.mjs",
     "check:tutor-demo": "node scripts/check-tutor-demo-isolation.mjs",
-    "check:single-school": "node scripts/check-multi-institution-access.mjs"
+    "check:single-school": "node scripts/check-multi-institution-access.mjs",
+    "check:role-scoped-authz": "node scripts/check-role-scoped-authz.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
