@@ -23,6 +23,7 @@ const checks = [
   ["Material attachments still require the current material file path", /f\\.purpose = 'material'[\\s\\S]*f\\.status = 'ready'[\\s\\S]*cm\\.file_path = f\\.object_path/.test(audit)],
   ["Multiple submission attachments are not superseded", /submission files are independent attachments[\\s\\S]*do not overwrite submissions\\.file_path or supersede earlier files/.test(multi)],
   ["History reader requires classroom grading permission", /private\\.can_access_submission\\(p_submission_id, v_institution_id, 'classroom\\.grade'\\)/.test(history)],
+  ["Private history helper is not granted to authenticated", !/grant execute on function private\\.get_submission_history_impl\\(uuid\\) to authenticated/.test(history)],
   ["History reader returns file metadata without storage paths", /'files',[\\s\\S]*'file_id',[\\s\\S]*'original_filename',[\\s\\S]*'byte_size'/.test(audit) && !/'object_path'/.test(audit.slice(audit.indexOf("'files'")))],
   ["Private history implementation is not directly granted to authenticated", !/grant execute on function private\\.get_submission_history_impl\\(uuid\\) to authenticated/.test(audit)],
   ["Student file reads are limited to their own submission", /r\\.key = 'student'[\\s\\S]*sm\\.student_id = s\\.student_id/.test(scope)],
