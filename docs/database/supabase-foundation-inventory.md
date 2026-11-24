@@ -124,3 +124,17 @@ Solicitar al responsable del proyecto una copia de **sólo esquema** del reposit
 El repositorio núcleo privado original fue localizado y su historial se inspeccionó en modo lectura. La auditoría de origen confirma que el SQL de las primeras migraciones académicas se recuperó desde el historial de migraciones del proyecto Supabase, no desde un dump del esquema completo. La migración académica inicial crea 29 tablas de módulos y referencia instituciones, campus y membresías preexistentes; la migración de perfil también presupone `public.profiles`. Esto confirma que el baseline de identidad institucional no está contenido en esa secuencia.
 
 La búsqueda no encontró archivos SQL de esquema o backup en el árbol `main`, ni en las ramas relacionadas revisadas. No se consultó la base alojada para obtener un dump. El procedimiento local gratuito queda documentado en `docs/database/supabase-local-foundation-validation.md`; el inventario de catálogo asociado es estrictamente de solo lectura en `docs/database/local-foundation-catalog.readonly.sql`.
+
+### Evidencia adicional del historial original
+
+- El commit raíz alcanzable de `main` en el upstream privado es `31b91034b58e94a0e51ad7d0a9163eb3c6cba39a`, no tiene padres y su árbol contiene únicamente `README.md`. No hay un commit padre en esa historia publicada que contenga un baseline anterior.
+- El commit `f3de0c708068ad7d341cd4d6da80446722d74cae` agregó la migración académica histórica `20261120024755_academic_core_and_learning_modules.sql`. Su árbol padre no contenía esa migración; el archivo recuperado crea 29 tablas académicas y referencias a instituciones, campus y membresías preexistentes.
+- La auditoría del upstream registra que las primeras tres migraciones se recuperaron desde `supabase_migrations.schema_migrations.statements`; la misma auditoría deja pendiente aplicar el conjunto en una base temporal vacía y compararlo con el catálogo. La auditoría no incluye el DDL completo del baseline.
+- Se revisaron las ramas de gestión institucional, fundación de boletines y reconciliación del ledger. Sus árboles mantienen la misma primera secuencia de migraciones y no aportan un archivo baseline/dump adicional.
+- No se inspeccionó ni descargó un backup alojado, ni se consultó el catálogo de ningún proyecto Supabase. No se ejecutó Git `fsck` sobre el repositorio remoto; los objetos dangling sólo pueden verificarse con un clon/bundle local del upstream.
+
+### Procedimiento local preparado
+
+- `docs/database/supabase-local-foundation-validation.md`: pasos PowerShell para iniciar únicamente PostgreSQL local en una carpeta temporal aislada, con un `project_id` local y sin migraciones.
+- `docs/database/local-foundation-catalog.readonly.sql`: consultas `SELECT` exclusivamente de metadatos del catálogo; no contiene DDL ni DML.
+- El procedimiento aún no se ejecutó: esta sesión no dispone de Docker ni Supabase CLI. La primera fase sólo valida infraestructura y metadatos vacíos. La validación real del esquema queda pendiente de una fuente schema-only autorizada.
