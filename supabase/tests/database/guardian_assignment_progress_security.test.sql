@@ -6,7 +6,7 @@
 
 begin;
 
-select plan(16);
+select plan(15);
 
 -- The real application tables must have RLS enabled after the full migration set.
 select ok((select c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
