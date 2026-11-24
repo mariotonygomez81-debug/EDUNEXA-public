@@ -17,6 +17,8 @@ const checks = [
   [migration, "Historical submission files require classroom read access", /f\.purpose = 'submission'[\s\S]*private\.can_access_submission\(s\.id, s\.institution_id, 'classroom\.read'\)/],
   [migration, "Materials retain their current-file restriction", /f\.purpose = 'material'[\s\S]*f\.status = 'ready'[\s\S]*cm\.file_path = f\.object_path/],
   [reader, "History reader checks grading permission", /private\.can_access_submission\(p_submission_id, v_institution_id, 'classroom\.grade'\)/],
+  [submissionScope, "Student file reads are limited to their own submission", /r\.key = 'student'[\s\S]*sm\.student_id = s\.student_id/],
+  [submissionScope, "Teacher file reads require classroom membership", /r\.key in \('institution_admin', 'director', 'teacher'\)[\s\S]*private\.can_access_classroom\(vc\.id, vc\.institution_id, 'classroom\.read'\)/],
   [migration, "History reader returns attachment audit metadata", /'files',[\s\S]*'file_id',[\s\S]*'original_filename',[\s\S]*'changed_at'/],
   [reader, "History reader uses a locked search path", /security definer[\s\S]*set search_path = ''/],
   [fileListing, "File listing delegates to the scoped file-read helper", fileListing.includes("private.can_read_classroom_file(f.bucket_id,f.object_path)")],
