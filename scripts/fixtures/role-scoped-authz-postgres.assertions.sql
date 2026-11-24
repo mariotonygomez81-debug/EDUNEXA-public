@@ -1,5 +1,5 @@
 -- Exercise the actual four migration functions with synthetic identities.
-\i supabase/migrations/20261124100000_enforce_role_scoped_academic_permissions.sql
+\i supabase/migrations/20261124224714_enforce_role_scoped_academic_permissions.sql
 
 -- Separate report-card audience helper copied verbatim from the existing
 -- audience migration; this tests the dedicated flag independently.

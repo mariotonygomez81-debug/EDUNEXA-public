@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import assert from "node:assert/strict";
 
-const migration = readFileSync(join(process.cwd(), "supabase/migrations/20261124100000_enforce_role_scoped_academic_permissions.sql"), "utf8");
+const migration = readFileSync(join(process.cwd(), "supabase/migrations/20261124224714_enforce_role_scoped_academic_permissions.sql"), "utf8");
 const dashboard = readFileSync(join(process.cwd(), "src/app/dashboard/[slug]/page.tsx"), "utf8");
 const login = readFileSync(join(process.cwd(), "src/app/login/page.tsx"), "utf8");
 const loginForm = readFileSync(join(process.cwd(), "src/components/auth/login-form.tsx"), "utf8");
