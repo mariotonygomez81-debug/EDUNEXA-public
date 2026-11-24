@@ -29,9 +29,10 @@ function dateLabel(value: string | null) {
 }
 
 export default function ClassroomAssignmentRoster({
-  rows, slug, classroomId, assignmentId, maxScore, dueAt, asOf,
+  rows, files, slug, classroomId, assignmentId, maxScore, dueAt, asOf,
 }: {
   rows: ClassroomAssignmentRosterRow[];
+  files: { file_id: string; submission_id: string | null; original_filename: string; signedUrl: string | null }[];
   slug: string;
   classroomId: string;
   assignmentId: string;
@@ -149,6 +150,22 @@ export default function ClassroomAssignmentRoster({
                       <div>
                         <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Respuesta del estudiante</p>
                         <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{row.body?.trim() || "La entrega no contiene texto. Puede incluir archivos adjuntos."}</p>
+                        {files.filter((file) => file.submission_id === row.submission_id).length ? (
+                          <div className="mt-3 space-y-2">
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Archivos adjuntos</p>
+                            {files.filter((file) => file.submission_id === row.submission_id).map((file) => (
+                              <div key={file.file_id} className="flex flex-wrap items-center gap-2 text-sm">
+                                {file.signedUrl ? (
+                                  <a href={file.signedUrl} className="font-semibold text-indigo-700 underline underline-offset-2" rel="noreferrer">
+                                    Descargar {file.original_filename}
+                                  </a>
+                                ) : (
+                                  <span className="text-slate-500">Archivo no disponible: {file.original_filename}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-white p-3">
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
