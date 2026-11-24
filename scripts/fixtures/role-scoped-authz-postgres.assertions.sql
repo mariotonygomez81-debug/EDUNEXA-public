@@ -89,10 +89,13 @@ END $$;
 reset role;
 update public.classroom_teacher_permissions set is_active=true where id='58000000-0000-0000-0000-000000000001';
 
--- Student: own student record and classroom only.
+-- Seed the synthetic classroom membership as the fixture owner. The authenticated
+-- role is intentionally read/execute-only here; the test must not grant it
+-- direct INSERT access merely to prepare its own authorization context.
+reset role;
+insert into public.classroom_members values('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000002','student');
 set role authenticated;
 select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000002',false);
-insert into public.classroom_members values('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000002','student');
 do $$
 begin
  if not private.can_access_student('60000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','grades.read') then raise exception 'student could not access own record'; end if;
