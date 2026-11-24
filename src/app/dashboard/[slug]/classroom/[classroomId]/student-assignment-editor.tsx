@@ -255,9 +255,10 @@ export default function StudentAssignmentEditor({
         <p className="mt-2 text-xs leading-5 text-slate-600">Redactá, organizá y dale formato a tu trabajo: títulos, listas, citas, tablas, enlaces, color, resaltado y fórmulas simples. EDUNEXA genera el PDF y lo adjunta automáticamente a tu entrega.</p>
       </div>
       <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 bg-slate-50 p-2">
-        <button type="button" title="Negrita" aria-label="Negrita" disabled={locked || busy} onClick={() => command("bold")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Bold size={17}/></button>
-        <button type="button" title="Cursiva" aria-label="Cursiva" disabled={locked || busy} onClick={() => command("italic")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Italic size={17}/></button>
-        <button type="button" title="Subrayado" aria-label="Subrayado" disabled={locked || busy} onClick={() => command("underline")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Underline size={17}/></button>
+        <label className="sr-only" htmlFor="student-editor-block">Formato de párrafo</label><select id="student-editor-block" defaultValue="p" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onChange={(e) => command("formatBlock", e.target.value)} className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700"><option value="p">Normal</option><option value="h2">Título</option><option value="h3">Subtítulo</option><option value="pre">Código</option></select>
+        <button type="button" title="Negrita" aria-label="Negrita" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("bold")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Bold size={17}/></button>
+        <button type="button" title="Cursiva" aria-label="Cursiva" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("italic")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Italic size={17}/></button>
+        <button type="button" title="Subrayado" aria-label="Subrayado" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("underline")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Underline size={17}/></button>
         <span className="mx-1 h-6 w-px bg-slate-200"/>
         <button type="button" title="Título" disabled={locked || busy} onClick={() => command("formatBlock", "h2")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Heading1 size={17}/></button>
         <button type="button" title="Subtítulo" disabled={locked || busy} onClick={() => command("formatBlock", "h3")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Heading2 size={17}/></button>
@@ -280,8 +281,8 @@ export default function StudentAssignmentEditor({
         <button type="button" title="Quitar formato" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("removeFormat")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Eraser size={17}/></button>
         <label title="Color de texto" className="flex items-center gap-1 rounded-lg p-2 text-slate-700 hover:bg-white"><Palette size={16}/><input type="color" aria-label="Color de texto" defaultValue="#263445" disabled={locked || busy} onChange={(e) => command("foreColor", e.target.value)} className="h-5 w-5 cursor-pointer border-0 bg-transparent p-0"/></label>
         <span className="mx-1 h-6 w-px bg-slate-200"/>
-        <button type="button" title="Deshacer" disabled={locked || busy} onClick={() => command("undo")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Undo2 size={17}/></button>
-        <button type="button" title="Rehacer" disabled={locked || busy} onClick={() => command("redo")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Redo2 size={17}/></button>
+        <button type="button" title="Deshacer" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("undo")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Undo2 size={17}/></button>
+        <button type="button" title="Rehacer" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("redo")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Redo2 size={17}/></button>
         <span className="ml-auto text-[11px] text-slate-500">{wordCount} palabras · {charCount} caracteres</span>
       </div>
       <div className="p-3 sm:p-5">
