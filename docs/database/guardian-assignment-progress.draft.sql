@@ -54,7 +54,8 @@ begin
     and r.key = 'guardian'
   limit 1;
 
-  if v_membership_id is null then
+  if v_membership_id is null
+     or not private.has_institution_permission(p_institution_id, 'classroom.read') then
     raise exception 'Student progress access denied' using errcode = '42501';
   end if;
 
@@ -77,7 +78,10 @@ begin
       when sg.can_view_grades then sub.score
       else null
     end,
-    a.max_score,
+    case
+      when sg.can_view_grades then a.max_score
+      else null
+    end,
     sg.can_view_grades
   from public.student_guardians sg
   join public.guardians g
@@ -88,7 +92,7 @@ begin
     on e.student_id = sg.student_id
    and e.institution_id = sg.institution_id
    and e.status = 'active'
-   and (e.enrolled_on is null or e.enrolled_on <= current_date)
+   and e.enrolled_on <= current_date
    and (e.ended_on is null or e.ended_on >= current_date)
   join public.virtual_classrooms vc
     on vc.institution_id = e.institution_id
@@ -97,6 +101,7 @@ begin
     on a.classroom_id = vc.id
    and a.institution_id = vc.institution_id
    and a.published_at is not null
+   and a.published_at <= now()
   left join public.course_subjects cs
     on cs.id = vc.course_subject_id
    and cs.institution_id = vc.institution_id
@@ -109,9 +114,10 @@ begin
    and sub.student_id = sg.student_id
   where sg.institution_id = p_institution_id
     and sg.student_id = p_student_id
-    and private.can_access_classroom(
-      vc.id, vc.institution_id, 'classroom.read'
-    )
+    -- Child link + active enrollment + the guardian's institution-level
+    -- classroom.read permission are checked above/in the joins. Avoid calling
+    -- the shared classroom helper here so this read path remains explicitly
+    -- child-scoped and does not inherit unrelated role branches.
   order by coalesce(a.due_at, a.created_at) desc, a.created_at desc;
 end;
 $function$;
