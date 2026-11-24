@@ -228,7 +228,7 @@ export default function StudentAssignmentEditor({
   }
 
   return (
-    <section className="mt-4 overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
+    <section className="student-assignment-editor mt-4 overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
       <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 to-indigo-50 px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div><p className="text-xs font-bold uppercase tracking-wider text-violet-700">Espacio de producción</p><h4 className="mt-1 text-base font-bold text-slate-900">Editor de tu tarea</h4></div>
