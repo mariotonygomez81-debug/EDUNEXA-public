@@ -52,3 +52,31 @@ Para detener el servidor, volver a PowerShell y presionar `Ctrl+C`.
 No copies archivos `.env` de otros entornos. Para esta demostración no se necesita crear `.env.local` ni completar variables de Supabase o Groq. No ejecutes migraciones ni comandos de Supabase para abrir esta ruta.
 
 La ruta no sustituye la validación del portal real. Para probar autenticación, permisos y datos de extremo a extremo se necesitará recuperar y validar primero el esquema fundacional en un entorno local aislado.
+
+## Lista de pruebas manuales
+
+Usa esta lista para recorrer la demo y registrar observaciones sin ingresar datos reales de estudiantes:
+
+1. Abrir `/demo/dashboard` y comprobar que aparece el tablero local.
+2. Entrar en la tarjeta Tutor y volver al tablero usando el enlace superior.
+3. Cambiar entre los estudiantes ficticios y comprobar que se actualizan sus datos.
+4. Abrir las pestañas Resumen, Tareas, Calificaciones, Boletines y Avisos.
+5. En Tareas, buscar por materia, título y estado; comprobar que el contador coincide con los resultados.
+6. Aplicar cada filtro rápido (Todas, Sin entregar, Entregada · pendiente y Aprobada) y luego usar Quitar filtros.
+7. Cambiar de estudiante con una búsqueda/filtro activo y comprobar que los filtros se reinician.
+8. En Avisos, marcar un aviso como leído y después usar Marcar todas como leídas.
+9. Recargar la página y comprobar que la demo vuelve a sus datos iniciales: el estado es temporal y no se guarda en un servidor.
+10. Detener el servidor con `Ctrl+C`.
+
+Anota errores de visualización, textos confusos, botones que no respondan y mejoras de navegación. No uses DNI, fechas de nacimiento, nombres ni información de alumnos reales.
+
+## Comprobación automatizada de aislamiento
+
+En otra terminal, dentro de la carpeta del repositorio, puedes ejecutar:
+
+```powershell
+npm run check:tutor-demo
+```
+
+Este control verifica que la demostración permanezca aislada de Supabase y Groq. No reemplaza la prueba manual de la interfaz.
+
