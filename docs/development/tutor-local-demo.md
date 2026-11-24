@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-La ruta `/demo/tutor` permite recorrer una demostración visual e interactiva del portal Tutor sin autenticar usuarios y sin conectarse a Supabase, Groq, Render ni otros servicios externos.
+La ruta `/demo/dashboard` abre el tablero local de módulos de EDUNEXA. Desde la tarjeta Tutor se ingresa al portal de familias de demostración en `/demo/dashboard/tutor`. La ruta directa `/demo/tutor` también se conserva como acceso alternativo. Ambas permiten recorrer una demostración visual e interactiva del portal Tutor sin autenticar usuarios y sin conectarse a Supabase, Groq, Render ni otros servicios externos.
 
 ## Requisitos
 
@@ -27,7 +27,7 @@ npm run dev
 Abrir en el navegador:
 
 ```text
-http://localhost:3000/demo/tutor
+http://localhost:3000/demo/dashboard
 ```
 
 Para detener el servidor, volver a PowerShell y presionar `Ctrl+C`.
@@ -40,7 +40,9 @@ Para detener el servidor, volver a PowerShell y presionar `Ctrl+C`.
 - No importa clientes, acciones ni helpers de Supabase.
 - No llama a Groq ni a ninguna API externa.
 - No usa credenciales, variables de entorno, cookies ni sesiones.
-- Los cambios de selección de estudiante, navegación y lectura de avisos ocurren sólo en memoria del navegador.
+- Los cambios de selección de estudiante, navegación, búsqueda de tareas y lectura de avisos ocurren sólo en memoria del navegador.
+- El centro de notificaciones permite marcar avisos individualmente o todos a la vez como leídos.
+- El tablero local presenta la tarjeta Tutor y módulos de referencia deshabilitados; no suplanta el tablero institucional conectado.
 - No genera ni descarga boletines PDF reales.
 - La demostración no valida el flujo de autenticación, permisos, vinculación ni consultas del portal conectado.
 
