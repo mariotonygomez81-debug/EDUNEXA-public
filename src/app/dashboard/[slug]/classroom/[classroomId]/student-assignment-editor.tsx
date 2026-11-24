@@ -267,10 +267,20 @@ export default function StudentAssignmentEditor({
         <button type="button" title="Centrar" disabled={locked || busy} onClick={() => command("justifyCenter")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><AlignCenter size={17}/></button>
         <button type="button" title="Alinear a la derecha" disabled={locked || busy} onClick={() => command("justifyRight")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><AlignRight size={17}/></button>
         <button type="button" title="Insertar enlace" disabled={locked || busy} onClick={() => { const url = window.prompt("Pegá la dirección del enlace (https://...)"); if (url && /^https?:\/\//i.test(url)) command("createLink", url); }} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Link2 size={17}/></button>
+        <button type="button" title="Tachado" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("strikeThrough")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Strikethrough size={17}/></button>
+        <button type="button" title="Resaltar" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("hiliteColor", "#fff2a8")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Highlighter size={17}/></button>
+        <button type="button" title="Subíndice" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("subscript")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Subscript size={17}/></button>
+        <button type="button" title="Superíndice" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("superscript")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Superscript size={17}/></button>
+        <button type="button" title="Aumentar sangría" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("indent")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Indent size={17}/></button>
+        <button type="button" title="Reducir sangría" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("outdent")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Outdent size={17}/></button>
+        <button type="button" title="Insertar tabla" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={insertTable} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Table2 size={17}/></button>
+        <button type="button" title="Línea divisoria" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("insertHorizontalRule")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Minus size={17}/></button>
+        <button type="button" title="Quitar formato" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("removeFormat")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Eraser size={17}/></button>
+        <label title="Color de texto" className="flex items-center gap-1 rounded-lg p-2 text-slate-700 hover:bg-white"><Palette size={16}/><input type="color" aria-label="Color de texto" defaultValue="#263445" disabled={locked || busy} onChange={(e) => command("foreColor", e.target.value)} className="h-5 w-5 cursor-pointer border-0 bg-transparent p-0"/></label>
         <span className="mx-1 h-6 w-px bg-slate-200"/>
         <button type="button" title="Deshacer" disabled={locked || busy} onClick={() => command("undo")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Undo2 size={17}/></button>
         <button type="button" title="Rehacer" disabled={locked || busy} onClick={() => command("redo")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Redo2 size={17}/></button>
-        <span className="ml-auto text-[11px] text-slate-500">{wordCount} palabras</span>
+        <span className="ml-auto text-[11px] text-slate-500">{wordCount} palabras · {charCount} caracteres</span>
       </div>
       <div className="p-3 sm:p-5">
         <div
