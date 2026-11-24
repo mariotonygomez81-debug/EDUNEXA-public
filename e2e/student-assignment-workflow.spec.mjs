@@ -123,6 +123,8 @@ test("student private draft, cross-tab conflict, PDF submission, teacher downloa
   const fileLink = teacherCard.getByRole("link", { name: /Descargar Tarea-/ });
   await expect(fileLink).toBeVisible();
   await expect(fileLink).toHaveAttribute("href", /^https:\/\//);
+  const [teacherDownload] = await Promise.all([teacherPage.waitForEvent("download"), fileLink.click()]);
+  expect(teacherDownload.suggestedFilename()).toMatch(/Tarea-/);
   await teacherCard.getByLabel("Nota (%)").fill("95");
   await teacherCard.getByLabel("Devolución para el estudiante").fill("Excelente trabajo. Revisá la bibliografía.");
   await teacherCard.getByRole("button", { name: "Guardar calificación y devolución" }).click();
