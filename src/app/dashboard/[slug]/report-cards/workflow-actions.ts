@@ -13,13 +13,15 @@ export async function updateReportCardWorkflow(formData: FormData) {
   const periodId = String(formData.get("grading_period_id") ?? "").trim();
   const action = String(formData.get("workflow_action") ?? "") as WorkflowAction;
   const reason = String(formData.get("rectification_reason") ?? "").trim();
+  const audience = String(formData.get("publication_audience") ?? "both");
   const destination = `/dashboard/${encodeURIComponent(slug)}/report-cards?student=${encodeURIComponent(studentId)}&period=${encodeURIComponent(periodId)}`;
 
   if (!/^[a-z0-9-]{2,80}$/i.test(slug) ||
       !/^[0-9a-f-]{36}$/i.test(studentId) ||
       !/^[0-9a-f-]{36}$/i.test(periodId) ||
       !["submit", "approve", "publish"].includes(action) ||
-      reason.length > 1000) {
+      reason.length > 1000 ||
+      (action === "publish" && !["student", "guardian", "both"].includes(audience))) {
     redirect(`${destination}&error=workflow_invalid`);
   }
 
@@ -87,8 +89,15 @@ export async function updateReportCardWorkflow(formData: FormData) {
       const result = await supabase.rpc("approve_report_card", { p_workflow_id: current.id });
       error = result.error;
     } else {
-      const result = await supabase.rpc("publish_report_card", { p_workflow_id: current.id });
-      error = result.error;
+      const audienceResult = await supabase.rpc("set_report_card_publication_audience", {
+        p_workflow_id: current.id,
+        p_audience: audience,
+      });
+      if (audienceResult.error) error = audienceResult.error;
+      else {
+        const result = await supabase.rpc("publish_report_card", { p_workflow_id: current.id });
+        error = result.error;
+      }
     }
   }
 
