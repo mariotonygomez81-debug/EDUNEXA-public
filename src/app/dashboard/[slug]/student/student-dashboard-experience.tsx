@@ -45,7 +45,7 @@ type Props = {
 
 const filters = ["Todas", "Materias", "Aulas generales"] as const;
 
-export default function StudentDashboardExperience({ slug, institutionName, student, classrooms, hasLoadError, taskSummary, announcements }: Props) {
+export default function StudentDashboardExperience({ slug, institutionName, student, classrooms, hasLoadError, unreadNotificationCount, taskSummary, announcements }: Props) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof filters)[number]>("Todas");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -178,7 +178,7 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
           </div>
         </section>
       </div>
-      <nav aria-label="Navegación principal" className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),8px)] pt-2 shadow-[0_-8px_24px_rgba(15,23,42,.07)] backdrop-blur sm:hidden"><div className="mx-auto grid max-w-lg grid-cols-4 gap-1">{nav.map((item) => <Link key={item.label} href={item.href} className={`flex flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-semibold ${item.active ? "bg-emerald-50 text-emerald-900" : "text-slate-600 hover:bg-slate-50"}`}><item.icon size={19}/>{item.label}</Link>)}</div></nav>
+      <nav aria-label="Navegación principal" className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),8px)] pt-2 shadow-[0_-8px_24px_rgba(15,23,42,.07)] backdrop-blur sm:hidden"><div className="mx-auto grid max-w-lg grid-cols-5 gap-1">{nav.map((item) => <Link key={item.label} href={item.href} className={`flex flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-semibold ${item.active ? "bg-emerald-50 text-emerald-900" : "text-slate-600 hover:bg-slate-50"}`}><item.icon size={19}/>{item.label}</Link>)}</div></nav>
     </main>
   );
 }
