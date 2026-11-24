@@ -3283,6 +3283,7 @@ export type Database = {
       update_teacher_classroom_preferences: { Args: { p_classroom_id: string; p_accent_theme: string; p_layout_density: string; p_default_section: string; p_show_header_stats: boolean }; Returns: undefined }
       list_teacher_classroom_options: { Args: { p_institution_id: string }; Returns: { division_id: string; division_label: string; course_subject_id: string | null; subject_label: string; academic_year_name: string }[] }
       approve_report_card: { Args: { p_workflow_id: string }; Returns: string }
+      set_report_card_publication_audience: { Args: { p_audience: string; p_workflow_id: string }; Returns: undefined }
       assign_grading_scale_to_year: {
         Args: { p_academic_year_id: string; p_grading_scale_id: string }
         Returns: string
