@@ -53,8 +53,10 @@ const checks = [
   ["private submission content and teacher feedback are not returned",
     !/^\s*(body|file_path|feedback|instructions)\s+(text|varchar)/mi.test(sql) &&
     /Deliberately absent from the result:[\s\S]*submission body[\s\S]*teacher feedback/.test(sql)],
-  ["published grade history is hidden unless can_view_grades is enabled",
-    /student\.can_view_grades[\s\S]*?buildPublishedAcademicHistory\(studentReportCards\)/.test(portal) &&
+  ["published report-card history follows snapshot RLS audience independently of grades.read",
+    /Snapshot RLS already filters by the account's report-card audience/.test(portal) &&
+    /const academicHistory = buildPublishedAcademicHistory\(studentReportCards\);/.test(portal) &&
+    !/student\.can_view_grades\s*\?\s*buildPublishedAcademicHistory/.test(portal) &&
     /La institución no habilitó la consulta de calificaciones para esta cuenta\./.test(portal)],
   ["no write operation or production target is present",
     !/\b(insert into|update public\.|delete from|alter table)\b/i.test(sql) &&
