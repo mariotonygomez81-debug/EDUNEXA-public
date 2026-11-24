@@ -4,6 +4,8 @@ import { Building2, LogOut, ShieldCheck } from "lucide-react";
 import { EdunexaMark } from "@/components/brand/edunexa-mark";
 import { signOut } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
