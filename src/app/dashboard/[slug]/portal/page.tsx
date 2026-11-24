@@ -225,6 +225,13 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
     .eq("user_id", user.id).eq("status", "active").maybeSingle();
   if (!membership) redirect("/dashboard");
 
+  const { data: roleRows } = await supabase.from("membership_roles")
+    .select("roles(key)").eq("membership_id", membership.id);
+  const roleKeys = (roleRows ?? []).map((row) => row.roles?.key).filter(Boolean) as string[];
+  if (!roleKeys.some((role) => role === "student" || role === "guardian")) {
+    redirect(`/dashboard/${slug}`);
+  }
+
   const [{ data: notificationRows, error: notificationError }, unreadResult] = await Promise.all([
     supabase.from("notifications")
       .select("id,notification_type,title,body,resource_type,resource_id,created_at,read_at")
