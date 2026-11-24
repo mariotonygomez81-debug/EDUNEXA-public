@@ -36,6 +36,8 @@ function richTextFromHtml(html: string) {
     if (tag === "h3") return "## " + inner.trim() + "\n\n";
     if (tag === "blockquote") return "> " + inner.trim() + "\n";
     if (tag === "li") return "- " + inner.trim() + "\n";
+    if (tag === "tr") return Array.from(node.childNodes).map((cell) => render(cell)).join(" | ") + "\n";
+    if (tag === "td" || tag === "th") return inner.trim();
     if (["strong","b"].includes(tag)) return "**" + inner + "**";
     if (["em","i"].includes(tag)) return "*" + inner + "*";
     if (["p","div","ul","ol"].includes(tag)) return inner.trim() + "\n";
@@ -250,7 +252,7 @@ export default function StudentAssignmentEditor({
           <div><p className="text-xs font-bold uppercase tracking-wider text-violet-700">Espacio de producción</p><h4 className="mt-1 text-base font-bold text-slate-900">Editor de tu tarea</h4></div>
           <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-violet-800">Documento → PDF</span>
         </div>
-        <p className="mt-2 text-xs leading-5 text-slate-600">Redactá, organizá y dale formato a tu trabajo. EDUNEXA genera el PDF y lo adjunta automáticamente a tu entrega.</p>
+        <p className="mt-2 text-xs leading-5 text-slate-600">Redactá, organizá y dale formato a tu trabajo: títulos, listas, citas, tablas, enlaces, color, resaltado y fórmulas simples. EDUNEXA genera el PDF y lo adjunta automáticamente a tu entrega.</p>
       </div>
       <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 bg-slate-50 p-2">
         <button type="button" title="Negrita" aria-label="Negrita" disabled={locked || busy} onClick={() => command("bold")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Bold size={17}/></button>
@@ -294,7 +296,7 @@ export default function StudentAssignmentEditor({
           aria-label="Contenido de la tarea"
           aria-multiline="true"
           data-placeholder="Comenzá a escribir tu tarea acá. Podés agregar títulos, subtítulos, listas y destacar ideas importantes..."
-          className="min-h-[320px] rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm leading-7 text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100 [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:text-lg [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:my-1"
+          className="min-h-[320px] rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm leading-7 text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100 [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:text-lg [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-violet-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-slate-300 [&_td]:p-2 [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-50 [&_th]:p-2 [&_pre]:rounded-lg [&_pre]:bg-slate-100 [&_pre]:p-3 [&_pre]:font-mono"
         />
         {locked ? <p className="mt-2 text-xs text-amber-700">Esta entrega ya tiene calificación y no puede modificarse.</p> : null}
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
