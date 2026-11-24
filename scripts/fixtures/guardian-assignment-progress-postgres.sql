@@ -205,13 +205,13 @@ insert into public.virtual_classrooms (id,institution_id,division_id,course_subj
   ('a0000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','70000000-0000-0000-0000-000000000001','90000000-0000-0000-0000-000000000001','Matemática · 1° A');
 
 insert into public.assignments (id,institution_id,classroom_id,title,due_at,max_score,published_at) values
-  ('b0000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','Ecuaciones',now()+interval '2 days',10,now()-interval '1 day'),
-  ('b0000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','Actividad futura',now()+interval '2 days',10,now()+interval '2 days'),
-  ('b0000000-0000-0000-0000-000000000003','30000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','Trabajo de geometría',now()+interval '3 days',10,now()-interval '1 day');
+  ('b0000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','Ecuaciones',now()+interval '2 days',100,now()-interval '1 day'),
+  ('b0000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','Actividad futura',now()+interval '2 days',100,now()+interval '2 days'),
+  ('b0000000-0000-0000-0000-000000000003','30000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','Trabajo de geometría',now()+interval '3 days',100,now()-interval '1 day');
 
 insert into public.submissions (id,institution_id,assignment_id,student_id,body,file_path,submitted_at,score,feedback,review_status) values
-  ('c0000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','b0000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000001','CONTENIDO PRIVADO','private/path/1',now()-interval '3 hours',8,'DEVOLUCIÓN PRIVADA','aprobado'),
-  ('c0000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','b0000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000002','OTRO CONTENIDO PRIVADO','private/path/2',now()-interval '2 hours',6,'OTRA DEVOLUCIÓN','visto');
+  ('c0000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','b0000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000001','CONTENIDO PRIVADO','private/path/1',now()-interval '3 hours',80,'DEVOLUCIÓN PRIVADA','aprobado'),
+  ('c0000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','b0000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000002','OTRO CONTENIDO PRIVADO','private/path/2',now()-interval '2 hours',60,'OTRA DEVOLUCIÓN','visto');
 
 grant usage on schema public, private, auth to authenticated;
 grant execute on function auth.uid() to authenticated;
