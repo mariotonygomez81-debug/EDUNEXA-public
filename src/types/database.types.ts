@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      academic_calendar_events: {
+        Row: {
+          all_day: boolean
+          audience: string
+          category: string
+          created_at: string
+          created_by_membership_id: string
+          description: string
+          ends_at: string | null
+          id: string
+          institution_id: string
+          location: string | null
+          starts_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          all_day?: boolean
+          audience?: string
+          category: string
+          created_at?: string
+          created_by_membership_id: string
+          description?: string
+          ends_at?: string | null
+          id?: string
+          institution_id: string
+          location?: string | null
+          starts_at: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          all_day?: boolean
+          audience?: string
+          category?: string
+          created_at?: string
+          created_by_membership_id?: string
+          description?: string
+          ends_at?: string | null
+          id?: string
+          institution_id?: string
+          location?: string | null
+          starts_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_calendar_events_created_by_membership_id_fkey"
+            columns: ["created_by_membership_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_calendar_events_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       administrative_records: {
         Row: {
           category: string
