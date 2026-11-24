@@ -27,6 +27,8 @@ const preferenceOptions = [
   { key: "attendance", label: "Asistencia", description: "Novedades y comunicaciones de asistencia." },
   { key: "support", label: "Soporte", description: "Cambios y respuestas en tus tickets de soporte." },
   { key: "assignment_due", label: "Tareas próximas a vencer", description: "Avisos cuando una tarea publicada vence dentro de las próximas 24 horas." },
+  { key: "appointment", label: "Citaciones", description: "Nuevas citaciones y cambios de estado de entrevistas." },
+  { key: "report_card", label: "Boletines", description: "Avisos cuando se publica un boletín habilitado para tu cuenta." },
 ];
 
 const typeLabels: Record<string, string> = {
