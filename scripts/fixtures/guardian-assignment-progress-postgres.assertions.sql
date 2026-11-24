@@ -23,7 +23,7 @@ begin
     '60000000-0000-0000-0000-000000000001'
   )
   where assignment_title = 'Ecuaciones';
-  if v_row.score <> 8 or v_row.max_score <> 10 or not v_row.can_view_grade then
+  if v_row.score <> 80 or v_row.max_score <> 100 or not v_row.can_view_grade then
     raise exception 'Grade visibility for authorized guardian is incorrect';
   end if;
   if v_row.review_status <> 'aprobado' or not v_row.submitted then
