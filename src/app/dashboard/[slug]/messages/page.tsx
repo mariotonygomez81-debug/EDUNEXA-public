@@ -162,7 +162,7 @@ export default async function MessagesPage({
               {conversations.map((conversation) => (
                 <Link key={conversation.conversation_id}
                   href={`/dashboard/${slug}/messages/${conversation.conversation_id}`}
-                  className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-violet-200 hover:bg-violet-50/40">
+                  className="student-message-row flex flex-wrap items-center justify-between gap-4 bg-white shadow-sm">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="rounded-full bg-indigo-100 p-3 text-indigo-700"><MessageCircle size={20} /></div>
                     <div className="min-w-0">
