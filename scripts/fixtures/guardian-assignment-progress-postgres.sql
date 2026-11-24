@@ -100,7 +100,7 @@ stable
 security definer
 set search_path = ''
 as $function$
-  select p_permission_key = 'classroom.read'
+  select p_permission_key in ('classroom.read', 'grades.read')
     and exists (
       select 1
       from public.memberships m
@@ -113,6 +113,40 @@ as $function$
         and m.status = 'active'
         and r.key = 'guardian'
     );
+$function$;
+
+create or replace function private.can_access_student(
+  p_student_id uuid,
+  p_institution_id uuid,
+  p_permission_key text
+) returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $function$
+  select exists (
+    select 1
+    from public.memberships m
+    join public.membership_roles mr
+      on mr.membership_id = m.id
+     and mr.institution_id = m.institution_id
+    join public.roles r on r.id = mr.role_id
+    join public.guardians g
+      on g.membership_id = m.id
+     and g.institution_id = m.institution_id
+    join public.student_guardians sg
+      on sg.guardian_id = g.id
+     and sg.institution_id = g.institution_id
+    where m.user_id = (select auth.uid())
+      and m.institution_id = p_institution_id
+      and m.status = 'active'
+      and r.key = 'guardian'
+      and sg.student_id = p_student_id
+      and p_permission_key = 'grades.read'
+      and sg.can_view_grades
+      and private.has_institution_permission(p_institution_id, p_permission_key)
+  );
 $function$;
 
 insert into public.roles (id, key) values
