@@ -340,7 +340,9 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
           <div className="grid gap-5 lg:grid-cols-2">
             {students.map((student) => {
               const studentReportCards = publishedReportCards.filter((card) => card.student_id === student.student_id);
-              const academicHistory = buildPublishedAcademicHistory(studentReportCards);
+              const academicHistory = student.can_view_grades
+                ? buildPublishedAcademicHistory(studentReportCards)
+                : { periods: [], subjects: [], supportCount: 0 };
               return (
               <article key={student.student_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 bg-slate-50/70 p-5">
@@ -481,7 +483,11 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                       <p className="text-[10px] leading-4 text-slate-400">Las tendencias solo se muestran cuando ambos períodos usan la misma escala. Las señales de acompañamiento orientan el seguimiento y no reemplazan la evaluación docente.</p>
                     </div>
                   ) : (
-                    <p className="mt-2 text-xs text-slate-500">Todavía no hay períodos con boletines publicados disponibles para construir el historial.</p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      {student.can_view_grades
+                        ? "Todavía no hay períodos con boletines publicados disponibles para construir el historial."
+                        : "La institución no habilitó la consulta de calificaciones para esta cuenta."}
+                    </p>
                   )}
                 </section>
 
