@@ -29,10 +29,14 @@ function dateLabel(value: string | null) {
 }
 
 export default function ClassroomAssignmentRoster({
-  rows, files, slug, classroomId, assignmentId, maxScore, dueAt, asOf,
+  rows, files, historyBySubmission, slug, classroomId, assignmentId, maxScore, dueAt, asOf,
 }: {
   rows: ClassroomAssignmentRosterRow[];
   files: { file_id: string; submission_id: string | null; original_filename: string; signedUrl: string | null }[];
+  historyBySubmission: Record<string, {
+    revisions?: { revision_number: number; body: string | null; file_path: string | null; submitted_at: string | null; changed_at: string }[];
+    grades?: { previous_score: number | null; new_score: number | null; previous_feedback: string | null; new_feedback: string | null; changed_at: string }[];
+  } | null>;
   slug: string;
   classroomId: string;
   assignmentId: string;
@@ -183,6 +187,37 @@ export default function ClassroomAssignmentRoster({
                           <div className="sm:col-span-2"><button className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800">{maxScore !== null ? "Guardar calificación y devolución" : "Enviar devolución"}</button></div>
                         </AjaxForm>
                         {row.feedback ? <p className="mt-3 whitespace-pre-wrap border-t border-slate-100 pt-3 text-sm leading-6 text-slate-600">{row.feedback}</p> : null}
+                        {(() => {
+                          const history = historyBySubmission[row.submission_id!] ?? null;
+                          const revisions = history?.revisions ?? [];
+                          const gradeEvents = history?.grades ?? [];
+                          if (!revisions.length && !gradeEvents.length) return null;
+                          return (
+                            <details className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
+                              <summary className="cursor-pointer text-sm font-semibold text-indigo-800">
+                                Historial de cambios · {revisions.length} versiones · {gradeEvents.length} cambios de calificación
+                              </summary>
+                              <div className="mt-3 space-y-3">
+                                {revisions.map((revision) => (
+                                  <article key={`revision-${revision.revision_number}`} className="rounded-lg border border-slate-200 bg-white p-3">
+                                    <p className="text-xs font-bold text-slate-700">Versión anterior #{revision.revision_number}</p>
+                                    <p className="mt-1 text-xs text-slate-500">{dateLabel(revision.changed_at)}</p>
+                                    {revision.body ? <p className="mt-2 whitespace-pre-wrap break-words text-sm text-slate-600">{revision.body}</p> : null}
+                                    {revision.file_path ? <p className="mt-1 break-all text-xs text-slate-400">Referencia de archivo histórica registrada</p> : null}
+                                  </article>
+                                ))}
+                                {gradeEvents.map((event, index) => (
+                                  <article key={`grade-${event.changed_at}-${index}`} className="rounded-lg border border-slate-200 bg-white p-3">
+                                    <p className="text-xs font-bold text-slate-700">Cambio de calificación</p>
+                                    <p className="mt-1 text-xs text-slate-500">{dateLabel(event.changed_at)}</p>
+                                    <p className="mt-2 text-sm text-slate-700">Nota: {event.previous_score ?? "Sin nota"} → {event.new_score ?? "Sin nota"}</p>
+                                    {event.previous_feedback || event.new_feedback ? <div className="mt-2 grid gap-2 sm:grid-cols-2"><p className="whitespace-pre-wrap text-xs text-slate-500"><strong>Devolución anterior:</strong> {event.previous_feedback || "Sin devolución"}</p><p className="whitespace-pre-wrap text-xs text-slate-700"><strong>Devolución nueva:</strong> {event.new_feedback || "Sin devolución"}</p></div> : null}
+                                  </article>
+                                ))}
+                              </div>
+                            </details>
+                          );
+                        })()}
                       </div>
                     </div>
                   </details>
