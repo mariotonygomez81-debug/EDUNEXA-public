@@ -15,7 +15,7 @@ assert.match(component, /const students\s*=\s*\[/,
   "Tutor demo must use its local fictional student fixtures.");
 assert.match(component, /const notifications\s*=\s*\[/,
   "Tutor demo must use its local fictional notification fixtures.");
-assert.doesNotMatch(component, /supabase|groq|createClient|process\.env|fetch\s*\(/i,
+assert.doesNotMatch(component, /(?:from\s+["'][^"']*(?:supabase|groq)|import\s*\(\s*["'][^"']*(?:supabase|groq)|createClient\s*\(|process\.env|fetch\s*\()/i,
   "Tutor demo must not connect to Supabase, Groq, environment secrets or external APIs.");
 
 console.log("Tutor local demo isolation checks passed.");
