@@ -236,3 +236,47 @@ as $function$
 $function$;
 revoke all on function public.list_my_portal_students(uuid) from public,anon;
 grant execute on function public.list_my_portal_students(uuid) to authenticated;
+
+
+-- Publish the selected audience and create the immutable snapshot in one transaction.
+create or replace function public.publish_report_card_with_audience(
+  p_workflow_id uuid,
+  p_audience text
+) returns uuid
+language plpgsql security definer set search_path = ''
+as $function$
+declare
+  v_institution_id uuid;
+  v_student_id uuid;
+  v_status text;
+begin
+  if (select auth.uid()) is null then
+    raise exception 'Authentication required' using errcode='28000';
+  end if;
+  if p_audience not in ('student','guardian','both') then
+    raise exception 'Invalid report card audience' using errcode='22023';
+  end if;
+
+  select institution_id,student_id,status
+    into v_institution_id,v_student_id,v_status
+  from public.report_card_workflows
+  where id=p_workflow_id
+  for update;
+
+  if v_institution_id is null or v_status is distinct from 'approved' then
+    raise exception 'Only approved report cards can be published' using errcode='23514';
+  end if;
+  if not private.has_institution_permission(v_institution_id,'report_cards.publish')
+     or not private.can_access_student(v_student_id,v_institution_id,'grades.read') then
+    raise exception 'Report card publication permission denied' using errcode='42501';
+  end if;
+
+  update public.report_card_workflows
+    set publication_audience=p_audience
+  where id=p_workflow_id and institution_id=v_institution_id and status='approved';
+
+  return private.publish_report_card_impl(p_workflow_id);
+end;
+$function$;
+revoke all on function public.publish_report_card_with_audience(uuid,text) from public,anon;
+grant execute on function public.publish_report_card_with_audience(uuid,text) to authenticated;
