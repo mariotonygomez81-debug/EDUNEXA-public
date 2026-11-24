@@ -44,7 +44,11 @@ test("student private draft, cross-tab conflict, PDF submission, teacher downloa
   const editor = studentCard.getByRole("textbox", { name: "Contenido de la tarea" });
   await expect(editor).toBeVisible();
 
-  await studentCard.getByLabel("Plantillas de documento").selectOption("report");
+  const templates = ["practical", "report", "monograph", "project"];
+  for (let index = 0; index < templates.length; index += 1) {
+    if (index > 0) studentPage.once("dialog", (dialog) => dialog.accept());
+    await studentCard.getByLabel("Plantillas de documento").selectOption(templates[index]);
+  }
   await editor.fill("BORRADOR PRIVADO EDUNEXA - primera versión. Desarrollo y conclusión.");
   await studentCard.getByLabel("Encabezado PDF").fill("EDUNEXA · E2E · Encabezado");
   await studentCard.getByLabel("Pie de página").fill("Documento de prueba · Pie");
@@ -61,9 +65,15 @@ test("student private draft, cross-tab conflict, PDF submission, teacher downloa
   const secondCard = assignmentCard(secondTab);
   const secondEditor = secondCard.getByRole("textbox", { name: "Contenido de la tarea" });
   await expect(secondEditor).toContainText("BORRADOR PRIVADO EDUNEXA", { timeout: 30_000 });
-  await editor.fill("BORRADOR PRIVADO EDUNEXA - versión de primera pestaña.");
+  await editor.click();
+  await editor.press("End");
+  await editor.press("Enter");
+  await editor.type("Versión de primera pestaña.");
   await expect(studentCard.getByText(/Borrador privado sincronizado/)).toBeVisible({ timeout: 30_000 });
-  await secondEditor.fill("BORRADOR PRIVADO EDUNEXA - versión elegida desde segunda pestaña.");
+  await secondEditor.click();
+  await secondEditor.press("End");
+  await secondEditor.press("Enter");
+  await secondEditor.type("Versión elegida desde segunda pestaña.");
   await expect(secondCard.getByRole("alert")).toContainText("otra versión guardada", { timeout: 30_000 });
   await secondCard.getByRole("button", { name: "Conservar mi versión" }).click();
   await expect(secondCard.getByText(/Borrador privado sincronizado/)).toBeVisible({ timeout: 30_000 });
