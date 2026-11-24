@@ -24,14 +24,17 @@ Opcionalmente, cambiar el puerto local si el 55439 está ocupado:
 EDUNEXA_PG_PORT=55440 bash scripts/test-guardian-assignment-progress-postgres.sh
 ```
 
-El script:
-1. Inicia un contenedor temporal `postgres:16-alpine`.
-2. Crea un esquema mínimo fiel a las columnas utilizadas por el RPC.
-3. Inserta únicamente usuarios, tutores, alumnos, materias, tareas y entregas ficticias.
-4. Carga el SQL borrador.
-5. Comprueba autorización por hijo, membresía activa, matrícula activa, estados de entrega, publicación de tareas y ocultamiento de calificaciones.
-6. Verifica que la definición de retorno no incluya cuerpo, devolución ni ruta de archivos.
-7. Elimina el contenedor al finalizar, incluso si falla.
+El script tiene dos modos:
+- **CI:** si existe `DATABASE_URL`, usa un servicio PostgreSQL 16 aislado que GitHub Actions levanta para ese job.
+- **Local:** si no existe `DATABASE_URL`, inicia un contenedor temporal `postgres:16-alpine` mediante Docker.
+
+En ambos modos:
+1. Crea un esquema mínimo fiel a las columnas utilizadas por el RPC.
+2. Inserta únicamente usuarios, tutores, alumnos, materias, tareas y entregas ficticias.
+3. Carga el SQL borrador.
+4. Comprueba autorización por hijo, membresía activa, matrícula activa, estados de entrega, publicación de tareas y ocultamiento de calificaciones.
+5. Verifica que la definición de retorno no incluya cuerpo, devolución ni ruta de archivos.
+6. En modo local, elimina el contenedor al finalizar, incluso si falla.
 
 La prueba simula `auth.uid()` y `private.has_institution_permission()` con funciones de fixture. Por ello valida sintaxis PostgreSQL y las reglas internas de esta RPC, pero no sustituye una prueba completa de Supabase Auth, RLS, PostgREST ni la implementación real de permisos.
 
