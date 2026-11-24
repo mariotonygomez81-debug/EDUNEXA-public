@@ -1,6 +1,6 @@
 -- Isolated synthetic schema matching the authorization columns inspected in Hosted.
-create role anon nologin;
-create role authenticated nologin;
+do $ begin create role anon nologin; exception when duplicate_object then null; end $;
+do $ begin create role authenticated nologin; exception when duplicate_object then null; end $;
 create schema auth;
 create schema private;
 create or replace function auth.uid() returns uuid language sql stable as $$
@@ -94,7 +94,7 @@ insert into public.student_guardians values
 insert into public.virtual_classrooms values
  ('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','52000000-0000-0000-0000-000000000001',null,null);
 insert into public.classroom_teacher_permissions(id,institution_id,classroom_id,teacher_membership_id,can_edit_materials,can_edit_assignments,can_grade,can_attendance,is_active,granted_by_membership_id) values
- ('58000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','57000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001',true,false,false,true,true,'20000000-0000-0000-0000-000000000003');
+ ('58000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','57000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001',true,true,true,true,true,'20000000-0000-0000-0000-000000000003');
 
 create or replace function private.has_institution_permission(p_institution_id uuid,p_permission_key text)
 returns boolean language sql stable security definer set search_path=''

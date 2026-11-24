@@ -39,22 +39,53 @@ begin
  if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.assignments.edit') then raise exception 'inactive capability unexpectedly granted'; end if;
 end $$;
 
--- Delegated capabilities are independent and require an active row.
-do $$
+-- Delegated capabilities are independent and each requires its own active flag.
+do $
 begin
  if not private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.materials.edit') then raise exception 'active can_edit_materials delegation denied'; end if;
- if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.assignments.edit') then raise exception 'can_edit_assignments borrowed from another capability'; end if;
- if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.grade') then raise exception 'can_grade borrowed from another capability'; end if;
+ if not private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.assignments.edit') then raise exception 'active can_edit_assignments delegation denied'; end if;
+ if not private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.grade') then raise exception 'active can_grade delegation denied'; end if;
  if not private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.attendance.manage') then raise exception 'active can_attendance delegation denied'; end if;
-end $$;
+end $;
 reset role;
-update public.classroom_teacher_permissions set is_active=false where id='58000000-0000-0000-0000-000000000001';
+update public.classroom_teacher_permissions set can_edit_materials=false where id='58000000-0000-0000-0000-000000000001';
 set role authenticated;
 select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000001',false);
-do $$ begin
- if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.materials.edit') then raise exception 'inactive delegation still granted materials'; end if;
- if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.attendance.manage') then raise exception 'inactive delegation still granted attendance'; end if;
-end $$;
+do $ begin
+ if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.materials.edit') then raise exception 'disabled can_edit_materials still granted'; end if;
+end $;
+reset role;
+update public.classroom_teacher_permissions set can_edit_materials=true,can_edit_assignments=false where id='58000000-0000-0000-0000-000000000001';
+set role authenticated;
+select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000001',false);
+do $ begin
+ if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.assignments.edit') then raise exception 'disabled can_edit_assignments still granted'; end if;
+end $;
+reset role;
+update public.classroom_teacher_permissions set can_edit_assignments=true,can_grade=false where id='58000000-0000-0000-0000-000000000001';
+set role authenticated;
+select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000001',false);
+do $ begin
+ if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.grade') then raise exception 'disabled can_grade still granted'; end if;
+end $;
+reset role;
+update public.classroom_teacher_permissions set can_grade=true,can_attendance=false where id='58000000-0000-0000-0000-000000000001';
+set role authenticated;
+select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000001',false);
+do $ begin
+ if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.attendance.manage') then raise exception 'disabled can_attendance still granted'; end if;
+end $;
+reset role;
+update public.classroom_teacher_permissions set can_attendance=true,is_active=false where id='58000000-0000-0000-0000-000000000001';
+set role authenticated;
+select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000001',false);
+do $ begin
+ if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.materials.edit')
+ or private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.assignments.edit')
+ or private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.grade')
+ or private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.attendance.manage')
+ then raise exception 'inactive delegation retained a capability'; end if;
+end $;
 reset role;
 update public.classroom_teacher_permissions set is_active=true where id='58000000-0000-0000-0000-000000000001';
 

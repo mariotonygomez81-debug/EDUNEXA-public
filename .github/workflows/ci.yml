@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, feature/tutor-module]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -95,6 +96,14 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/edunexa_guardian_test
         run: bash scripts/test-guardian-assignment-progress-postgres.sh
+      - name: Create separate role authorization test database
+        env:
+          PGPASSWORD: postgres
+        run: createdb -h 127.0.0.1 -U postgres edunexa_role_auth_test
+      - name: Validate role-scoped authorization in isolated PostgreSQL
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/edunexa_role_auth_test
+        run: bash scripts/test-role-scoped-authz-postgres.sh
 
   student-notifications-e2e:
     if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feature/student-module-mobile' && vars.ENABLE_STAGING_NOTIFICATION_E2E == 'true' }}
@@ -127,3 +136,35 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run student due-notification browser test against staging
         run: npx playwright test --config=e2e/playwright.config.mjs e2e/student-due-notifications.spec.mjs
+
+  role-login-modules-e2e:
+    if: ${{ github.event_name == 'workflow_dispatch' && vars.ENABLE_ROLE_LOGIN_E2E == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      E2E_BASE_URL: ${{ vars.EDUNEXA_E2E_BASE_URL }}
+      E2E_INSTITUTION_SLUG: ${{ secrets.E2E_INSTITUTION_SLUG }}
+      E2E_TEACHER_EMAIL: ${{ secrets.E2E_TEACHER_EMAIL }}
+      E2E_TEACHER_PASSWORD: ${{ secrets.E2E_TEACHER_PASSWORD }}
+      E2E_STUDENT_EMAIL: ${{ secrets.E2E_STUDENT_EMAIL }}
+      E2E_STUDENT_PASSWORD: ${{ secrets.E2E_STUDENT_PASSWORD }}
+      E2E_TUTOR_EMAIL: ${{ secrets.E2E_TUTOR_EMAIL }}
+      E2E_TUTOR_PASSWORD: ${{ secrets.E2E_TUTOR_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Verify synthetic login fixtures are configured
+        run: |
+          for key in E2E_BASE_URL E2E_INSTITUTION_SLUG E2E_TEACHER_EMAIL E2E_TEACHER_PASSWORD E2E_STUDENT_EMAIL E2E_STUDENT_PASSWORD E2E_TUTOR_EMAIL E2E_TUTOR_PASSWORD; do
+            if [ -z "${!key}" ]; then echo "Missing synthetic E2E setting: $key"; exit 1; fi
+          done
+      - name: Install application dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Install pinned Playwright runner
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @playwright/test@1.58.2
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify single login and role modules in browser
+        run: npx playwright test --config=e2e/playwright.config.mjs e2e/login-role-modules.spec.mjs
