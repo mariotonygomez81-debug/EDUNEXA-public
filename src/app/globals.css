@@ -692,3 +692,32 @@ body{
 .workspace-route-transition :where(a,button):focus-visible{outline:3px solid #8b83f2;outline-offset:3px}
 @keyframes workspace-route-enter{from{opacity:.82;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.workspace-route-transition{animation:none;transform:none;opacity:1}}
+
+
+/* Student portal: lively micro-interactions, with reduced-motion support. */
+.student-dashboard-content{animation:student-page-in .48s cubic-bezier(.2,.75,.25,1) both}
+.student-hero{isolation:isolate;box-shadow:0 18px 48px #174b3d20;transition:box-shadow .3s ease,transform .3s ease}
+.student-hero:after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(115deg,transparent 20%,#ffffff12 45%,transparent 70%);transform:translateX(-110%);animation:student-hero-shine 8s ease-in-out infinite}
+.student-hero:hover{box-shadow:0 24px 58px #174b3d2a}
+.student-stagger>*{animation:student-card-in .48s cubic-bezier(.2,.75,.25,1) both}
+.student-stagger>*:nth-child(2){animation-delay:55ms}
+.student-stagger>*:nth-child(3){animation-delay:110ms}
+.student-stagger>*:nth-child(4){animation-delay:165ms}
+.student-card,.student-quick-link,.student-classroom-card,.student-task-item{transition:transform .22s cubic-bezier(.2,.75,.25,1),box-shadow .22s ease,border-color .22s ease,background-color .22s ease}
+.student-card:hover{transform:translateY(-2px);box-shadow:0 16px 34px #17243b0c}
+.student-quick-link:hover,.student-classroom-card:hover{transform:translateY(-4px) scale(1.008);box-shadow:0 16px 28px #17243b12}
+.student-quick-link:active,.student-classroom-card:active{transform:translateY(-1px) scale(.995)}
+.student-task-item:hover{transform:translateX(3px);border-color:#f4d38d;background:#fffdf8}
+.student-dashboard button:focus-visible,.student-dashboard a:focus-visible{outline:3px solid #10a36b;outline-offset:3px}
+.student-dashboard input{transition:border-color .18s ease,box-shadow .18s ease,background-color .18s ease}
+.student-dashboard nav a{transition:background-color .18s ease,color .18s ease,transform .18s ease}
+.student-dashboard nav a:active{transform:scale(.96)}
+@keyframes student-page-in{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+@keyframes student-card-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes student-hero-shine{0%,65%,100%{transform:translateX(-110%)}82%{transform:translateX(110%)}}
+@media(hover:none){.student-hero:hover,.student-card:hover,.student-quick-link:hover,.student-classroom-card:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){
+ .student-dashboard-content,.student-stagger>*,.student-hero:after{animation:none!important}
+ .student-card,.student-quick-link,.student-classroom-card,.student-task-item,.student-dashboard nav a{transition:none!important}
+ .student-hero:hover,.student-card:hover,.student-quick-link:hover,.student-classroom-card:hover,.student-task-item:hover{transform:none!important}
+}
