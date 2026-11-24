@@ -137,6 +137,7 @@ insert into public.guardians (id,institution_id,membership_id) values
 insert into public.student_guardians (institution_id,student_id,guardian_id,can_view_grades) values
   ('30000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001',true),
   ('30000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000002','50000000-0000-0000-0000-000000000002',false),
+  ('30000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000003','50000000-0000-0000-0000-000000000001',true),
   ('30000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000003','50000000-0000-0000-0000-000000000003',true);
 
 insert into public.enrollments (institution_id,student_id,division_id,status) values
@@ -153,7 +154,7 @@ insert into public.virtual_classrooms (id,institution_id,division_id,course_subj
 
 insert into public.assignments (id,institution_id,classroom_id,title,due_at,max_score,published_at) values
   ('b0000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','Ecuaciones',now()+interval '2 days',10,now()-interval '1 day'),
-  ('b0000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','Actividad futura',10,now()+interval '2 days'),
+  ('b0000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','Actividad futura',now()+interval '2 days',10,now()+interval '2 days'),
   ('b0000000-0000-0000-0000-000000000003','30000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','Trabajo de geometría',now()+interval '3 days',10,now()-interval '1 day');
 
 insert into public.submissions (id,institution_id,assignment_id,student_id,body,file_path,submitted_at,score,feedback,review_status) values
