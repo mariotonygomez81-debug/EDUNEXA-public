@@ -16,10 +16,10 @@ export default async function StudentDetailPage({
   searchParams,
 }: {
   params: Promise<{ slug: string; studentId: string }>;
-  searchParams: Promise<{ error?: string; updated?: string; enrolled?: string; transferred?: string; closed?: string; guardian_linked?: string; guardian_unlinked?: string; previous_added?: string; previous_updated?: string }>;
+  searchParams: Promise<{ error?: string; updated?: string; enrolled?: string; transferred?: string; closed?: string; guardian_linked?: string; guardian_unlinked?: string; guardian_permissions?: string; previous_added?: string; previous_updated?: string }>;
 }) {
   const { slug, studentId } = await params;
-  const { error, updated, enrolled, transferred, closed, guardian_linked, guardian_unlinked, previous_added, previous_updated } = await searchParams;
+  const { error, updated, enrolled, transferred, closed, guardian_linked, guardian_unlinked, guardian_permissions, previous_added, previous_updated } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -163,6 +163,7 @@ export default async function StudentDetailPage({
 
         {guardian_linked === "1" && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">El tutor quedó vinculado al legajo.</div>}
         {guardian_unlinked === "1" && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Se quitó el vínculo familiar.</div>}
+        {guardian_permissions === "1" && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Los permisos de consulta del tutor se actualizaron.</div>}
         {error?.startsWith("guardian_") && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error === "guardian_invalid" ? "Seleccioná un tutor válido." : "No se pudo guardar el vínculo familiar. Verificá que la cuenta de tutor esté activa."}</div>}
 
 
