@@ -753,3 +753,5 @@ body{
  .student-subpage-hero,.student-panel,.student-task-card,.student-chat-panel,.student-assignment-editor,.student-message-row,.student-interactive-form input,.student-interactive-form textarea,.student-interactive-form select{transition:none!important}
  .student-subpage-hero:hover,.student-panel:hover,.student-task-card:hover,.student-message-row:hover{transform:none!important}
 }
+
+.student-subpage :target{scroll-margin-top:1.5rem}
