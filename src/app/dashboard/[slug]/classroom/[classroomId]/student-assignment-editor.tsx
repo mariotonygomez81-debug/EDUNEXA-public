@@ -133,7 +133,10 @@ async function createTaskPdf(title: string, body: string) {
     const label = String(index + 1) + " / " + String(pages.length);
     p.drawText(label, { x: p.getWidth() - margin - regular.widthOfTextAtSize(label, 8), y: 25, size: 8, font: regular, color: rgb(0.50, 0.54, 0.56) });
   });
-  return new Blob([await pdf.save()], { type: "application/pdf" });
+  const pdfBytes = await pdf.save();
+  const pdfBuffer = new ArrayBuffer(pdfBytes.byteLength);
+  new Uint8Array(pdfBuffer).set(pdfBytes);
+  return new Blob([pdfBuffer], { type: "application/pdf" });
 }
 
 export default function StudentAssignmentEditor({
