@@ -2488,6 +2488,7 @@ export type Database = {
       }
       student_previous_subjects: {
         Row: {
+          course_subject_id: string | null
           created_at: string
           final_grade: number | null
           id: string
@@ -2500,6 +2501,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          course_subject_id?: string | null
           created_at?: string
           final_grade?: number | null
           id?: string
@@ -2512,6 +2514,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          course_subject_id?: string | null
           created_at?: string
           final_grade?: number | null
           id?: string
@@ -2524,6 +2527,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "student_previous_subjects_course_subject_fk"
+            columns: ["course_subject_id", "institution_id"]
+            isOneToOne: false
+            referencedRelation: "course_subjects"
+            referencedColumns: ["id", "institution_id"]
+          },
           {
             foreignKeyName: "student_previous_subjects_student_institution_fk"
             columns: ["student_id", "institution_id"]
