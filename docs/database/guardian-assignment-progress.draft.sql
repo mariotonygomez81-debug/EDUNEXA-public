@@ -54,10 +54,7 @@ begin
     and r.key = 'guardian'
   limit 1;
 
-  if v_membership_id is null
-     or not private.can_access_student(
-       p_student_id, p_institution_id, 'classroom.read'
-     ) then
+  if v_membership_id is null then
     raise exception 'Student progress access denied' using errcode = '42501';
   end if;
 
@@ -77,20 +74,11 @@ begin
     sub.submitted_at,
     sub.review_status,
     case
-      when sg.can_view_grades
-       and private.can_access_student(
-         p_student_id, p_institution_id, 'grades.read'
-       )
-      then sub.score
+      when sg.can_view_grades then sub.score
       else null
     end,
     a.max_score,
-    (
-      sg.can_view_grades
-      and private.can_access_student(
-        p_student_id, p_institution_id, 'grades.read'
-      )
-    )
+    sg.can_view_grades
   from public.student_guardians sg
   join public.guardians g
     on g.id = sg.guardian_id
@@ -100,7 +88,7 @@ begin
     on e.student_id = sg.student_id
    and e.institution_id = sg.institution_id
    and e.status = 'active'
-   and e.enrolled_on <= current_date
+   and (e.enrolled_on is null or e.enrolled_on <= current_date)
    and (e.ended_on is null or e.ended_on >= current_date)
   join public.virtual_classrooms vc
     on vc.institution_id = e.institution_id
