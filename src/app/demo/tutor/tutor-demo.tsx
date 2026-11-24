@@ -123,7 +123,7 @@ export default function TutorDemo() {
     const course = childForm.course.trim();
     const division = childForm.division.trim();
     if (!fullName || !course || !division || !childForm.institutionCode.trim()) return;
-    const initials = fullName.split(/\\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+    const initials = fullName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
     const newStudent = {
       id: `demo-${Date.now()}`, name: fullName, initials, course: `${course} · ${childForm.level}`, division,
       year: "Ciclo lectivo 2026",
