@@ -57,8 +57,8 @@ jobs:
         run: npm run check:tutor-integration
       - name: Validate local Tutor demo isolation
         run: npm run check:tutor-demo
-      - name: Validate single-login multi-institution access
-        run: npm run check:multi-institution
+      - name: Validate single-school access
+        run: npm run check:single-school
       - name: Build
         run: npm run build
       - name: Smoke test public routes
