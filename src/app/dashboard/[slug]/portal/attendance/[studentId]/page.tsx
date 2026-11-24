@@ -57,6 +57,13 @@ export default async function StudentAttendancePage({
     .eq("user_id", user.id).eq("status", "active").maybeSingle();
   if (!membership) redirect("/dashboard");
 
+  const { data: roleRows } = await supabase.from("membership_roles")
+    .select("roles(key)").eq("membership_id", membership.id);
+  const roleKeys = (roleRows ?? []).map((row) => row.roles?.key).filter(Boolean) as string[];
+  if (!roleKeys.some((role) => role === "student" || role === "guardian")) {
+    redirect(`/dashboard/${slug}`);
+  }
+
   const { data: portalRows, error: portalError } = await supabase.rpc("list_my_portal_students", {
     p_institution_id: institution.id,
   });
