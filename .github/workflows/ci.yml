@@ -43,6 +43,8 @@ jobs:
         run: npm run check:academic-ai
       - name: Validate submission history security
         run: npm run check:submission-history
+      - name: Validate private student assignment drafts
+        run: npm run check:student-drafts
       - name: Build
         run: npm run build
       - name: Smoke test public routes
