@@ -109,6 +109,7 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
   return <StudentDashboardExperience
     slug={slug}
     institutionName={institution.display_name}
+    unreadNotificationCount={unreadNotificationCount ?? 0}
     hasLoadError={Boolean(studentError || classroomError || taskLoadError || announcementResult.error)}
     classrooms={classrooms}
     taskSummary={{ total: allTasks.length, upcoming: upcomingTasks }}
