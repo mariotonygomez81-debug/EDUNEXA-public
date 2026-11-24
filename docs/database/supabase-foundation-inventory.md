@@ -15,12 +15,12 @@ Se revisaron las referencias Git visibles, el árbol completo del snapshot y la 
 - En `feature/tutor-module` hay 156 archivos bajo `supabase/migrations/`; el árbol no contiene un `schema.sql`, `supabase dump`, backup SQL o baseline fundacional identificable.
 - La API de GitHub permite revisar refs publicadas, commits alcanzables y árboles versionados; no permite enumerar objetos Git inalcanzables/dangling ni reflogs del servidor. No se ejecutó `git fsck --full --no-reflogs --unreachable` sobre un clon/bare repo del original. Por lo tanto, la ausencia de un objeto SQL no referenciado todavía no puede descartarse.
 - Las referencias Git consultadas exponen las ramas `main`, `feature/groq-only-academic-ai`, `feature/ollama-windows-preflight`, `feature/student-module-mobile` y `feature/tutor-module`, además de refs de PR. No se encontraron refs de tags en la respuesta de refs.
-- La búsqueda de repositorios instalados en la conexión GitHub sólo devolvió `EDUNEXA-public`. No hay otro repositorio privado EDUNEXA disponible para esta conexión.
+- Se localizó el upstream privado original del proyecto. Su README lo identifica como repositorio núcleo privado. Está disponible en esta conexión de GitHub; el nombre y enlace privado se comparten en la conversación y no se publican en este repositorio.
 - El repositorio no declara un mirror remoto (`mirror_url = null`). GitHub muestra la URL de clonación del propio repositorio público, pero no conserva el contenido de `.git/config`; por ello no se puede concluir que el repositorio original nunca haya tenido otro remoto.
 - La documentación de arquitectura describe repositorios privados por institución, pero no identifica el nombre ni la URL del repositorio fundacional original.
 - `supabase/config.toml` conserva el placeholder `project_id = "your-project-ref"`.
 
-**Conclusión de procedencia:** no se ha localizado una fuente autoritativa del esquema fundacional entre las refs publicadas, commits alcanzables, árboles versionados, documentación y repositorios instalados que están disponibles. La búsqueda de objetos inalcanzables requiere el clon o bundle original y sigue pendiente. No es posible reconstruir fielmente ese esquema con la evidencia actual.
+**Conclusión de procedencia:** se localizó el upstream privado y se inspeccionaron su rama `main`, su árbol completo, sus migraciones, las ramas históricas relacionadas con gestión institucional y el historial del archivo académico inicial. El upstream contiene 135 migraciones en `main`, pero no contiene un `schema.sql`, dump, backup ni baseline versionado que cree el núcleo institucional faltante. Su auditoría `docs/database/baseline-audit-2026-11-20.md` indica que las primeras migraciones se recuperaron desde `supabase_migrations.schema_migrations.statements`; también deja explícito que la reproducción del esquema completo en una base limpia seguía pendiente. La búsqueda de objetos inalcanzables requiere un clon o bundle original y sigue pendiente. El repositorio original fue localizado, pero no el baseline fundacional completo.
 
 ## 2. Inventario de objetos fundacionales faltantes
 
@@ -107,8 +107,8 @@ Antes de habilitar una migración ejecutable se deberá:
 ## 6. Entorno de pruebas y límites actuales
 
 - Único destino autorizado para pruebas de base de datos: Supabase local gratuito.
-- `supabase/config.toml` aún tiene `your-project-ref`; la configuración local no está lista.
-- En el entorno de trabajo de esta sesión no están disponibles Docker ni Supabase CLI, por lo que no se ejecutó el stack local ni pgTAP.
+- `supabase/config.toml` del snapshot público aún tiene `your-project-ref`; la configuración local no está lista. El upstream privado contiene un `project_id` asociado a la instalación alojada, por lo que no debe copiarse sin cambiarlo en un directorio temporal aislado.
+- En el entorno de trabajo de esta sesión no están disponibles Docker ni Supabase CLI, por lo que no se ejecutó el stack local ni pgTAP. Se preparó un procedimiento separado que usa `supabase db start` en un proyecto temporal con identificador local y sin migraciones; no requiere `supabase link` ni autenticación cloud.
 - No se consultó ni modificó ningún proyecto Supabase alojado.
 - No se generó una migración ejecutable ni se desplegó código.
 - Producción y Render permanecen intactos.
@@ -117,3 +117,10 @@ Antes de habilitar una migración ejecutable se deberá:
 ## 7. Próxima acción bloqueante
 
 Solicitar al responsable del proyecto una copia de **sólo esquema** del repositorio privado/original o un backup SQL sin datos personales. Si no existe, obtener aprobación explícita de la especificación de los ocho objetos enumerados y de su bootstrap inicial. Hasta entonces, mantener bloqueada la creación de baseline y las migraciones Tutor que dependan de él.
+
+
+## 8. Fuente upstream localizada y procedimiento local
+
+El repositorio núcleo privado original fue localizado y su historial se inspeccionó en modo lectura. La auditoría de origen confirma que el SQL de las primeras migraciones académicas se recuperó desde el historial de migraciones del proyecto Supabase, no desde un dump del esquema completo. La migración académica inicial crea 29 tablas de módulos y referencia instituciones, campus y membresías preexistentes; la migración de perfil también presupone `public.profiles`. Esto confirma que el baseline de identidad institucional no está contenido en esa secuencia.
+
+La búsqueda no encontró archivos SQL de esquema o backup en el árbol `main`, ni en las ramas relacionadas revisadas. No se consultó la base alojada para obtener un dump. El procedimiento local gratuito queda documentado en `docs/database/supabase-local-foundation-validation.md`; el inventario de catálogo asociado es estrictamente de solo lectura en `docs/database/local-foundation-catalog.readonly.sql`.
