@@ -40,6 +40,15 @@ begin
     null;
   end;
 
+  select count(*) into v_count
+  from public.list_my_child_assignment_progress(
+    '30000000-0000-0000-0000-000000000001',
+    '60000000-0000-0000-0000-000000000003'
+  );
+  if v_count <> 0 then
+    raise exception 'Withdrawn enrollment unexpectedly returned assignments';
+  end if;
+
   begin
     perform * from public.list_my_child_assignment_progress(
       '30000000-0000-0000-0000-000000000001',
