@@ -65,3 +65,52 @@ El inventario también registra que el entorno de esta sesión no dispone de Doc
 - Sin despliegues ni cambios en Render.
 - Sin datos reales de menores.
 - Groq sigue siendo el único proveedor de IA autorizado; esta etapa no requiere IA.
+
+
+## 7. Revisión detallada de RPC y RLS del portal
+
+### RPC de estudiantes y asistencia
+
+- `private.list_my_portal_students_impl(uuid)` valida `auth.uid()`, busca membresía activa en la institución indicada y exige un rol `student` o `guardian`.
+- La lista se construye exclusivamente desde `student_memberships` (cuenta propia) y `guardians → student_guardians` (estudiantes a cargo). La consulta une el estudiante por `institution_id` y obtiene la matrícula activa desde `enrollments`; no recibe curso/división del usuario.
+- Los contadores de asistencia sólo consideran sesiones `submitted` o `locked` y quedan condicionados por `private.can_access_student(..., 'attendance.read')`.
+- `private.list_my_student_attendance_impl(uuid,uuid,integer)` exige usuario autenticado, membresía activa y permiso de acceso al estudiante. Limita el resultado a un máximo de 100 registros y sólo devuelve sesiones presentadas o bloqueadas.
+- Los dos wrappers de `public` son `SECURITY INVOKER`; las implementaciones privadas son `SECURITY DEFINER`, usan `search_path = ''` y califican los objetos con su esquema. Los permisos de ejecución de los RPC públicos se conceden a `authenticated`, no a `anon`/PUBLIC.
+
+### RLS de relaciones tutor-estudiante
+
+- `student_guardians` tiene lectura condicionada por `private.can_access_student(..., 'students.read')` o permiso administrativo `students.manage`.
+- Alta, modificación y eliminación de `student_guardians` quedan limitadas a `students.manage`.
+- `student_memberships` permite lectura propia de la cuenta activa y operaciones administrativas con `students.link_membership`; al vincular exige que la membresía destino esté activa y tenga rol `student`.
+- Esto protege la relación contra escrituras directas de tutores, pero confirma que **no existe un flujo de solicitud autónoma del tutor** en la base versionada. Para implementarlo habrá que definir una solicitud pendiente y un proceso de aprobación institucional; no se debe abrir INSERT directo sobre `student_guardians`.
+
+### Boletines: permiso independiente
+
+La migración `20261124010000_report_card_audience_permissions.sql` separa el permiso general `grades.read` de la visibilidad de boletines: agrega `student_guardians.can_view_report_cards` (por defecto `false`) y `report_card_workflows.publication_audience` (`student`, `guardian`, `both`). La política de `report_card_snapshots` sólo deja leer snapshots de workflows publicados y cuya audiencia autoriza al usuario. Es una separación de permisos adecuada y de denegación por defecto.
+
+**Corrección aplicada en el portal:** el historial académico se calculaba sólo cuando `student.can_view_grades` era verdadero, aunque RLS pudiera autorizar la lectura del snapshot por `can_view_report_cards`. Se modificó `src/app/dashboard/[slug]/portal/page.tsx` para construir el historial a partir de los snapshots que la consulta ya recibió filtrados por RLS. Esto respeta el permiso específico de boletines sin ampliar acceso.
+
+### RPC de tareas: dependencia no versionada
+
+La página invoca `public.list_my_child_assignment_progress(uuid,uuid)` para cada estudiante a cargo. El test `guardian_assignment_progress_security.test.sql` espera ese RPC y aclara que debe aplicarse un borrador previo; sin embargo, **no aparece una migración que cree ese RPC ni su implementación privada en la secuencia versionada de `supabase/migrations` revisada**. En una reconstrucción limpia desde las migraciones del repositorio, el seguimiento de tareas del tutor no queda disponible. La UI actualmente absorbe el error y muestra que el seguimiento todavía no está habilitado.
+
+No se creó una migración improvisada porque falta validar el esquema fundacional, las relaciones exactas de aula/matrícula/entregas y el alcance de las calificaciones. Debe incorporarse como migración versionada y con prueba positiva/negativa una vez recuperada la base local completa.
+
+## 8. Prueba automatizada agregada
+
+Se agregó `supabase/tests/database/guardian_portal_rpcs_security.test.sql` con 25 aserciones pgTAP para verificar:
+
+- RLS habilitado en las tablas que alimentan el portal.
+- Existencia de ambos RPC públicos y sus implementaciones privadas.
+- Wrappers públicos `SECURITY INVOKER` e implementaciones privadas `SECURITY DEFINER`.
+- Ejecución permitida a `authenticated` y denegada a `anon`.
+- Rechazo de usuarios sin membresía activa y de llamadas sin JWT.
+
+La prueba **no se ejecutó**: la secuencia fundacional aún no se puede reconstruir de forma reproducible y esta sesión no dispone del stack local Supabase/Docker. No se realizaron consultas ni escrituras sobre una base alojada.
+
+## 9. Estado de esta iteración
+
+- Corrección de UI aplicada: historial de boletines respeta el permiso de audiencia específico.
+- Prueba pgTAP agregada, pendiente de ejecución local.
+- No se modificaron migraciones existentes ni se inventó DDL fundacional.
+- RPC de tareas, solicitud tutor-estudiante y pruebas positivas de relación siguen pendientes.
