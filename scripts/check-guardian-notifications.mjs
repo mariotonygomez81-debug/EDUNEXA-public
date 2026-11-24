@@ -46,7 +46,7 @@ const checks = [
     /np\.notification_type='appointment'/.test(draft) &&
     /g\.receives_notifications/.test(draft)],
   ["report-card fanout is restricted to guardian or both publication audiences",
-    /publication_audience,'\'\) not in \('guardian','both'\)/.test(draft) &&
+    draft.includes("coalesce(new.publication_audience,'') not in ('guardian','both')") &&
     /sg\.can_view_report_cards=true/.test(draft)],
   ["report-card fanout requires an active guardian membership and enabled preferences",
     /gm\.status='active'/.test(draft) &&
