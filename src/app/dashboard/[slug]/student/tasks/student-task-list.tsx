@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, SlidersHorizontal, BookOpen, CalendarClock, CheckCircle2, Clock3, ClipboardList, ArrowRight, X, Sparkles, CircleAlert, Send } from "lucide-react";
+import { Search, SlidersHorizontal, BookOpen, CalendarClock, CheckCircle2, Clock3, ClipboardList, ArrowRight, X, Sparkles, CircleAlert } from "lucide-react";
 
 type Item = {
   id: string; title: string; instructions: string | null; dueLabel: string;
