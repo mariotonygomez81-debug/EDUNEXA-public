@@ -14,7 +14,9 @@
     "check:admin-documents": "node scripts/check-admin-documents-migration.mjs",
     "check:secretary-scope": "node scripts/check-secretary-student-scope.mjs",
     "check:academic-ai": "node scripts/check-academic-ai-modes.mjs",
-    "check:submission-history": "node scripts/check-submission-history.mjs"
+    "check:submission-history": "node scripts/check-submission-history.mjs",
+    "check:student-drafts": "node scripts/check-student-assignment-drafts.mjs",
+    "test:e2e": "playwright test --config=e2e/playwright.config.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
