@@ -38,6 +38,20 @@ En ambos modos:
 
 La prueba simula `auth.uid()` y `private.has_institution_permission()` con funciones de fixture. Por ello valida sintaxis PostgreSQL y las reglas internas de esta RPC, pero no sustituye una prueba completa de Supabase Auth, RLS, PostgREST ni la implementación real de permisos.
 
+## Permisos y esquema revisados
+
+La implementación real se revisó en las migraciones fuente:
+
+- `private.has_institution_permission(institution_id, permission_key)` obtiene permisos mediante `memberships`, `membership_roles`, `role_permissions` y `permissions`; exige `auth.uid()` y membresía activa.
+- `classroom.read` está asignado al rol `guardian`. La última versión de `private.can_access_classroom` exige vínculo tutor-hijo y matrícula activa para permitir lectura.
+- `private.can_access_student(student_id, institution_id, 'grades.read')` exige permiso institucional y `student_guardians.can_view_grades`. El RPC ahora usa este helper además del flag por hijo antes de exponer `score` o `max_score`.
+- Las políticas de lectura de `assessments` y `grade_records` también usan `private.can_access_student(..., 'grades.read')`.
+- El RPC interno es `SECURITY DEFINER`, por lo que no depende de RLS para filtrar las filas. Por eso replica de forma explícita el scope: usuario autenticado, rol guardian activo, permiso `classroom.read`, vínculo exacto del hijo, matrícula vigente, tarea publicada y filtro de calificaciones con el helper canónico. El wrapper público es `SECURITY INVOKER`, y las funciones privadas no son accesibles para `anon`.
+
+El esquema de tareas usa calificación porcentual: `assignments.max_score` puede ser `100` o `NULL` (actividad formativa). El fixture se ajustó a esta escala. No se devuelve `instructions`, cuerpo de entrega, archivos, devolución docente ni eventos de auditoría.
+
+La evolución histórica ya existente en el portal compara las últimas versiones de boletines oficiales publicados por materia y período. Ahora su cálculo y presentación quedan condicionados a `student.can_view_grades`; cuando el permiso falta, no se muestran porcentajes, tendencias ni señales de acompañamiento.
+
 ## Resultado esperado
 
 ```
