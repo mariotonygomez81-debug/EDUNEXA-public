@@ -3,7 +3,7 @@ CREATE TABLE public.submission_file_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
   submission_id uuid NOT NULL,
-  file_id uuid NOT NULL UNIQUE REFERENCES public.classroom_file_objects(id) ON DELETE RESTRICT,
+  file_id uuid NOT NULL UNIQUE REFERENCES public.classroom_file_objects(id) ON DELETE CASCADE,
   changed_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   changed_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT submission_file_events_submission_scope_fkey
