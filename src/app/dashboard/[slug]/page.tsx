@@ -36,7 +36,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
     .select("roles(key,name)").eq("membership_id", membership.id);
   const roleNames = (roleRows ?? []).map((row) => row.roles?.name).filter(Boolean) as string[];
   const roleKeys = (roleRows ?? []).map((row) => row.roles?.key).filter(Boolean) as string[];
-  if (roleKeys.includes("student") && !roleKeys.includes("teacher")) redirect(`/dashboard/${slug}/student`);
+  if (roleKeys.includes("student") && !roleKeys.includes("teacher") && !roleKeys.includes("guardian")) redirect(`/dashboard/${slug}/student`);
   const permissions = await getMembershipPermissions(supabase, membership.id);
   const visibleModules = modules.filter((module) =>
     permissions.has(module.permission) && (module.roles?.some((role) => roleKeys.includes(role)) ?? true)
