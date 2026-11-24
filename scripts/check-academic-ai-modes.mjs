@@ -13,7 +13,7 @@ assert.match(api, /https:\/\/api\.groq\.com\/openai\/v1\/chat\/completions/);
 assert.match(api, /engine: "groq"/);
 assert.match(api, /studentReference: "el alumno"/);
 assert.match(api, /referite a la persona exclusivamente como "el alumno"/);
-assert.match(api, /redactToken\\(analysis, studentName, "el alumno"\\)/);
+assert.match(api, /redactToken\(analysis, studentName, "el alumno"\)/);
 assert.match(api, /Cache-Control": "no-store, max-age=0"/);
 assert.doesNotMatch(api, /Ollama|qwen2\.5|127\.0\.0\.1|body\.mode|mode === "local"/);
 assert.equal((api.match(/fetch\(/g) ?? []).length, 1, "Academic reports must use exactly one provider request");

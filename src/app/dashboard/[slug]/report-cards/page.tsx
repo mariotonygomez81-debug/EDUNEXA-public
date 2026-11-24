@@ -332,9 +332,16 @@ export default async function ReportCardsPage({
                     <input type="hidden" name="slug" value={slug} /><input type="hidden" name="student_id" value={selectedStudent.id} /><input type="hidden" name="grading_period_id" value={selectedPeriod.id} /><input type="hidden" name="workflow_action" value="approve" />
                     <button className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Aprobar boletín</button>
                   </form>}
-                  {workflow?.status === "approved" && canPublishReportCards && <form action={updateReportCardWorkflow}>
+                  {workflow?.status === "approved" && canPublishReportCards && <form action={updateReportCardWorkflow} className="flex flex-wrap items-end gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3">
                     <input type="hidden" name="slug" value={slug} /><input type="hidden" name="student_id" value={selectedStudent.id} /><input type="hidden" name="grading_period_id" value={selectedPeriod.id} /><input type="hidden" name="workflow_action" value="publish" />
-                    <button className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800">Publicar boletín</button>
+                    <label className="min-w-[220px] flex-1 text-xs font-semibold text-violet-950">¿Quién podrá consultar este boletín?
+                      <select name="publication_audience" defaultValue="both" className="mt-1.5 w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm font-normal text-slate-800">
+                        <option value="student">Solo el alumno</option>
+                        <option value="guardian">Solo el tutor</option>
+                        <option value="both">Alumno y tutor</option>
+                      </select>
+                    </label>
+                    <button className="rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800">Publicar boletín</button>
                   </form>}
                   {publishedWorkflow && <Link
                     href={`/dashboard/${slug}/report-cards/${publishedWorkflow.id}/pdf`}

@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { getMembershipPermissions } from "@/lib/auth/permissions";
 
 type Snapshot = {
   published_at?: string;
@@ -51,9 +50,6 @@ export async function GET(
     .select("id").eq("institution_id", institution.id)
     .eq("user_id", user.id).eq("status", "active").maybeSingle();
   if (!membership) return new Response("No autorizado", { status: 403 });
-
-  const permissions = await getMembershipPermissions(supabase, membership.id);
-  if (!permissions.has("grades.read")) return new Response("No autorizado", { status: 403 });
 
   const { data: row, error } = await supabase.from("report_card_snapshots")
     .select("snapshot")

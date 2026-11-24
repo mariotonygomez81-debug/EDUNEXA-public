@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 import { signOut } from "../actions";
@@ -37,6 +36,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
     .select("roles(key,name)").eq("membership_id", membership.id);
   const roleNames = (roleRows ?? []).map((row) => row.roles?.name).filter(Boolean) as string[];
   const roleKeys = (roleRows ?? []).map((row) => row.roles?.key).filter(Boolean) as string[];
+  if (roleKeys.includes("student") && !roleKeys.includes("teacher")) redirect(`/dashboard/${slug}/student`);
   const permissions = await getMembershipPermissions(supabase, membership.id);
   const visibleModules = modules.filter((module) =>
     permissions.has(module.permission) && (module.roles?.some((role) => roleKeys.includes(role)) ?? true)

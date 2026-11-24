@@ -73,13 +73,13 @@ export default async function ConversationPage({
   const messages = (messageRows ?? []) as ConversationMessage[];
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
-      <div className="mx-auto max-w-4xl space-y-5">
+    <main className="student-subpage min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
+      <div className="student-subpage-content mx-auto max-w-4xl space-y-5">
         <Link href={`/dashboard/${slug}/messages`} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-violet-700">
           <ArrowLeft size={16} /> Volver a mensajes
         </Link>
 
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <header className="student-panel flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="rounded-full bg-indigo-100 p-3 text-indigo-700"><MessageCircle size={22} /></div>
             <div>
@@ -114,13 +114,13 @@ export default async function ConversationPage({
           </div>
         ) : null}
 
-        <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <section className="student-chat-panel space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           {messagesError ? (
             <p className="text-sm text-amber-800">No fue posible cargar los mensajes.</p>
           ) : messages.length ? (
             messages.map((message) => (
               <div key={message.id} className={`flex ${message.is_mine ? "justify-end" : "justify-start"}`}>
-                <article className={`max-w-[85%] rounded-2xl px-4 py-3 sm:max-w-[75%] ${message.is_mine ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-800"}`}>
+                <article className={`student-chat-bubble max-w-[85%] rounded-2xl px-4 py-3 sm:max-w-[75%] ${message.is_mine ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-800"}`}>
                   <p className={`mb-1 text-xs font-semibold ${message.is_mine ? "text-violet-100" : "text-slate-500"}`}>
                     {message.is_mine ? "Vos" : message.sender_name}
                   </p>
@@ -139,7 +139,7 @@ export default async function ConversationPage({
           )}
         </section>
 
-        <form action={sendConversationMessage} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <form action={sendConversationMessage} className="student-interactive-form rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <input type="hidden" name="slug" value={slug} />
           <input type="hidden" name="conversation_id" value={conversationId} />
           <label className="block text-sm font-medium text-slate-700">

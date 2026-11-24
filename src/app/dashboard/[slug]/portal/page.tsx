@@ -8,10 +8,19 @@ type PublishedReportCard = {
   student_id: string;
   created_at: string;
   snapshot: {
-    period?: { name?: string };
-    academic_year?: { name?: string };
+    period?: { id?: string; name?: string; starts_on?: string; ends_on?: string };
+    academic_year?: { id?: string; name?: string };
     published_at?: string;
     workflow_version?: number;
+    grading_scale?: {
+      id?: string;
+      display_mode?: "numeric" | "descriptive" | "both";
+      levels?: { minimum_percentage: number; maximum_percentage: number; label: string; grade_value: number | null; is_passing: boolean }[];
+    } | null;
+    subjects?: {
+      subject: string;
+      assessments?: { title: string; score: number | null; maximum_score: number; weight_percent: number | null }[];
+    }[];
   };
 };
 
@@ -45,6 +54,117 @@ function dateLabel(value: string | null) {
   return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium" }).format(new Date(value));
 }
 
+function publishedSubjectGrades(snapshot: PublishedReportCard["snapshot"]) {
+  return (snapshot.subjects ?? []).map((subject) => {
+    const assessments = subject.assessments ?? [];
+    const completed = assessments.filter((item) => item.score !== null && item.maximum_score > 0);
+    const anyWeighted = assessments.some((item) => item.weight_percent !== null);
+    const totalWeight = assessments.reduce((sum, item) => sum + (item.weight_percent ?? 0), 0);
+    const weightsComplete = anyWeighted && assessments.every((item) => item.weight_percent !== null) &&
+      Math.abs(totalWeight - 100) < 0.001;
+    const allComplete = assessments.length > 0 && completed.length === assessments.length;
+    let percentage: number | null = null;
+    if (allComplete && !anyWeighted) {
+      percentage = completed.reduce((sum, item) => sum + (Number(item.score) / Number(item.maximum_score)) * 100, 0) / completed.length;
+    } else if (allComplete && weightsComplete) {
+      percentage = assessments.reduce((sum, item) =>
+        sum + (Number(item.score) / Number(item.maximum_score)) * Number(item.weight_percent), 0);
+    }
+    const level = percentage === null ? null : (snapshot.grading_scale?.levels ?? []).find((item) =>
+      percentage! >= Number(item.minimum_percentage) && percentage! <= Number(item.maximum_percentage));
+    return {
+      subject: subject.subject,
+      percentage,
+      levelLabel: level?.label ?? null,
+      gradeValue: level?.grade_value ?? null,
+      isPassing: level?.is_passing ?? null,
+      displayMode: snapshot.grading_scale?.display_mode ?? "numeric",
+    };
+  }).sort((a, b) => a.subject.localeCompare(b.subject, "es"));
+}
+
+function publishedSubjectProgress(snapshot: PublishedReportCard["snapshot"]) {
+  const subjects = publishedSubjectGrades(snapshot);
+  const evaluated = subjects.filter((subject) => subject.percentage !== null);
+  return {
+    subjects,
+    total: subjects.length,
+    evaluated: evaluated.length,
+    approved: evaluated.filter((subject) => subject.isPassing === true).length,
+    reinforce: evaluated.filter((subject) => subject.isPassing === false).length,
+    withoutScale: evaluated.filter((subject) => subject.isPassing === null).length,
+    completion: subjects.length ? Math.round((evaluated.length / subjects.length) * 100) : 0,
+  };
+}
+
+function latestPublishedCardsByPeriod(cards: PublishedReportCard[]) {
+  const latest = new Map<string, PublishedReportCard>();
+  for (const card of cards) {
+    const periodKey = [
+      card.snapshot.academic_year?.id ?? card.snapshot.academic_year?.name ?? "year",
+      card.snapshot.period?.id ?? card.snapshot.period?.name ?? card.workflow_id,
+    ].join(":");
+    const current = latest.get(periodKey);
+    const currentVersion = current?.snapshot.workflow_version ?? 1;
+    const nextVersion = card.snapshot.workflow_version ?? 1;
+    if (!current || nextVersion > currentVersion ||
+      (nextVersion === currentVersion && new Date(card.created_at).getTime() > new Date(current.created_at).getTime())) {
+      latest.set(periodKey, card);
+    }
+  }
+  return [...latest.values()].sort((a, b) => {
+    const aDate = a.snapshot.period?.ends_on ?? a.snapshot.period?.starts_on ?? a.snapshot.published_at ?? a.created_at;
+    const bDate = b.snapshot.period?.ends_on ?? b.snapshot.period?.starts_on ?? b.snapshot.published_at ?? b.created_at;
+    return new Date(aDate).getTime() - new Date(bDate).getTime();
+  });
+}
+
+function buildPublishedAcademicHistory(cards: PublishedReportCard[]) {
+  const periods = latestPublishedCardsByPeriod(cards);
+  const subjectPoints = new Map<string, {
+    period: string;
+    percentage: number | null;
+    isPassing: boolean | null;
+    scaleId: string | null;
+  }[]>();
+
+  for (const card of periods) {
+    const periodLabel = [
+      card.snapshot.period?.name ?? "Período",
+      card.snapshot.academic_year?.name,
+    ].filter(Boolean).join(" · ");
+    for (const grade of publishedSubjectGrades(card.snapshot)) {
+      const points = subjectPoints.get(grade.subject) ?? [];
+      points.push({
+        period: periodLabel,
+        percentage: grade.percentage,
+        isPassing: grade.isPassing,
+        scaleId: card.snapshot.grading_scale?.id ?? null,
+      });
+      subjectPoints.set(grade.subject, points);
+    }
+  }
+
+  const subjects = [...subjectPoints.entries()].map(([subject, points]) => {
+    const current = points[points.length - 1];
+    const previous = points.length > 1 ? points[points.length - 2] : null;
+    const comparable = Boolean(previous && current.scaleId && previous.scaleId === current.scaleId &&
+      previous.percentage !== null && current.percentage !== null);
+    const delta = comparable ? Number(current.percentage) - Number(previous?.percentage) : null;
+    const trend = delta === null ? "unavailable" : delta >= 3 ? "up" : delta <= -3 ? "down" : "stable";
+    return {
+      subject,
+      points,
+      current,
+      trend,
+      delta,
+      needsSupport: current.isPassing === false || (delta !== null && delta <= -8),
+    };
+  }).sort((a, b) => Number(b.needsSupport) - Number(a.needsSupport) || a.subject.localeCompare(b.subject, "es"));
+
+  return { periods, subjects, supportCount: subjects.filter((subject) => subject.needsSupport).length };
+}
+
 export default async function StudentFamilyPortal({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const supabase = await createClient();
@@ -64,14 +184,14 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
     p_institution_id: institution.id,
   });
   const students = (rows ?? []) as PortalStudent[];
-  const gradeStudentIds = students
-    .filter((student) => student.can_view_grades)
-    .map((student) => student.student_id);
-  const { data: publishedSnapshots } = gradeStudentIds.length
+  // The database RLS policy filters each immutable snapshot by its publication audience.
+  // Query all linked student IDs so a guardian with report-card-only access is not excluded.
+  const portalStudentIds = students.map((student) => student.student_id);
+  const { data: publishedSnapshots } = portalStudentIds.length
     ? await supabase.from("report_card_snapshots")
       .select("workflow_id,student_id,created_at,snapshot")
       .eq("institution_id", institution.id)
-      .in("student_id", gradeStudentIds)
+      .in("student_id", portalStudentIds)
       .order("created_at", { ascending: false })
     : { data: [] as PublishedReportCard[] };
   const publishedReportCards = (publishedSnapshots ?? []) as PublishedReportCard[];
@@ -99,7 +219,10 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
           </div>
         ) : students.length ? (
           <div className="grid gap-5 lg:grid-cols-2">
-            {students.map((student) => (
+            {students.map((student) => {
+              const studentReportCards = publishedReportCards.filter((card) => card.student_id === student.student_id);
+              const academicHistory = buildPublishedAcademicHistory(studentReportCards);
+              return (
               <article key={student.student_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 bg-slate-50/70 p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -155,46 +278,169 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                   ) : (
                     <p className="text-xs text-slate-400">Tu perfil no tiene habilitada la consulta de asistencia para este estudiante.</p>
                   )}
-                  {student.can_view_grades ? (
+                  {student.published_report_card_count > 0 ? (
                     <p className="mt-1 text-xs text-slate-500">
                       {student.published_report_card_count} boletines publicados · Último: {dateLabel(student.latest_report_card_at)}
                     </p>
+                  ) : student.can_view_grades ? (
+                    <p className="mt-1 text-xs text-slate-500">No hay boletines publicados disponibles.</p>
                   ) : (
-                    <p className="mt-1 text-xs text-slate-400">Tu perfil no tiene habilitada la consulta de calificaciones para este estudiante.</p>
+                    <p className="mt-1 text-xs text-slate-400">No hay boletines habilitados para esta cuenta.</p>
                   )}
                 </div>
 
-                {student.can_view_grades && (
-                  <section className="border-t border-slate-100 px-5 py-4">
+                <section className="border-t border-slate-100 px-5 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-800">Evolución histórica y seguimiento</h3>
+                      <p className="mt-1 text-xs text-slate-500">Comparación basada únicamente en la última versión de cada boletín oficial publicado y visible para esta cuenta.</p>
+                    </div>
+                    {academicHistory.supportCount > 0 ? (
+                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                        {academicHistory.supportCount} {academicHistory.supportCount === 1 ? "materia requiere" : "materias requieren"} acompañamiento
+                      </span>
+                    ) : null}
+                  </div>
+                  {academicHistory.periods.length ? (
+                    <div className="mt-3 space-y-3">
+                      <div className="flex flex-wrap gap-2" aria-label="Períodos incluidos en el historial">
+                        {academicHistory.periods.map((period) => (
+                          <span key={period.workflow_id} className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-[11px] font-semibold text-indigo-900">
+                            {period.snapshot.period?.name ?? "Período"}{period.snapshot.academic_year?.name ? ` · ${period.snapshot.academic_year.name}` : ""}
+                          </span>
+                        ))}
+                      </div>
+                      {academicHistory.subjects.length ? (
+                        <ul className="grid gap-2 sm:grid-cols-2">
+                          {academicHistory.subjects.map((item) => (
+                            <li key={item.subject} className="rounded-xl border border-slate-200 bg-white p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-xs font-bold text-slate-800">{item.subject}</p>
+                                {item.needsSupport ? (
+                                  <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-900">Acompañamiento</span>
+                                ) : item.trend === "up" ? (
+                                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-800">En mejora</span>
+                                ) : item.trend === "down" ? (
+                                  <span className="rounded-full bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-800">En descenso</span>
+                                ) : (
+                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700">{item.trend === "stable" ? "Estable" : "Sin comparación"}</span>
+                                )}
+                              </div>
+                              <div className="mt-3 space-y-2">
+                                {item.points.map((point, index) => (
+                                  <div key={`${point.period}-${index}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                                    <div className="min-w-0">
+                                      <p className="truncate text-[10px] text-slate-500">{point.period}</p>
+                                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                        <div className={`h-full rounded-full ${point.isPassing === false ? "bg-rose-500" : point.isPassing === true ? "bg-emerald-500" : "bg-indigo-400"}`} style={{ width: `${point.percentage === null ? 0 : Math.max(0, Math.min(100, point.percentage))}%` }} />
+                                      </div>
+                                    </div>
+                                    <span className="text-xs font-bold tabular-nums text-slate-800">{point.percentage === null ? "Sin nota final" : `${point.percentage.toFixed(1)}%`}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {item.delta !== null ? (
+                                <p className={`mt-2 text-[10px] font-semibold ${item.delta < 0 ? "text-rose-700" : item.delta > 0 ? "text-emerald-700" : "text-slate-500"}`}>
+                                  Variación respecto del período anterior: {item.delta > 0 ? "+" : ""}{item.delta.toFixed(1)} puntos porcentuales
+                                </p>
+                              ) : item.points.length > 1 ? (
+                                <p className="mt-2 text-[10px] text-slate-500">No se calcula tendencia porque las escalas de calificación no son comparables.</p>
+                              ) : (
+                                <p className="mt-2 text-[10px] text-slate-500">Se necesita otro período publicado para calcular una tendencia.</p>
+                              )}
+                              {item.needsSupport ? (
+                                <p className="mt-2 text-[11px] leading-5 text-amber-900">
+                                  {item.current.isPassing === false ? "El último resultado publicado está por debajo del criterio de aprobación." : "Se observa una disminución significativa respecto del período anterior."}
+                                </p>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-slate-500">Los boletines publicados todavía no contienen materias comparables.</p>
+                      )}
+                      <p className="text-[10px] leading-4 text-slate-400">Las tendencias solo se muestran cuando ambos períodos usan la misma escala. Las señales de acompañamiento orientan el seguimiento y no reemplazan la evaluación docente.</p>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-500">Todavía no hay períodos con boletines publicados disponibles para construir el historial.</p>
+                  )}
+                </section>
+
+                <section className="border-t border-slate-100 px-5 py-4">
                     <h3 className="text-sm font-semibold text-slate-800">Boletines oficiales publicados</h3>
                     {publishedReportCards.filter((card) => card.student_id === student.student_id).length ? (
                       <ul className="mt-3 space-y-2">
                         {publishedReportCards
                           .filter((card) => card.student_id === student.student_id)
-                          .map((card) => (
-                            <li key={card.workflow_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
-                              <div>
-                                <p className="text-sm font-medium text-slate-800">
-                                  {card.snapshot.period?.name ?? "Boletín académico"}
-                                  {card.snapshot.academic_year?.name ? ` · ${card.snapshot.academic_year.name}` : ""}
-                                  {card.snapshot.workflow_version && card.snapshot.workflow_version > 1 ? ` · v${card.snapshot.workflow_version}` : ""}
-                                </p>
-                                <p className="text-xs text-slate-500">Publicado: {dateLabel(card.snapshot.published_at ?? card.created_at)}</p>
-                              </div>
-                              <Link
-                                href={`/dashboard/${slug}/report-cards/${card.workflow_id}/pdf`}
-                                className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50"
-                              >
-                                <FileText size={14} /> Descargar PDF
-                              </Link>
-                            </li>
-                          ))}
+                          .map((card) => {
+                            const progress = publishedSubjectProgress(card.snapshot);
+                            return (
+                              <li key={card.workflow_id} className="rounded-lg bg-slate-50 px-3 py-3">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-800">
+                                      {card.snapshot.period?.name ?? "Boletín académico"}
+                                      {card.snapshot.academic_year?.name ? ` · ${card.snapshot.academic_year.name}` : ""}
+                                      {card.snapshot.workflow_version && card.snapshot.workflow_version > 1 ? ` · v${card.snapshot.workflow_version}` : ""}
+                                    </p>
+                                    <p className="text-xs text-slate-500">Publicado: {dateLabel(card.snapshot.published_at ?? card.created_at)}</p>
+                                  </div>
+                                  <Link
+                                    href={`/dashboard/${slug}/report-cards/${card.workflow_id}/pdf`}
+                                    className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50"
+                                  >
+                                    <FileText size={14} /> Descargar PDF
+                                  </Link>
+                                </div>
+                                {progress.total ? (
+                                  <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <p className="text-xs font-semibold text-slate-700">Avance de calificaciones publicadas</p>
+                                      <p className="text-xs font-bold tabular-nums text-slate-800">{progress.evaluated} de {progress.total} materias</p>
+                                    </div>
+                                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Materias con calificación final disponible" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.evaluated}>
+                                      <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-[width] duration-500" style={{ width: `${progress.completion}%` }} />
+                                    </div>
+                                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
+                                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-800">{progress.approved} aprobadas</span>
+                                      <span className="rounded-full bg-rose-50 px-2.5 py-1 text-rose-800">{progress.reinforce} a reforzar</span>
+                                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">{progress.total - progress.evaluated} sin nota final</span>
+                                      {progress.withoutScale > 0 ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800">{progress.withoutScale} sin equivalencia de escala</span> : null}
+                                    </div>
+                                  </div>
+                                ) : null}
+                                {progress.subjects.length ? (
+                                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                    {progress.subjects.map((grade) => (
+                                      <div key={grade.subject} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                        <p className="text-xs font-semibold text-slate-600">{grade.subject}</p>
+                                        {grade.percentage === null ? (
+                                          <p className="mt-1 text-xs text-slate-500">Calificación final no disponible</p>
+                                        ) : (
+                                          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                            {grade.displayMode !== "descriptive" && grade.gradeValue !== null ? (
+                                              <span className="text-lg font-bold text-slate-900">{grade.gradeValue}</span>
+                                            ) : null}
+                                            {grade.displayMode !== "numeric" && grade.levelLabel ? (
+                                              <span className="text-sm font-semibold text-slate-800">{grade.levelLabel}</span>
+                                            ) : null}
+                                            <span className={`text-[11px] font-semibold ${grade.isPassing === false ? "text-rose-700" : "text-emerald-700"}`}>
+                                              {grade.isPassing === false ? "A reforzar" : grade.isPassing === true ? "Aprobada" : "Publicada"}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </li>
+                            );
+                          })}
                       </ul>
                     ) : (
                       <p className="mt-2 text-xs text-slate-500">Todavía no hay boletines oficiales publicados para este estudiante.</p>
                     )}
-                  </section>
-                )}
+                </section>
 
                 <div className="flex flex-wrap gap-2 border-t border-slate-100 p-5">
                   {student.can_view_grades ? (
@@ -223,7 +469,8 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                   </Link>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">

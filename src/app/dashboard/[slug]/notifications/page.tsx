@@ -26,6 +26,7 @@ const preferenceOptions = [
   { key: "grade", label: "Calificaciones", description: "Publicación o actualización de calificaciones." },
   { key: "attendance", label: "Asistencia", description: "Novedades y comunicaciones de asistencia." },
   { key: "support", label: "Soporte", description: "Cambios y respuestas en tus tickets de soporte." },
+  { key: "assignment_due", label: "Tareas próximas a vencer", description: "Avisos cuando una tarea publicada vence dentro de las próximas 24 horas." },
 ];
 
 const typeLabels: Record<string, string> = {
@@ -34,6 +35,7 @@ const typeLabels: Record<string, string> = {
   grade: "Calificación",
   attendance: "Asistencia",
   support: "Soporte",
+  assignment_due: "Tarea por vencer",
 };
 
 function formatDate(value: string) {
@@ -168,7 +170,7 @@ export default async function NotificationsPage({
             })}
           </div>
           <p className="mt-5 text-xs leading-5 text-slate-400">
-            Por ahora se generan avisos internos para anuncios. Los demás tipos quedarán conectados cuando se habiliten sus respectivos eventos.
+            Los avisos de tareas se generan automáticamente cada 15 minutos cuando una actividad publicada entra en sus últimas 24 horas y todavía no fue entregada.
           </p>
         </section>
 
@@ -210,6 +212,10 @@ export default async function NotificationsPage({
                     ) : notification.resource_type === "conversation" ? (
                       <Link href={`/dashboard/${slug}/messages/${notification.resource_id}`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
                         Abrir conversación
+                      </Link>
+                    ) : notification.resource_type === "assignment" ? (
+                      <Link href={`/dashboard/${slug}/student/tasks`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
+                        Ver mis tareas
                       </Link>
                     ) : <span />}
                     {notification.read_at ? (

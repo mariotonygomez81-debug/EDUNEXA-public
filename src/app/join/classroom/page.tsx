@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BookOpen, ShieldCheck, KeyRound } from "lucide-react";
 import { joinClassroomByInvite } from "./actions";
+import ClassroomQrScanner from "./qr-scanner";
 
 export default async function JoinClassroomPage({
   searchParams,
@@ -23,6 +24,7 @@ export default async function JoinClassroomPage({
         <h1 className="mt-5 text-3xl font-bold tracking-tight text-slate-950">Unirse a un aula</h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">Ingresá el código que te compartió tu docente o continuá con el enlace de invitación.</p>
         {query.error ? <div role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">El código o enlace no es válido, venció o tu matrícula no corresponde a esta aula.</div> : null}
+        <ClassroomQrScanner schoolSlug={school}/>
         <form action={joinClassroomByInvite} className="mt-6 space-y-4">
           <input type="hidden" name="school" value={school}/>
           <input type="hidden" name="token" value={token}/>

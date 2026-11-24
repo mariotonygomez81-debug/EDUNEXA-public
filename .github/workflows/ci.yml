@@ -41,6 +41,14 @@ jobs:
         run: npm run check:secretary-scope
       - name: Validate Groq-only academic AI
         run: npm run check:academic-ai
+      - name: Validate submission history security
+        run: npm run check:submission-history
+      - name: Validate private student assignment drafts
+        run: npm run check:student-drafts
+      - name: Validate student assignment due reminders
+        run: npm run check:assignment-reminders
+      - name: Validate published academic history
+        run: npm run check:academic-history
       - name: Build
         run: npm run build
       - name: Smoke test public routes
@@ -49,3 +57,35 @@ jobs:
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
           npm run test:smoke
+
+  student-notifications-e2e:
+    if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feature/student-module-mobile' && vars.ENABLE_STAGING_NOTIFICATION_E2E == 'true' }}
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      E2E_BASE_URL: https://edunexa-groq-staging.onrender.com
+      E2E_INSTITUTION_SLUG: ${{ secrets.E2E_INSTITUTION_SLUG }}
+      E2E_STUDENT_EMAIL: ${{ secrets.E2E_STUDENT_EMAIL }}
+      E2E_STUDENT_PASSWORD: ${{ secrets.E2E_STUDENT_PASSWORD }}
+      E2E_DUE_ASSIGNMENT_TITLE: ${{ secrets.E2E_DUE_ASSIGNMENT_TITLE }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Verify synthetic student fixture configuration
+        run: |
+          for key in E2E_INSTITUTION_SLUG E2E_STUDENT_EMAIL E2E_STUDENT_PASSWORD E2E_DUE_ASSIGNMENT_TITLE; do
+            if [ -z "${!key}" ]; then echo "Missing secret: $key"; exit 1; fi
+          done
+      - name: Install application dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Install pinned Playwright runner
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @playwright/test@1.58.2
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run student due-notification browser test against staging
+        run: npx playwright test --config=e2e/playwright.config.mjs e2e/student-due-notifications.spec.mjs

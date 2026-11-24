@@ -2111,6 +2111,7 @@ export type Database = {
           institution_id: string
           published_at: string | null
           published_by_membership_id: string | null
+          publication_audience: string
           rectification_reason: string | null
           status: string
           student_id: string
@@ -2129,6 +2130,7 @@ export type Database = {
           institution_id: string
           published_at?: string | null
           published_by_membership_id?: string | null
+          publication_audience?: string
           rectification_reason?: string | null
           status?: string
           student_id: string
@@ -2147,6 +2149,7 @@ export type Database = {
           institution_id?: string
           published_at?: string | null
           published_by_membership_id?: string | null
+          publication_audience?: string
           rectification_reason?: string | null
           status?: string
           student_id?: string
@@ -2328,6 +2331,7 @@ export type Database = {
           can_authorize: boolean
           can_view_attendance: boolean
           can_view_grades: boolean
+          can_view_report_cards: boolean
           created_at: string
           guardian_id: string
           institution_id: string
@@ -2338,6 +2342,7 @@ export type Database = {
           can_authorize?: boolean
           can_view_attendance?: boolean
           can_view_grades?: boolean
+          can_view_report_cards?: boolean
           created_at?: string
           guardian_id: string
           institution_id: string
@@ -2348,6 +2353,7 @@ export type Database = {
           can_authorize?: boolean
           can_view_attendance?: boolean
           can_view_grades?: boolean
+          can_view_report_cards?: boolean
           created_at?: string
           guardian_id?: string
           institution_id?: string
@@ -2479,6 +2485,63 @@ export type Database = {
           },
           {
             foreignKeyName: "student_period_observations_student_fk"
+            columns: ["student_id", "institution_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id", "institution_id"]
+          },
+        ]
+      }
+      student_previous_subjects: {
+        Row: {
+          course_subject_id: string | null
+          created_at: string
+          final_grade: number | null
+          id: string
+          institution_id: string
+          observations: string | null
+          school_year: string | null
+          status: "pending" | "in_progress" | "approved" | "equivalency" | "not_approved"
+          student_id: string
+          subject_name: string
+          updated_at: string
+        }
+        Insert: {
+          course_subject_id?: string | null
+          created_at?: string
+          final_grade?: number | null
+          id?: string
+          institution_id: string
+          observations?: string | null
+          school_year?: string | null
+          status?: string
+          student_id: string
+          subject_name: string
+          updated_at?: string
+        }
+        Update: {
+          course_subject_id?: string | null
+          created_at?: string
+          final_grade?: number | null
+          id?: string
+          institution_id?: string
+          observations?: string | null
+          school_year?: string | null
+          status?: string
+          student_id?: string
+          subject_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_previous_subjects_course_subject_fk"
+            columns: ["course_subject_id", "institution_id"]
+            isOneToOne: false
+            referencedRelation: "course_subjects"
+            referencedColumns: ["id", "institution_id"]
+          },
+          {
+            foreignKeyName: "student_previous_subjects_student_institution_fk"
             columns: ["student_id", "institution_id"]
             isOneToOne: false
             referencedRelation: "students"
@@ -3220,6 +3283,8 @@ export type Database = {
       update_teacher_classroom_preferences: { Args: { p_classroom_id: string; p_accent_theme: string; p_layout_density: string; p_default_section: string; p_show_header_stats: boolean }; Returns: undefined }
       list_teacher_classroom_options: { Args: { p_institution_id: string }; Returns: { division_id: string; division_label: string; course_subject_id: string | null; subject_label: string; academic_year_name: string }[] }
       approve_report_card: { Args: { p_workflow_id: string }; Returns: string }
+      set_report_card_publication_audience: { Args: { p_audience: string; p_workflow_id: string }; Returns: undefined }
+      publish_report_card_with_audience: { Args: { p_audience: string; p_workflow_id: string }; Returns: string }
       assign_grading_scale_to_year: {
         Args: { p_academic_year_id: string; p_grading_scale_id: string }
         Returns: string
@@ -3710,6 +3775,10 @@ export type Database = {
           p_reason: string
         }
         Returns: string
+      }
+      get_classroom_submission_history: {
+        Args: { p_submission_id: string }
+        Returns: Json
       }
       get_classroom_capabilities: {
         Args: { p_classroom_id: string }

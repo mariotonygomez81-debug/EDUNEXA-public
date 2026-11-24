@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ArrowLeftRight, GraduationCap, History, PencilLine, UsersRound, UserPlus, UserMinus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { closeStudentEnrollment, createEnrollment, linkStudentGuardian, transferStudentEnrollment, unlinkStudentGuardian, updateStudent } from "../actions";
+import { closeStudentEnrollment, createEnrollment, createStudentPreviousSubject, linkStudentGuardian, transferStudentEnrollment, unlinkStudentGuardian, updateStudent, updateStudentGuardianPermissions, updateStudentPreviousSubjectStatus } from "../actions";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 
 function addDays(value: string, days: number) {
@@ -16,10 +16,10 @@ export default async function StudentDetailPage({
   searchParams,
 }: {
   params: Promise<{ slug: string; studentId: string }>;
-  searchParams: Promise<{ error?: string; updated?: string; enrolled?: string; transferred?: string; closed?: string; guardian_linked?: string; guardian_unlinked?: string }>;
+  searchParams: Promise<{ error?: string; updated?: string; enrolled?: string; transferred?: string; closed?: string; guardian_linked?: string; guardian_unlinked?: string; guardian_permissions?: string; previous_added?: string; previous_updated?: string }>;
 }) {
   const { slug, studentId } = await params;
-  const { error, updated, enrolled, transferred, closed, guardian_linked, guardian_unlinked } = await searchParams;
+  const { error, updated, enrolled, transferred, closed, guardian_linked, guardian_unlinked, guardian_permissions, previous_added, previous_updated } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -92,13 +92,34 @@ export default async function StudentDetailPage({
       })
     : { data: [] };
   const activeEnrollment = (enrollments ?? []).find((item) => item.status === "active" && !item.ended_on) ?? null;
+  const { data: previousSubjects } = await supabase.from("student_previous_subjects")
+    .select("id,subject_name,school_year,status,course_subject_id")
+    .eq("institution_id", institution.id).eq("student_id", student.id)
+    .order("school_year", { ascending: false });
+  const { data: availableCourseSubjectsRaw } = canManageStudents
+    ? await supabase.from("course_subjects").select("id,subject_id,course_id").eq("institution_id", institution.id)
+    : { data: [] };
+  const previousSubjectIds = [...new Set((availableCourseSubjectsRaw ?? []).map((item) => item.subject_id))];
+  const { data: previousSubjectCatalog } = previousSubjectIds.length
+    ? await supabase.from("subjects").select("id,name").in("id", previousSubjectIds)
+    : { data: [] };
+  const subjectNameById = new Map((previousSubjectCatalog ?? []).map((item) => [item.id, item.name] as const));
+  const courseSubjectOptions = (availableCourseSubjectsRaw ?? []).map((item) => ({
+    id: item.id,
+    label: `${availableCourseById.get(item.course_id) ?? "Curso"} · ${subjectNameById.get(item.subject_id) ?? "Materia"}`,
+  })).sort((a,b) => a.label.localeCompare(b.label,"es"));
+  const previousSubjectStatusLabels: Record<string,string> = {
+    pending: "Pendiente", in_progress: "En curso", approved: "Aprobada",
+    equivalency: "Por equivalencia", not_approved: "No aprobada",
+  };
+
   const transferMinDate = activeEnrollment ? addDays(activeEnrollment.enrolled_on, 1) : today;
   const transferDefaultDate = today > transferMinDate ? today : transferMinDate;
   const closeDefaultDate = activeEnrollment && today < activeEnrollment.enrolled_on ? activeEnrollment.enrolled_on : today;
 
   const { data: guardianLinks } = canManageStudents
     ? await supabase.from("student_guardians")
-        .select("guardian_id,can_view_grades,can_view_attendance,can_authorize")
+        .select("guardian_id,can_view_grades,can_view_attendance,can_view_report_cards,can_authorize")
         .eq("institution_id", institution.id).eq("student_id", student.id)
     : { data: [] };
   const { data: guardianPayload } = canManageStudents
@@ -142,6 +163,7 @@ export default async function StudentDetailPage({
 
         {guardian_linked === "1" && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">El tutor quedó vinculado al legajo.</div>}
         {guardian_unlinked === "1" && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Se quitó el vínculo familiar.</div>}
+        {guardian_permissions === "1" && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Los permisos de consulta del tutor se actualizaron.</div>}
         {error?.startsWith("guardian_") && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error === "guardian_invalid" ? "Seleccioná un tutor válido." : "No se pudo guardar el vínculo familiar. Verificá que la cuenta de tutor esté activa."}</div>}
 
 
@@ -161,10 +183,15 @@ export default async function StudentDetailPage({
                     <div>
                       <p className="font-medium">{link.guardian?.display_name ?? "Tutor vinculado"}</p>
                       <p className="text-sm text-slate-500">{link.guardian?.email ?? "Cuenta institucional"} · {link.guardian?.relationship_label ?? "Familiar"}</p>
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                        <span className={link.can_view_grades ? "rounded-full bg-emerald-50 px-2 py-1 text-emerald-700" : "rounded-full bg-slate-100 px-2 py-1 text-slate-500"}>Calificaciones {link.can_view_grades ? "habilitadas" : "no habilitadas"}</span>
-                        <span className={link.can_view_attendance ? "rounded-full bg-emerald-50 px-2 py-1 text-emerald-700" : "rounded-full bg-slate-100 px-2 py-1 text-slate-500"}>Asistencia {link.can_view_attendance ? "habilitada" : "no habilitada"}</span>
-                      </div>
+                      <form action={updateStudentGuardianPermissions} className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg bg-slate-50 p-3 text-xs">
+                        <input type="hidden" name="slug" value={slug} />
+                        <input type="hidden" name="student_id" value={student.id} />
+                        <input type="hidden" name="guardian_id" value={link.guardian_id} />
+                        <label className="inline-flex items-center gap-1.5"><input type="checkbox" name="can_view_grades" defaultChecked={link.can_view_grades} /> Ver calificaciones</label>
+                        <label className="inline-flex items-center gap-1.5"><input type="checkbox" name="can_view_attendance" defaultChecked={link.can_view_attendance} /> Ver asistencia</label>
+                        <label className="inline-flex items-center gap-1.5 font-semibold text-violet-800"><input type="checkbox" name="can_view_report_cards" defaultChecked={link.can_view_report_cards} /> Ver boletines publicados</label>
+                        <button className="rounded-lg bg-violet-700 px-3 py-1.5 font-semibold text-white hover:bg-violet-800">Guardar permisos</button>
+                      </form>
                     </div>
                     <form action={unlinkStudentGuardian}>
                       <input type="hidden" name="slug" value={slug} />
@@ -194,6 +221,7 @@ export default async function StudentDetailPage({
                   <div className="flex flex-wrap gap-4 text-sm">
                     <label className="inline-flex items-center gap-2"><input type="checkbox" name="can_view_grades" defaultChecked /> Puede ver calificaciones</label>
                     <label className="inline-flex items-center gap-2"><input type="checkbox" name="can_view_attendance" defaultChecked /> Puede ver asistencia</label>
+                    <label className="inline-flex items-center gap-2 font-semibold text-violet-800"><input type="checkbox" name="can_view_report_cards" /> Puede ver boletines publicados</label>
                   </div>
                 </div>
                 <button className="inline-flex h-fit items-center justify-center gap-2 self-end rounded-lg bg-violet-700 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-800"><UserPlus size={16} /> Vincular tutor</button>
@@ -204,6 +232,37 @@ export default async function StudentDetailPage({
             <p className="mt-4 text-xs text-slate-400">El tutor solo podrá consultar la información habilitada para este alumno. La autorización de retiros y otras gestiones sensibles requiere un proceso adicional.</p>
           </section>
         )}
+
+
+        {(previous_added === "1" || previous_updated === "1") && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{previous_added === "1" ? "La materia previa se vinculó correctamente." : "El estado de la materia previa se actualizó."}</div>}
+        {error?.startsWith("previous_") && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{error === "previous_exists" ? "Esa materia ya está registrada como previa." : error === "previous_invalid" ? "Revisá la materia y el ciclo lectivo." : "No se pudo guardar la materia previa."}</div>}
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div><h2 className="font-semibold">Materias previas</h2><p className="text-sm text-slate-500">Vinculá cada materia con su asignatura institucional para habilitar el contacto con el docente responsable.</p></div>
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">{(previousSubjects ?? []).length} registradas</span>
+          </div>
+          {(previousSubjects ?? []).length ? <div className="mb-5 space-y-2">
+            {(previousSubjects ?? []).map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
+              <div><p className="font-medium text-slate-900">{item.subject_name}</p><p className="text-xs text-slate-500">{item.school_year ?? "Ciclo no informado"} · {item.course_subject_id ? "Vinculada a materia institucional" : "Sin vincular a docente"}</p></div>
+              {canManageStudents ? <form action={updateStudentPreviousSubjectStatus} className="flex items-center gap-2">
+                <input type="hidden" name="slug" value={slug}/><input type="hidden" name="student_id" value={student.id}/><input type="hidden" name="previous_subject_id" value={item.id}/>
+                <select name="status" defaultValue={item.status} aria-label={`Estado de ${item.subject_name}`} className="rounded-lg border border-slate-300 px-2 py-2 text-xs">
+                  <option value="pending">Pendiente</option><option value="in_progress">En curso</option><option value="approved">Aprobada</option><option value="equivalency">Por equivalencia</option><option value="not_approved">No aprobada</option>
+                </select><button className="rounded-lg bg-violet-700 px-3 py-2 text-xs font-semibold text-white">Guardar</button>
+              </form> : <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{previousSubjectStatusLabels[item.status] ?? item.status}</span>}
+            </div>)}
+          </div> : <p className="mb-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Todavía no hay materias previas registradas.</p>}
+          {canManageStudents && <form action={createStudentPreviousSubject} className="grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-[minmax(0,1fr)_160px_auto] sm:items-end">
+            <input type="hidden" name="slug" value={slug}/><input type="hidden" name="student_id" value={student.id}/>
+            <label className="block text-sm font-medium">Materia institucional
+              <select name="course_subject_id" required defaultValue="" className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm"><option value="" disabled>Seleccionar materia</option>{courseSubjectOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
+            </label>
+            <label className="block text-sm font-medium">Ciclo lectivo
+              <input name="school_year" maxLength={20} placeholder="Ej.: 2025" className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-normal"/>
+            </label>
+            <button disabled={!courseSubjectOptions.length} className="rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800 disabled:opacity-50">Agregar previa</button>
+          </form>}
+        </section>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
