@@ -36,6 +36,7 @@ export default function ClassroomAssignmentRoster({
   historyBySubmission: Record<string, {
     revisions?: { revision_number: number; body: string | null; file_path: string | null; submitted_at: string | null; changed_at: string }[];
     grades?: { previous_score: number | null; new_score: number | null; previous_feedback: string | null; new_feedback: string | null; changed_at: string }[];
+    files?: { file_id: string; original_filename: string; mime_type: string; byte_size: number; changed_at: string }[];
   } | null>;
   slug: string;
   classroomId: string;
@@ -191,11 +192,12 @@ export default function ClassroomAssignmentRoster({
                           const history = historyBySubmission[row.submission_id!] ?? null;
                           const revisions = history?.revisions ?? [];
                           const gradeEvents = history?.grades ?? [];
-                          if (!revisions.length && !gradeEvents.length) return null;
+                          const fileEvents = history?.files ?? [];
+                          if (!revisions.length && !gradeEvents.length && !fileEvents.length) return null;
                           return (
                             <details className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
                               <summary className="cursor-pointer text-sm font-semibold text-indigo-800">
-                                Historial de cambios · {revisions.length} versiones · {gradeEvents.length} cambios de calificación
+                                Historial de cambios · {revisions.length} versiones · {fileEvents.length} archivos · {gradeEvents.length} cambios de calificación
                               </summary>
                               <div className="mt-3 space-y-3">
                                 {revisions.map((revision) => (
@@ -206,6 +208,22 @@ export default function ClassroomAssignmentRoster({
                                     {revision.file_path ? <p className="mt-1 break-all text-xs text-slate-400">Referencia de archivo histórica registrada</p> : null}
                                   </article>
                                 ))}
+                                {fileEvents.map((event) => {
+                                  const file = files.find((item) => item.file_id === event.file_id);
+                                  return (
+                                    <article key={`file-${event.file_id}`} className="rounded-lg border border-slate-200 bg-white p-3">
+                                      <p className="text-xs font-bold text-slate-700">Archivo adjuntado</p>
+                                      <p className="mt-1 text-xs text-slate-500">{dateLabel(event.changed_at)} · {(event.byte_size / 1024).toFixed(1)} KB</p>
+                                      {file?.signedUrl ? (
+                                        <a href={file.signedUrl} className="mt-2 inline-block text-sm font-semibold text-indigo-700 underline underline-offset-2" rel="noreferrer">
+                                          Descargar {event.original_filename}
+                                        </a>
+                                      ) : (
+                                        <p className="mt-2 break-words text-sm text-slate-500">{event.original_filename} · Archivo no disponible para descarga</p>
+                                      )}
+                                    </article>
+                                  );
+                                })}
                                 {gradeEvents.map((event, index) => (
                                   <article key={`grade-${event.changed_at}-${index}`} className="rounded-lg border border-slate-200 bg-white p-3">
                                     <p className="text-xs font-bold text-slate-700">Cambio de calificación</p>
