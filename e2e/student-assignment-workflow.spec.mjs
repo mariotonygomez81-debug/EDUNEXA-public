@@ -44,10 +44,14 @@ test("student private draft, cross-tab conflict, PDF submission, teacher downloa
   const editor = studentCard.getByRole("textbox", { name: "Contenido de la tarea" });
   await expect(editor).toBeVisible();
 
-  const templates = ["practical", "report", "monograph", "project"];
+  const templates = [
+    ["practical", "Trabajo práctico"], ["report", "Informe"],
+    ["monograph", "Monografía"], ["project", "Proyecto"],
+  ];
   for (let index = 0; index < templates.length; index += 1) {
     if (index > 0) studentPage.once("dialog", (dialog) => dialog.accept());
-    await studentCard.getByLabel("Plantillas de documento").selectOption(templates[index]);
+    await studentCard.getByLabel("Plantillas de documento").selectOption(templates[index][0]);
+    await expect(editor).toContainText(templates[index][1]);
   }
   await editor.fill("BORRADOR PRIVADO EDUNEXA - primera versión. Desarrollo y conclusión.");
   await studentCard.getByLabel("Encabezado PDF").fill("EDUNEXA · E2E · Encabezado");
