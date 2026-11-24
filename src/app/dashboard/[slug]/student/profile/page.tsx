@@ -99,7 +99,7 @@ export default async function StudentProfilePage({ params, searchParams }: { par
           <div><dt className="text-xs font-semibold text-slate-500">Legajo</dt><dd className="mt-1 font-semibold text-slate-900">{student?.student_number ?? "No asignado"}</dd></div>
         </dl>
       </section>
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <section className="student-panel rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <h2 className="flex items-center gap-2 font-bold text-slate-900"><BookOpen size={18} className="text-violet-700"/> Trayectoria escolar</h2>
         <dl className="mt-4 grid gap-4 sm:grid-cols-2">
           <div><dt className="text-xs font-semibold text-slate-500">Año de cursado</dt><dd className="mt-1 font-semibold text-slate-900">{student?.course_name ?? "Pendiente de asignación"}</dd></div>
@@ -108,7 +108,7 @@ export default async function StudentProfilePage({ params, searchParams }: { par
           <div><dt className="text-xs font-semibold text-slate-500">Estado de matrícula</dt><dd className="mt-1 font-semibold text-slate-900">{student?.enrollment_status === "active" ? "Activa" : "Pendiente de confirmar"}</dd></div>
         </dl>
       </section>
-      <form action={saveStudentProfile} encType="multipart/form-data" className="student-interactive-form space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <form action={saveStudentProfile} encType="multipart/form-data" className="student-panel student-interactive-form space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <input type="hidden" name="slug" value={slug}/>
         <h2 className="flex items-center gap-2 font-bold text-slate-900"><Camera size={18} className="text-violet-700"/> Fotografía y avatar</h2>
         <label className="block text-sm font-semibold text-slate-700">Subir fotografía
@@ -122,7 +122,7 @@ export default async function StudentProfilePage({ params, searchParams }: { par
         </label>
         <div className="flex justify-end"><button type="submit" className="rounded-xl border border-violet-200 bg-violet-100 px-5 py-2.5 text-sm font-semibold text-violet-950 hover:bg-violet-200">Guardar perfil</button></div>
       </form>
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="student-panel rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="flex items-center gap-2 font-bold text-slate-900"><GraduationCap size={18} className="text-emerald-700"/> Orientaciones de tus docentes</h2>
         <p className="mt-2 text-sm text-slate-600">Consejos y observaciones para acompañar tu aprendizaje.</p>
         {observationsError ? <p role="status" className="mt-3 text-sm text-amber-800">No fue posible consultar las orientaciones en este momento.</p> :
