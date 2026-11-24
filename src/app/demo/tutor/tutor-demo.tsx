@@ -5,11 +5,12 @@ import {
   Bell, BookOpen, CalendarCheck, CalendarClock, CheckCheck,
   ChevronRight, ClipboardList, Download, FileText, GraduationCap,
   LayoutDashboard, MessageCircle, Search, ShieldCheck, TrendingUp, UserRound,
+  UserPlus, Users, Save, CheckCircle2,
 } from "lucide-react";
 
-type Section = "resumen" | "tareas" | "calificaciones" | "boletines" | "avisos";
+type Section = "resumen" | "tareas" | "calificaciones" | "boletines" | "avisos" | "perfil" | "hijos";
 
-const students = [
+const initialStudents = [
   {
     id: "sofia",
     name: "Sofía Gómez",
@@ -63,6 +64,8 @@ const sectionItems: { id: Section; label: string; icon: typeof LayoutDashboard }
   { id: "calificaciones", label: "Calificaciones", icon: TrendingUp },
   { id: "boletines", label: "Boletines", icon: FileText },
   { id: "avisos", label: "Notificaciones", icon: Bell },
+  { id: "perfil", label: "Mi perfil", icon: UserRound },
+  { id: "hijos", label: "Agregar hijo", icon: UserPlus },
 ];
 
 function Status({ value }: { value: string }) {
@@ -77,13 +80,19 @@ function Status({ value }: { value: string }) {
 }
 
 export default function TutorDemo() {
+  const [students, setStudents] = useState(initialStudents);
   const [activeStudent, setActiveStudent] = useState("sofia");
   const [section, setSection] = useState<Section>("resumen");
+  const [tutorProfile, setTutorProfile] = useState({ fullName: "", email: "tutor.demo@edunexa.test", phone: "", address: "", relationship: "Madre / Padre / Tutor" });
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [childForm, setChildForm] = useState({ name: "", level: "Primario", course: "", division: "", institutionCode: "" });
+  const [childMessage, setChildMessage] = useState("");
   const [readNotifications, setReadNotifications] = useState<string[]>([]);
   const [notificationFilter, setNotificationFilter] = useState<"Todas" | "Sin leer" | "Leídas">("Todas");
   const [taskSearch, setTaskSearch] = useState("");
   const [taskStatus, setTaskStatus] = useState("Todas");
   const student = students.find((item) => item.id === activeStudent) ?? students[0];
+  const profileCompletion = [tutorProfile.fullName, tutorProfile.email, tutorProfile.phone, tutorProfile.address].filter((value) => value.trim()).length;
   const unread = notifications.length - readNotifications.length;
   const filteredNotifications = notifications.filter((item) => notificationFilter === "Todas" || (notificationFilter === "Sin leer" ? !readNotifications.includes(item.title) : readNotifications.includes(item.title)));
   const filteredTasks = student.tasks.filter((task) =>
@@ -101,6 +110,31 @@ export default function TutorDemo() {
   function clearTaskFilters() {
     setTaskSearch("");
     setTaskStatus("Todas");
+  }
+
+  function saveTutorProfile(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setProfileSaved(true);
+  }
+
+  function addChild(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const fullName = childForm.name.trim();
+    const course = childForm.course.trim();
+    const division = childForm.division.trim();
+    if (!fullName || !course || !division || !childForm.institutionCode.trim()) return;
+    const initials = fullName.split(/\\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+    const newStudent = {
+      id: `demo-${Date.now()}`, name: fullName, initials, course, division,
+      year: "Ciclo lectivo 2026",
+      attendance: { present: 0, absent: 0, late: 0, justified: 0 },
+      grades: [], tasks: [],
+    };
+    setStudents((current) => [...current, newStudent]);
+    setActiveStudent(newStudent.id);
+    setChildForm({ name: "", level: "Primario", course: "", division: "", institutionCode: "" });
+    setChildMessage("Estudiante agregado a esta demostración. La vinculación real requiere validación de la institución.");
+    setSection("hijos");
   }
 
   return (
@@ -158,7 +192,8 @@ export default function TutorDemo() {
                 </button>
               ))}
             </div>
-            <p className="mt-3 text-xs leading-5 text-slate-400">Ejemplo de vinculación. No se consultan DNI ni fechas de nacimiento.</p>
+            <button type="button" onClick={() => { setSection("hijos"); setChildMessage(""); }} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 px-3 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-50"><UserPlus size={15} /> Agregar hijo</button>
+            <p className="mt-3 text-xs leading-5 text-slate-400">Demo: la vinculación real deberá validarse con un código emitido por la institución. No se solicitan DNI ni fechas de nacimiento.</p>
           </section>
 
           <nav className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" aria-label="Secciones del portal">
@@ -181,11 +216,81 @@ export default function TutorDemo() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">{sectionItems.find((item) => item.id === section)?.label}</p>
-              <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">{student.name}</h2>
-              <p className="mt-1 text-sm text-slate-500">{student.course} · {student.division} · {student.year}</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">{section === "perfil" ? "Perfil del tutor" : section === "hijos" ? "Vincular un hijo" : student.name}</h2>
+              <p className="mt-1 text-sm text-slate-500">{section === "perfil" ? "Completá tus datos de contacto." : section === "hijos" ? "Agregá un estudiante con el código de vinculación de la institución." : `${student.course} · ${student.division} · ${student.year}`}</p>
             </div>
             <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">Perfil de tutor · Demo</span>
           </div>
+
+
+          {section === "perfil" && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <div><h3 className="font-bold text-slate-900">Información personal y de contacto</h3><p className="mt-1 text-xs text-slate-500">Completá los datos para mantener actualizado tu perfil.</p></div>
+                <span className="rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700">{profileCompletion}/4 datos completos</span>
+              </div>
+              <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-violet-600 transition-all" style={{ width: `${profileCompletion * 25}%` }} /></div>
+              <form onSubmit={saveTutorProfile} className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-medium text-slate-700">Nombre y apellido *
+                  <input required value={tutorProfile.fullName} onChange={(event) => { setTutorProfile({ ...tutorProfile, fullName: event.target.value }); setProfileSaved(false); }} placeholder="Ej.: María Gómez" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                </label>
+                <label className="text-sm font-medium text-slate-700">Correo electrónico *
+                  <input required type="email" value={tutorProfile.email} onChange={(event) => { setTutorProfile({ ...tutorProfile, email: event.target.value }); setProfileSaved(false); }} placeholder="nombre@correo.com" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                </label>
+                <label className="text-sm font-medium text-slate-700">Teléfono de contacto *
+                  <input required type="tel" value={tutorProfile.phone} onChange={(event) => { setTutorProfile({ ...tutorProfile, phone: event.target.value }); setProfileSaved(false); }} placeholder="Ej.: +54 9 11 1234 5678" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                </label>
+                <label className="text-sm font-medium text-slate-700">Domicilio (opcional)
+                  <input value={tutorProfile.address} onChange={(event) => { setTutorProfile({ ...tutorProfile, address: event.target.value }); setProfileSaved(false); }} placeholder="Localidad y dirección" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                </label>
+                <label className="text-sm font-medium text-slate-700 sm:col-span-2">Vínculo con el estudiante
+                  <select value={tutorProfile.relationship} onChange={(event) => { setTutorProfile({ ...tutorProfile, relationship: event.target.value }); setProfileSaved(false); }} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 sm:max-w-md">
+                    <option>Madre / Padre / Tutor</option><option>Madre</option><option>Padre</option><option>Tutor legal</option><option>Otro responsable autorizado</option>
+                  </select>
+                </label>
+                <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+                  <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800"><Save size={16} /> Guardar perfil</button>
+                  {profileSaved && <span className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700"><CheckCircle2 size={16} /> Datos guardados en esta sesión de demostración</span>}
+                </div>
+              </form>
+              <p className="mt-5 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">La demo conserva los cambios solo mientras permanezca abierta. En el módulo real, estos datos deberán guardarse de forma segura en la cuenta autenticada del tutor.</p>
+            </section>
+          )}
+
+          {section === "hijos" && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-5 flex items-center gap-3"><span className="rounded-xl bg-violet-50 p-3 text-violet-700"><Users size={22} /></span><div><h3 className="font-bold text-slate-900">Agregar estudiante a mi grupo familiar</h3><p className="mt-1 text-xs text-slate-500">Ingresá los datos solicitados por la institución para iniciar la vinculación.</p></div></div>
+              {childMessage && <p role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{childMessage}</p>}
+              <form onSubmit={addChild} className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-medium text-slate-700 sm:col-span-2">Nombre y apellido del estudiante *
+                  <input required value={childForm.name} onChange={(event) => setChildForm({ ...childForm, name: event.target.value })} placeholder="Nombre completo" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                </label>
+                <label className="text-sm font-medium text-slate-700">Nivel educativo *
+                  <select value={childForm.level} onChange={(event) => setChildForm({ ...childForm, level: event.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"><option>Primario</option><option>Secundario</option><option>Inicial</option><option>Superior</option></select>
+                </label>
+                <label className="text-sm font-medium text-slate-700">Año / grado *
+                  <input required value={childForm.course} onChange={(event) => setChildForm({ ...childForm, course: event.target.value })} placeholder="Ej.: 3.º grado o 1.º año" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                </label>
+                <label className="text-sm font-medium text-slate-700">División *
+                  <input required value={childForm.division} onChange={(event) => setChildForm({ ...childForm, division: event.target.value })} placeholder="Ej.: A" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                </label>
+                <label className="text-sm font-medium text-slate-700">Código de vinculación institucional *
+                  <input required value={childForm.institutionCode} onChange={(event) => setChildForm({ ...childForm, institutionCode: event.target.value })} placeholder="Código entregado por la escuela" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                </label>
+                <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
+                  <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800"><UserPlus size={16} /> Agregar estudiante</button>
+                  <button type="button" onClick={() => { setSection("resumen"); setChildMessage(""); }} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancelar</button>
+                </div>
+              </form>
+              <p className="mt-5 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">Por seguridad, no solicitamos DNI ni fecha de nacimiento en este formulario de demostración. El código real deberá ser único, temporal o revocable y validado por la institución antes de otorgar acceso a datos académicos.</p>
+              <div className="mt-6 border-t border-slate-100 pt-5">
+                <h4 className="mb-3 text-sm font-bold text-slate-900">Estudiantes vinculados ({students.length})</h4>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {students.map((item) => <button key={item.id} type="button" onClick={() => { selectStudent(item.id); setSection("resumen"); }} className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${activeStudent === item.id ? "border-violet-300 bg-violet-50" : "border-slate-200 hover:bg-slate-50"}`}><span className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800">{item.initials}</span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-slate-900">{item.name}</span><span className="block text-xs text-slate-500">{item.course} · {item.division}</span></span><ChevronRight size={16} className="text-slate-400" /></button>)}
+                </div>
+              </div>
+            </section>
+          )}
 
           {section === "resumen" && (
             <>
