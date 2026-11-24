@@ -173,7 +173,7 @@ export default function StudentAssignmentEditor({
   const [draftStatus, setDraftStatus] = useState("Sin cambios guardados");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const draftKey = "edunexa:draft:" + slug + ":" + classroomId + ":" + assignmentId;
-  useEffect(() => { try { const raw = sessionStorage.getItem(draftKey); if (raw && !initialBody) { const d = JSON.parse(raw); if (typeof d.html === "string" && d.html.length < 1000000) { setHtml(d.html); setHeader(d.header || ""); setFooter(d.footer || ""); setDraftStatus("Borrador recuperado"); } } } catch { setDraftStatus("No se pudo recuperar"); } }, [draftKey, initialBody]);
+  useEffect(() => { try { const raw = sessionStorage.getItem(draftKey); if (raw) { const d = JSON.parse(raw); if (typeof d.html === "string" && d.html.length < 1000000) { setHtml(d.html); setHeader(d.header || ""); setFooter(d.footer || ""); setDraftStatus("Borrador recuperado"); } } } catch { setDraftStatus("No se pudo recuperar"); } }, [draftKey, initialBody]);
   useEffect(() => { if (locked || saved) return; const timer = window.setTimeout(() => { try { sessionStorage.setItem(draftKey, JSON.stringify({html,header,footer})); setDraftStatus("Borrador guardado en este dispositivo"); } catch { setDraftStatus("No se pudo guardar"); } }, 700); return () => window.clearTimeout(timer); }, [draftKey, html, header, footer, locked, saved]);
 
   function syncEditor() {
@@ -200,7 +200,9 @@ export default function StudentAssignmentEditor({
 
   function insertImage(file?: File) {
     if (!file) return;
-    if (!["image/png", "image/jpeg"].includes(file.type) || file.size > 4 * 1024 * 1024) { setMessage("Elegí una imagen PNG o JPG de hasta 4 MB."); return; }
+    if (!["image/png", "image/jpeg"].includes(file.type) || file.size > 2 * 1024 * 1024) { setMessage("Elegí una imagen PNG o JPG de hasta 2 MB."); return; }
+    const existingImageBytes = (editorRef.current?.innerHTML.match(/data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+/g) || []).reduce((sum, item) => sum + item.length, 0);
+    if (existingImageBytes + file.size * 1.4 > 3 * 1024 * 1024) { setMessage("El documento admite hasta 3 MB de imágenes para proteger el guardado del borrador."); return; }
     const reader = new FileReader();
     reader.onload = () => { const src = typeof reader.result === "string" ? reader.result : ""; if (src) command("insertHTML", "<img src=\"" + src + "\" alt=\"" + escapeHtml(file.name) + "\" style=\"max-width:100%;height:auto\"/><p><br></p>"); };
     reader.onerror = () => setMessage("No se pudo leer la imagen.");
