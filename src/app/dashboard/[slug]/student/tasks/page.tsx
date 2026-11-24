@@ -6,9 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 type Classroom = { id: string; title: string; course_name: string; division_name: string; subject_name: string | null };
 type Assignment = { id: string; title: string; instructions: string | null; due_at: string | null; max_score: number | null };
 type Submission = { assignment_id: string; submitted_at: string | null; review_status?: "visto" | "aprobado" | "desaprobado" | "corregir" | null; score: number | null; feedback: string | null };
-type TaskItem = { assignment: Assignment; classroom: Classroom; submission: Submission | null };
+type TaskItem = { assignment: Assignment; classroom: Classroom; submission: Submission | null; submissionLoadError: boolean };
 
 function statusFor(task: TaskItem, now: number) {
+  if (task.submissionLoadError) return { label: "Estado no disponible", style: "bg-slate-100 text-slate-700", icon: Clock3 };
   const submission = task.submission;
   if (submission?.review_status === "aprobado") return { label: "Aprobada", style: "bg-emerald-100 text-emerald-800", icon: CheckCircle2 };
   if (submission?.review_status === "desaprobado") return { label: "No aprobada", style: "bg-rose-100 text-rose-800", icon: ClipboardList };
@@ -47,17 +48,21 @@ export default async function StudentTasksPage({ params }: { params: Promise<{ s
       supabase.rpc("get_classroom_overview", { p_classroom_id: classroom.id }),
       supabase.rpc("list_classroom_submissions", { p_classroom_id: classroom.id }),
     ]);
-    if (overviewResult.error || submissionsResult.error || !overviewResult.data) return { error: true, tasks: [] as TaskItem[] };
+    if (overviewResult.error || !overviewResult.data) return { error: true, tasks: [] as TaskItem[] };
     const overview = overviewResult.data as { assignments?: Assignment[] };
     const submissions = (submissionsResult.data ?? []) as Submission[];
-    return { error: false, tasks: (overview.assignments ?? []).map((assignment) => ({
-      assignment, classroom, submission: submissions.find((item) => item.assignment_id === assignment.id) ?? null,
+    return { error: Boolean(submissionsResult.error), tasks: (overview.assignments ?? []).map((assignment) => ({
+      assignment, classroom,
+      submission: submissionsResult.error ? null : submissions.find((item) => item.assignment_id === assignment.id) ?? null,
+      submissionLoadError: Boolean(submissionsResult.error),
     })) };
   }));
   const tasks = results.flatMap((result) => result.tasks);
   const hasPartialError = Boolean(classroomsError) || results.some((result) => result.error);
-  const pendingCount = tasks.filter((task) => !task.submission).length;
-  const submittedCount = tasks.filter((task) => Boolean(task.submission)).length;
+  const knownTasks = tasks.filter((task) => !task.submissionLoadError);
+  const pendingCount = knownTasks.filter((task) => !task.submission).length;
+  const submittedCount = knownTasks.filter((task) => Boolean(task.submission)).length;
+  const unknownStatusCount = tasks.length - knownTasks.length;
   tasks.sort((a, b) => (a.assignment.due_at ? Date.parse(a.assignment.due_at) : Number.MAX_SAFE_INTEGER) -
     (b.assignment.due_at ? Date.parse(b.assignment.due_at) : Number.MAX_SAFE_INTEGER));
 
@@ -74,6 +79,7 @@ export default async function StudentTasksPage({ params }: { params: Promise<{ s
             <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-xs text-emerald-50">Sin entregar</p><p className="mt-1 text-2xl font-black">{pendingCount}</p></div>
             <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-xs text-emerald-50">Entregadas</p><p className="mt-1 text-2xl font-black">{submittedCount}</p></div>
           </div>
+          {unknownStatusCount > 0 ? <p className="mt-3 text-xs text-white/80">{unknownStatusCount} actividades con estado pendiente de consulta.</p> : null}
         </header>
         {hasPartialError ? <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Algunas actividades no pudieron cargarse. La información disponible se muestra sin habilitar accesos alternativos.</div> : null}
         {tasks.length ? <section className="space-y-3" aria-label="Listado de tareas">
@@ -94,8 +100,8 @@ export default async function StudentTasksPage({ params }: { params: Promise<{ s
                   <div className="text-xs text-slate-500"><span className="font-semibold text-slate-700">Fecha límite:</span> {dateLabel(task.assignment.due_at)}{task.submission?.submitted_at ? <span className="ml-2"><span className="font-semibold text-slate-700">Enviada:</span> {dateLabel(task.submission.submitted_at)}</span> : null}</div>
                   <Link href={"/dashboard/" + slug + "/classroom/" + task.classroom.id + "?section=work#lista-clases"} className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-950 hover:bg-emerald-100"><BookOpen size={14}/> Ver actividad y archivos</Link>
                 </div>
-                {task.submission?.score !== null && task.submission?.score !== undefined ? <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Calificación: {task.submission.score}</p> : null}
-                {task.submission?.feedback ? <p className="mt-2 rounded-xl bg-sky-50 p-3 text-sm leading-6 text-sky-900">Devolución docente: {task.submission.feedback}</p> : null}
+                {!task.submissionLoadError && task.submission?.score !== null && task.submission?.score !== undefined ? <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Calificación: {task.submission.score}</p> : null}
+                {!task.submissionLoadError && task.submission?.feedback ? <p className="mt-2 rounded-xl bg-sky-50 p-3 text-sm leading-6 text-sky-900">Devolución docente: {task.submission.feedback}</p> : null}
               </article>
             );
           })}
