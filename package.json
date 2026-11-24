@@ -17,7 +17,8 @@
     "check:submission-history": "node scripts/check-submission-history.mjs",
     "check:student-drafts": "node scripts/check-student-assignment-drafts.mjs",
     "test:e2e": "playwright test --config=e2e/playwright.config.mjs",
-    "check:assignment-reminders": "node scripts/check-assignment-due-notifications.mjs"
+    "check:assignment-reminders": "node scripts/check-assignment-due-notifications.mjs",
+    "check:academic-history": "node scripts/check-published-academic-history.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

@@ -47,6 +47,8 @@ jobs:
         run: npm run check:student-drafts
       - name: Validate student assignment due reminders
         run: npm run check:assignment-reminders
+      - name: Validate published academic history
+        run: npm run check:academic-history
       - name: Build
         run: npm run build
       - name: Smoke test public routes

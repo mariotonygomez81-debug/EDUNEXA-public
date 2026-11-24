@@ -8,11 +8,12 @@ type PublishedReportCard = {
   student_id: string;
   created_at: string;
   snapshot: {
-    period?: { name?: string };
-    academic_year?: { name?: string };
+    period?: { id?: string; name?: string; starts_on?: string; ends_on?: string };
+    academic_year?: { id?: string; name?: string };
     published_at?: string;
     workflow_version?: number;
     grading_scale?: {
+      id?: string;
       display_mode?: "numeric" | "descriptive" | "both";
       levels?: { minimum_percentage: number; maximum_percentage: number; label: string; grade_value: number | null; is_passing: boolean }[];
     } | null;
@@ -96,6 +97,74 @@ function publishedSubjectProgress(snapshot: PublishedReportCard["snapshot"]) {
   };
 }
 
+function latestPublishedCardsByPeriod(cards: PublishedReportCard[]) {
+  const latest = new Map<string, PublishedReportCard>();
+  for (const card of cards) {
+    const periodKey = [
+      card.snapshot.academic_year?.id ?? card.snapshot.academic_year?.name ?? "year",
+      card.snapshot.period?.id ?? card.snapshot.period?.name ?? card.workflow_id,
+    ].join(":");
+    const current = latest.get(periodKey);
+    const currentVersion = current?.snapshot.workflow_version ?? 1;
+    const nextVersion = card.snapshot.workflow_version ?? 1;
+    if (!current || nextVersion > currentVersion ||
+      (nextVersion === currentVersion && new Date(card.created_at).getTime() > new Date(current.created_at).getTime())) {
+      latest.set(periodKey, card);
+    }
+  }
+  return [...latest.values()].sort((a, b) => {
+    const aDate = a.snapshot.period?.ends_on ?? a.snapshot.period?.starts_on ?? a.snapshot.published_at ?? a.created_at;
+    const bDate = b.snapshot.period?.ends_on ?? b.snapshot.period?.starts_on ?? b.snapshot.published_at ?? b.created_at;
+    return new Date(aDate).getTime() - new Date(bDate).getTime();
+  });
+}
+
+function buildPublishedAcademicHistory(cards: PublishedReportCard[]) {
+  const periods = latestPublishedCardsByPeriod(cards);
+  const subjectPoints = new Map<string, {
+    period: string;
+    percentage: number | null;
+    isPassing: boolean | null;
+    scaleId: string | null;
+  }[]>();
+
+  for (const card of periods) {
+    const periodLabel = [
+      card.snapshot.period?.name ?? "Período",
+      card.snapshot.academic_year?.name,
+    ].filter(Boolean).join(" · ");
+    for (const grade of publishedSubjectGrades(card.snapshot)) {
+      const points = subjectPoints.get(grade.subject) ?? [];
+      points.push({
+        period: periodLabel,
+        percentage: grade.percentage,
+        isPassing: grade.isPassing,
+        scaleId: card.snapshot.grading_scale?.id ?? null,
+      });
+      subjectPoints.set(grade.subject, points);
+    }
+  }
+
+  const subjects = [...subjectPoints.entries()].map(([subject, points]) => {
+    const current = points[points.length - 1];
+    const previous = points.length > 1 ? points[points.length - 2] : null;
+    const comparable = Boolean(previous && current.scaleId && previous.scaleId === current.scaleId &&
+      previous.percentage !== null && current.percentage !== null);
+    const delta = comparable ? Number(current.percentage) - Number(previous?.percentage) : null;
+    const trend = delta === null ? "unavailable" : delta >= 3 ? "up" : delta <= -3 ? "down" : "stable";
+    return {
+      subject,
+      points,
+      current,
+      trend,
+      delta,
+      needsSupport: current.isPassing === false || (delta !== null && delta <= -8),
+    };
+  }).sort((a, b) => Number(b.needsSupport) - Number(a.needsSupport) || a.subject.localeCompare(b.subject, "es"));
+
+  return { periods, subjects, supportCount: subjects.filter((subject) => subject.needsSupport).length };
+}
+
 export default async function StudentFamilyPortal({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const supabase = await createClient();
@@ -150,7 +219,10 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
           </div>
         ) : students.length ? (
           <div className="grid gap-5 lg:grid-cols-2">
-            {students.map((student) => (
+            {students.map((student) => {
+              const studentReportCards = publishedReportCards.filter((card) => card.student_id === student.student_id);
+              const academicHistory = buildPublishedAcademicHistory(studentReportCards);
+              return (
               <article key={student.student_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 bg-slate-50/70 p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -216,6 +288,83 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                     <p className="mt-1 text-xs text-slate-400">No hay boletines habilitados para esta cuenta.</p>
                   )}
                 </div>
+
+                <section className="border-t border-slate-100 px-5 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-800">Evolución histórica y seguimiento</h3>
+                      <p className="mt-1 text-xs text-slate-500">Comparación basada únicamente en la última versión de cada boletín oficial publicado y visible para esta cuenta.</p>
+                    </div>
+                    {academicHistory.supportCount > 0 ? (
+                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                        {academicHistory.supportCount} {academicHistory.supportCount === 1 ? "materia requiere" : "materias requieren"} acompañamiento
+                      </span>
+                    ) : null}
+                  </div>
+                  {academicHistory.periods.length ? (
+                    <div className="mt-3 space-y-3">
+                      <div className="flex flex-wrap gap-2" aria-label="Períodos incluidos en el historial">
+                        {academicHistory.periods.map((period) => (
+                          <span key={period.workflow_id} className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-[11px] font-semibold text-indigo-900">
+                            {period.snapshot.period?.name ?? "Período"}{period.snapshot.academic_year?.name ? ` · ${period.snapshot.academic_year.name}` : ""}
+                          </span>
+                        ))}
+                      </div>
+                      {academicHistory.subjects.length ? (
+                        <ul className="grid gap-2 sm:grid-cols-2">
+                          {academicHistory.subjects.map((item) => (
+                            <li key={item.subject} className="rounded-xl border border-slate-200 bg-white p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-xs font-bold text-slate-800">{item.subject}</p>
+                                {item.needsSupport ? (
+                                  <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-900">Acompañamiento</span>
+                                ) : item.trend === "up" ? (
+                                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-800">En mejora</span>
+                                ) : item.trend === "down" ? (
+                                  <span className="rounded-full bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-800">En descenso</span>
+                                ) : (
+                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700">{item.trend === "stable" ? "Estable" : "Sin comparación"}</span>
+                                )}
+                              </div>
+                              <div className="mt-3 space-y-2">
+                                {item.points.map((point, index) => (
+                                  <div key={`${point.period}-${index}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                                    <div className="min-w-0">
+                                      <p className="truncate text-[10px] text-slate-500">{point.period}</p>
+                                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                        <div className={`h-full rounded-full ${point.isPassing === false ? "bg-rose-500" : point.isPassing === true ? "bg-emerald-500" : "bg-indigo-400"}`} style={{ width: `${point.percentage === null ? 0 : Math.max(0, Math.min(100, point.percentage))}%` }} />
+                                      </div>
+                                    </div>
+                                    <span className="text-xs font-bold tabular-nums text-slate-800">{point.percentage === null ? "Sin nota final" : `${point.percentage.toFixed(1)}%`}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {item.delta !== null ? (
+                                <p className={`mt-2 text-[10px] font-semibold ${item.delta < 0 ? "text-rose-700" : item.delta > 0 ? "text-emerald-700" : "text-slate-500"}`}>
+                                  Variación respecto del período anterior: {item.delta > 0 ? "+" : ""}{item.delta.toFixed(1)} puntos porcentuales
+                                </p>
+                              ) : item.points.length > 1 ? (
+                                <p className="mt-2 text-[10px] text-slate-500">No se calcula tendencia porque las escalas de calificación no son comparables.</p>
+                              ) : (
+                                <p className="mt-2 text-[10px] text-slate-500">Se necesita otro período publicado para calcular una tendencia.</p>
+                              )}
+                              {item.needsSupport ? (
+                                <p className="mt-2 text-[11px] leading-5 text-amber-900">
+                                  {item.current.isPassing === false ? "El último resultado publicado está por debajo del criterio de aprobación." : "Se observa una disminución significativa respecto del período anterior."}
+                                </p>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-slate-500">Los boletines publicados todavía no contienen materias comparables.</p>
+                      )}
+                      <p className="text-[10px] leading-4 text-slate-400">Las tendencias solo se muestran cuando ambos períodos usan la misma escala. Las señales de acompañamiento orientan el seguimiento y no reemplazan la evaluación docente.</p>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-500">Todavía no hay períodos con boletines publicados disponibles para construir el historial.</p>
+                  )}
+                </section>
 
                 <section className="border-t border-slate-100 px-5 py-4">
                     <h3 className="text-sm font-semibold text-slate-800">Boletines oficiales publicados</h3>
@@ -320,7 +469,8 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                   </Link>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
