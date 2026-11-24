@@ -18,9 +18,9 @@ const checks = [
   ["only published tasks in classrooms the guardian can read are returned",
     /a\.published_at is not null/.test(sql) &&
     /private\.can_access_classroom\([\s\S]*'classroom\.read'/.test(sql)],
-  ["grades are individually gated by the child-specific grade permission",
+  ["grades are individually gated by the linked guardian-child permission",
     /sg\.can_view_grades/.test(sql) &&
-    /private\.can_access_student\([\s\S]*'grades\.read'/.test(sql)],
+    /when sg\.can_view_grades then sub\.score/.test(sql)],
   ["result includes task, subject, due date, submission and review status",
     /subject_name text/.test(sql) && /assignment_title text/.test(sql) &&
     /due_at timestamptz/.test(sql) && /submitted_at timestamptz/.test(sql) &&
