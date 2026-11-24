@@ -36,7 +36,7 @@ begin
  if not private.can_manage_division('50000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','grades.manage') then raise exception 'teacher could not manage assigned division'; end if;
  if private.can_manage_division('50000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','grades.manage') then raise exception 'teacher managed unassigned division'; end if;
  if not private.can_manage_course_subject('50000000-0000-0000-0000-000000000001','52000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','grades.manage') then raise exception 'teacher could not manage assigned subject'; end if;
- if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.assignments.edit') then raise exception 'inactive capability unexpectedly granted'; end if;
+ if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.delete') then raise exception 'unsupported classroom capability unexpectedly granted'; end if;
 end $$;
 
 -- Delegated capabilities are independent and each requires its own active flag.
