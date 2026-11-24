@@ -194,7 +194,7 @@ export default function TutorDemo() {
                   { label: "Presentes", value: student.attendance.present, icon: CalendarCheck, color: "text-emerald-700 bg-emerald-50" },
                   { label: "Ausentes", value: student.attendance.absent, icon: CalendarClock, color: "text-rose-700 bg-rose-50" },
                   { label: "Tardanzas", value: student.attendance.late, icon: CalendarClock, color: "text-amber-700 bg-amber-50" },
-                  { label: "Boletines", value: 2, icon: FileText, color: "text-violet-700 bg-violet-50" },
+                  { label: "Boletines", value: 3, icon: FileText, color: "text-violet-700 bg-violet-50" },
                 ].map(({ label, value, icon: Icon, color }) => (
                   <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">{label}</span><span className={`rounded-lg p-2 ${color}`}><Icon size={17} /></span></div>
@@ -280,7 +280,7 @@ export default function TutorDemo() {
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="font-bold text-slate-900">Boletines oficiales publicados</h3><p className="mt-1 text-xs text-slate-500">Documentos de muestra para representar la sección de boletines.</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {["Primer período · 2026", "Segundo período · 2026"].map((period) => <div key={period} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4"><span className="rounded-lg bg-rose-50 p-3 text-rose-700"><FileText size={22} /></span><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-800">{period}</p><p className="mt-1 text-xs text-slate-500">Boletín de ejemplo</p></div><span className="text-xs font-semibold text-slate-400"><Download size={16} /></span></div>)}
+                {["Primer trimestre · 2026", "Segundo trimestre · 2026", "Tercer trimestre · 2026"].map((period) => <div key={period} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4"><span className="rounded-lg bg-rose-50 p-3 text-rose-700"><FileText size={22} /></span><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-800">{period}</p><p className="mt-1 text-xs text-slate-500">Boletín de ejemplo</p></div><span className="text-xs font-semibold text-slate-400"><Download size={16} /></span></div>)}
               </div>
               <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-900">Los archivos PDF reales se habilitarán cuando el módulo esté conectado a un entorno de datos de prueba autorizado.</p>
             </section>
