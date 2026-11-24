@@ -1,6 +1,12 @@
 -- Isolated synthetic schema matching the authorization columns inspected in Hosted.
-do $$ begin create role anon nologin; exception when duplicate_object then null; end $;
-do $$ begin create role authenticated nologin; exception when duplicate_object then null; end $;
+DO $$ BEGIN
+  CREATE ROLE anon NOLOGIN;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE ROLE authenticated NOLOGIN;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 create schema auth;
 create schema private;
 create or replace function auth.uid() returns uuid language sql stable as $$
