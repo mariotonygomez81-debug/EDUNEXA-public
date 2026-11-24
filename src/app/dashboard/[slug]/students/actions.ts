@@ -341,3 +341,71 @@ export async function closeStudentEnrollment(formData: FormData) {
   redirect(`/dashboard/${slug}/students/${studentId}?closed=1`);
 }
 
+
+
+export async function createStudentPreviousSubject(formData: FormData) {
+  const slug = value(formData, "slug");
+  const studentId = value(formData, "student_id");
+  const courseSubjectId = value(formData, "course_subject_id");
+  const schoolYear = value(formData, "school_year");
+  if (!slug || !/^[0-9a-f-]{36}$/i.test(studentId) || !/^[0-9a-f-]{36}$/i.test(courseSubjectId) || schoolYear.length > 20) {
+    redirect(`/dashboard/${encodeURIComponent(slug)}/students/${encodeURIComponent(studentId)}?error=previous_invalid`);
+  }
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data: institution } = await supabase.from("institutions").select("id").eq("slug", slug).maybeSingle();
+  if (!institution) redirect("/dashboard");
+  const { data: membership } = await supabase.from("memberships").select("id")
+    .eq("institution_id", institution.id).eq("user_id", user.id).eq("status", "active").maybeSingle();
+  if (!membership) redirect("/dashboard");
+  const permissions = await getMembershipPermissions(supabase, membership.id);
+  if (!permissions.has("students.manage")) redirect(`/dashboard/${slug}/students/${studentId}?error=forbidden`);
+  const [{ data: student }, { data: courseSubject }] = await Promise.all([
+    supabase.from("students").select("id").eq("id", studentId).eq("institution_id", institution.id).maybeSingle(),
+    supabase.from("course_subjects").select("id,subject_id").eq("id", courseSubjectId).eq("institution_id", institution.id).maybeSingle(),
+  ]);
+  if (!student || !courseSubject) redirect(`/dashboard/${slug}/students/${studentId}?error=previous_invalid`);
+  const { data: subject } = await supabase.from("subjects").select("name").eq("id", courseSubject.subject_id).eq("institution_id", institution.id).maybeSingle();
+  if (!subject) redirect(`/dashboard/${slug}/students/${studentId}?error=previous_invalid`);
+  const { data: existing } = await supabase.from("student_previous_subjects").select("id")
+    .eq("institution_id", institution.id).eq("student_id", studentId).eq("course_subject_id", courseSubjectId).maybeSingle();
+  if (existing) redirect(`/dashboard/${slug}/students/${studentId}?error=previous_exists`);
+  const { error } = await supabase.from("student_previous_subjects").insert({
+    institution_id: institution.id, student_id: studentId, course_subject_id: courseSubjectId,
+    subject_name: subject.name, school_year: schoolYear || null, status: "pending",
+  });
+  if (error) redirect(`/dashboard/${slug}/students/${studentId}?error=previous_save`);
+  revalidatePath(`/dashboard/${slug}/students/${studentId}`);
+  revalidatePath(`/dashboard/${slug}/student/profile`);
+  redirect(`/dashboard/${slug}/students/${studentId}?previous_added=1`);
+}
+
+export async function updateStudentPreviousSubjectStatus(formData: FormData) {
+  const slug = value(formData, "slug");
+  const studentId = value(formData, "student_id");
+  const previousSubjectId = value(formData, "previous_subject_id");
+  const status = value(formData, "status");
+  const allowed = ["pending", "in_progress", "approved", "equivalency", "not_approved"];
+  if (!slug || !/^[0-9a-f-]{36}$/i.test(studentId) || !/^[0-9a-f-]{36}$/i.test(previousSubjectId) || !allowed.includes(status)) {
+    redirect(`/dashboard/${encodeURIComponent(slug)}/students/${encodeURIComponent(studentId)}?error=previous_invalid`);
+  }
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data: institution } = await supabase.from("institutions").select("id").eq("slug", slug).maybeSingle();
+  if (!institution) redirect("/dashboard");
+  const { data: membership } = await supabase.from("memberships").select("id")
+    .eq("institution_id", institution.id).eq("user_id", user.id).eq("status", "active").maybeSingle();
+  if (!membership) redirect("/dashboard");
+  const permissions = await getMembershipPermissions(supabase, membership.id);
+  if (!permissions.has("students.manage")) redirect(`/dashboard/${slug}/students/${studentId}?error=forbidden`);
+  const { error } = await supabase.from("student_previous_subjects").update({
+    status: status as "pending" | "in_progress" | "approved" | "equivalency" | "not_approved",
+    updated_at: new Date().toISOString(),
+  }).eq("id", previousSubjectId).eq("student_id", studentId).eq("institution_id", institution.id);
+  if (error) redirect(`/dashboard/${slug}/students/${studentId}?error=previous_save`);
+  revalidatePath(`/dashboard/${slug}/students/${studentId}`);
+  revalidatePath(`/dashboard/${slug}/student/profile`);
+  redirect(`/dashboard/${slug}/students/${studentId}?previous_updated=1`);
+}
