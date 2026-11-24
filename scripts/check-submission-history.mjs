@@ -5,6 +5,8 @@ const reader = readFileSync("supabase/migrations/20261124030000_scoped_submissio
 const fileListing = readFileSync("supabase/migrations/20261120213440_add_scoped_classroom_file_listing.sql", "utf8").toLowerCase();
 const submissionScope = readFileSync("supabase/migrations/20261120042544_scope_classroom_submissions.sql", "utf8").toLowerCase();
 const roster = readFileSync("src/app/dashboard/[slug]/classroom/[classroomId]/submission-roster.tsx", "utf8").toLowerCase();
+const multiFiles = readFileSync("supabase/migrations/20261124020000_preserve_multiple_submission_attachments.sql", "utf8").toLowerCase();
+const editor = readFileSync("src/app/dashboard/[slug]/classroom/[classroomId]/student-assignment-editor.tsx", "utf8").toLowerCase();
 
 const checks = [
   [migration, "File audit table is scoped to institution and submission", /create table public\.submission_file_events[\s\S]*institution_id uuid not null[\s\S]*submission_id uuid not null[\s\S]*file_id uuid not null unique/],
