@@ -24,6 +24,22 @@ type PublishedReportCard = {
   };
 };
 
+type ChildAssignmentProgress = {
+  assignment_id: string;
+  classroom_id: string;
+  subject_name: string;
+  classroom_title: string;
+  assignment_title: string;
+  due_at: string | null;
+  published_at: string | null;
+  submitted: boolean;
+  submitted_at: string | null;
+  review_status: "visto" | "aprobado" | "desaprobado" | "corregir" | null;
+  score: number | null;
+  max_score: number | null;
+  can_view_grade: boolean;
+};
+
 type PortalNotification = {
   id: string;
   notification_type: string;
@@ -229,6 +245,21 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
     p_institution_id: institution.id,
   });
   const students = (rows ?? []) as PortalStudent[];
+
+  // Load academic progress independently for each linked child. The RPC enforces
+  // guardian membership, active enrollment, classroom scope and grade visibility.
+  const childProgressEntries = await Promise.all(students.filter((student) => !student.is_self).map(async (student) => {
+    const { data, error: progressError } = await supabase.rpc("list_my_child_assignment_progress", {
+      p_institution_id: institution.id,
+      p_student_id: student.student_id,
+    });
+    return [student.student_id, {
+      rows: (data ?? []) as ChildAssignmentProgress[],
+      unavailable: Boolean(progressError),
+    }] as const;
+  }));
+  const childProgress = new Map(childProgressEntries);
+
   // The database RLS policy filters each immutable snapshot by its publication audience.
   // Query all linked student IDs so a guardian with report-card-only access is not excluded.
   const portalStudentIds = students.map((student) => student.student_id);
@@ -452,6 +483,49 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                   ) : (
                     <p className="mt-2 text-xs text-slate-500">Todavía no hay períodos con boletines publicados disponibles para construir el historial.</p>
                   )}
+                </section>
+
+                <section className="border-t border-slate-100 px-5 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-800">Tareas y entregas por materia</h3>
+                      <p className="mt-1 text-xs text-slate-500">Estado de entrega y revisión docente. El contenido de los trabajos y los archivos privados no se muestran en este portal.</p>
+                    </div>
+                    <BookOpen size={18} className="text-violet-600" />
+                  </div>
+                  {(() => {
+                    const progress = childProgress.get(student.student_id);
+                    if (!progress || progress.unavailable) {
+                      return <p className="mt-3 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-900">El seguimiento de tareas todavía no está habilitado en la base institucional. Los boletines y demás datos autorizados siguen disponibles.</p>;
+                    }
+                    if (!progress.rows.length) {
+                      return <p className="mt-3 text-xs text-slate-500">No hay tareas publicadas para las materias de la matrícula activa.</p>;
+                    }
+                    return (
+                      <ul className="mt-3 space-y-2">
+                        {progress.rows.map((item) => (
+                          <li key={item.assignment_id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-semibold text-violet-700">{item.subject_name}</p>
+                                <p className="mt-1 text-sm font-semibold text-slate-800">{item.assignment_title}</p>
+                                <p className="mt-1 text-[11px] text-slate-500">{item.classroom_title}</p>
+                              </div>
+                              <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${!item.submitted ? "bg-amber-100 text-amber-900" : item.review_status === "aprobado" ? "bg-emerald-100 text-emerald-800" : item.review_status === "desaprobado" || item.review_status === "corregir" ? "bg-rose-100 text-rose-800" : "bg-sky-100 text-sky-800"}`}>
+                                {!item.submitted ? "Sin entregar" : item.review_status === "aprobado" ? "Aprobada" : item.review_status === "desaprobado" ? "Desaprobada" : item.review_status === "corregir" ? "Requiere corrección" : item.review_status === "visto" ? "Vista por docente" : "Entregada · pendiente"}
+                              </span>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-500">
+                              <span>Vencimiento: {dateLabel(item.due_at)}</span>
+                              {item.submitted_at ? <span>Entregada: {dateLabel(item.submitted_at)}</span> : null}
+                              {item.can_view_grade && item.score !== null ? <span className="font-semibold text-slate-700">Calificación: {item.score}{item.max_score !== null ? ` / ${item.max_score}` : ""}</span> : null}
+                              {item.submitted && !item.can_view_grade ? <span>Calificación no habilitada para esta cuenta</span> : null}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
                 </section>
 
                 <section className="border-t border-slate-100 px-5 py-4">
