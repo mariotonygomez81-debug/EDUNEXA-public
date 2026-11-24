@@ -89,8 +89,8 @@ function notificationHref(slug: string, item: PortalNotification) {
   if (item.resource_type === "announcement") return `/dashboard/${slug}/announcements`;
   if (item.resource_type === "conversation") return `/dashboard/${slug}/messages/${item.resource_id}`;
   if (item.resource_type === "appointment" || item.notification_type === "appointment") return `/dashboard/${slug}/appointments`;
-  if (item.resource_type === "report_card" || item.notification_type === "report_card" || item.notification_type === "grade") return `/dashboard/${slug}/report-cards`;
-  if (item.resource_type === "assignment") return `/dashboard/${slug}/classroom`;
+  if (item.resource_type === "report_card" || item.notification_type === "report_card" || item.notification_type === "grade") return `/dashboard/${slug}/portal`;
+  if (item.resource_type === "assignment") return `/dashboard/${slug}/portal`;
   return `/dashboard/${slug}/notifications`;
 }
 
