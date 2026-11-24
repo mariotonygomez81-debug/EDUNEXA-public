@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/tutor-module]
   pull_request:
 
 permissions:
@@ -49,6 +49,8 @@ jobs:
         run: npm run check:assignment-reminders
       - name: Validate published academic history
         run: npm run check:academic-history
+      - name: Validate Tutor notification security and UI
+        run: npm run check:guardian-notifications
       - name: Build
         run: npm run build
       - name: Smoke test public routes
