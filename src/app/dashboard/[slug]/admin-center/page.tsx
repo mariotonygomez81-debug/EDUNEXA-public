@@ -80,7 +80,7 @@ export default async function InstitutionAdminCenter({ params }: { params: Promi
         <div className="mb-4"><p className="text-xs font-bold tracking-widest text-violet-700">HERRAMIENTAS DE GESTIÓN</p><h2 className="mt-1 text-xl font-bold text-slate-950">Administración de EDUNEXA</h2><p className="mt-1 text-sm text-slate-500">Cada acceso respeta los permisos efectivos de tu cuenta.</p></div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {visibleCards.map(({title,detail,href,icon:Icon,tone}) => <Link key={href} href={`/dashboard/${slug}/${href}`} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-violet-200 hover:shadow-lg">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-${tone}-50 text-${tone}-700`}><Icon size={21}/></div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-700"><Icon size={21}/></div>
             <div className="mt-4 flex items-center justify-between gap-3"><h3 className="font-bold text-slate-900">{title}</h3><ArrowUpRight size={17} className="text-slate-400 transition group-hover:text-violet-700"/></div>
             <p className="mt-2 text-sm leading-6 text-slate-500">{detail}</p>
           </Link>)}
