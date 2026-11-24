@@ -59,6 +59,8 @@ jobs:
         run: npm run check:tutor-demo
       - name: Validate single-school access
         run: npm run check:single-school
+      - name: Validate role-scoped authorization, Hosted role matrix and report-card audience
+        run: npm run check:role-scoped-authz
       - name: Build
         run: npm run build
       - name: Smoke test public routes
