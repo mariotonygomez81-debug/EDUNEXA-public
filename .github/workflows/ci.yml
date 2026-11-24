@@ -53,6 +53,8 @@ jobs:
         run: npm run check:guardian-notifications
       - name: Validate Tutor child-scoped academic progress access
         run: npm run check:guardian-progress
+      - name: Validate local Tutor demo isolation
+        run: npm run check:tutor-demo
       - name: Build
         run: npm run build
       - name: Smoke test public routes
