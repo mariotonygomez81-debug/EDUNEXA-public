@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Bell, BookOpen, CalendarCheck, CalendarClock, CheckCheck,
   ChevronRight, ClipboardList, Download, FileText, GraduationCap,
-  LayoutDashboard, MessageCircle, ShieldCheck, TrendingUp, UserRound,
+  LayoutDashboard, MessageCircle, Search, ShieldCheck, TrendingUp, UserRound,
 } from "lucide-react";
 
 type Section = "resumen" | "tareas" | "calificaciones" | "boletines" | "avisos";
@@ -80,6 +80,7 @@ export default function TutorDemo() {
   const [activeStudent, setActiveStudent] = useState("sofia");
   const [section, setSection] = useState<Section>("resumen");
   const [readNotifications, setReadNotifications] = useState<string[]>([]);
+  const [taskSearch, setTaskSearch] = useState("");
   const student = students.find((item) => item.id === activeStudent) ?? students[0];
   const unread = notifications.length - readNotifications.length;
 
@@ -223,8 +224,15 @@ export default function TutorDemo() {
           {section === "tareas" && (
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4"><h3 className="font-bold text-slate-900">Tareas y entregas por materia</h3><p className="mt-1 text-xs text-slate-500">Seguimiento de estados, sin mostrar archivos ni contenido privado.</p></div>
+              <label className="mb-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-100">
+                <Search size={16} className="shrink-0 text-slate-400" />
+                <span className="sr-only">Buscar tareas por materia o título</span>
+                <input value={taskSearch} onChange={(event) => setTaskSearch(event.target.value)} placeholder="Buscar por materia o tarea..." className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400" />
+                {taskSearch && <button type="button" onClick={() => setTaskSearch("")} className="text-xs font-semibold text-violet-700">Limpiar</button>}
+              </label>
               <div className="divide-y divide-slate-100">
-                {student.tasks.map((task) => <div key={task.title} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0"><div className="min-w-0"><p className="text-xs font-semibold text-violet-700">{task.subject}</p><p className="mt-1 font-semibold text-slate-900">{task.title}</p><p className="mt-1 text-xs text-slate-500">Fecha límite: {task.due}</p></div><Status value={task.status} /></div>)}
+                {student.tasks.filter((task) => (task.subject + " " + task.title + " " + task.status).toLocaleLowerCase("es").includes(taskSearch.trim().toLocaleLowerCase("es"))).map((task) => <div key={task.title} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0"><div className="min-w-0"><p className="text-xs font-semibold text-violet-700">{task.subject}</p><p className="mt-1 font-semibold text-slate-900">{task.title}</p><p className="mt-1 text-xs text-slate-500">Fecha límite: {task.due}</p></div><Status value={task.status} /></div>)}
+                {student.tasks.filter((task) => (task.subject + " " + task.title + " " + task.status).toLocaleLowerCase("es").includes(taskSearch.trim().toLocaleLowerCase("es"))).length === 0 && <p className="py-8 text-center text-sm text-slate-500">No encontramos tareas que coincidan con la búsqueda.</p>}
               </div>
             </section>
           )}
@@ -251,7 +259,7 @@ export default function TutorDemo() {
 
           {section === "avisos" && (
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-bold text-slate-900">Centro de notificaciones</h3><p className="mt-1 text-xs text-slate-500">Mensajes, tareas y novedades institucionales ficticias.</p></div><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">{unread} sin leer</span></div>
+              <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-bold text-slate-900">Centro de notificaciones</h3><p className="mt-1 text-xs text-slate-500">Mensajes, tareas y novedades institucionales ficticias.</p></div><div className="flex items-center gap-2"><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">{unread} sin leer</span>{unread > 0 && <button onClick={() => setReadNotifications(notifications.map((item) => item.title))} className="rounded-lg border border-violet-200 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">Marcar todas como leídas</button>}</div></div>
               <div className="mt-4 divide-y divide-slate-100">
                 {notifications.map((item) => {
                   const Icon = item.icon;
