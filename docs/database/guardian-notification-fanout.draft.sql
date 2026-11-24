@@ -212,6 +212,19 @@ begin
     and cm.membership_id<>new.sender_membership_id
     and exists (
       select 1
+      from public.conversation_members sender_member
+      where sender_member.conversation_id=new.conversation_id
+        and sender_member.institution_id=new.institution_id
+        and sender_member.membership_id=new.sender_membership_id
+    )
+    and (
+      select count(*)
+      from public.conversation_members participant
+      where participant.conversation_id=new.conversation_id
+        and participant.institution_id=new.institution_id
+    )=2
+    and exists (
+      select 1
       from public.membership_roles mr
       join public.roles r on r.id=mr.role_id
       where mr.membership_id=recipient.id
