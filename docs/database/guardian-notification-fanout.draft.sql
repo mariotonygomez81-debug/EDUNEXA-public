@@ -45,6 +45,7 @@ begin
     raise exception 'Authentication required' using errcode='28000';
   end if;
   if p_institution_id is null
+    or p_notification_type is null
     or p_notification_type not in (
       'announcement','message','grade','attendance','support',
       'assignment_due','appointment','report_card'
@@ -267,8 +268,10 @@ declare
   v_status_label text;
   v_scheduled_label text;
 begin
-  if tg_op='UPDATE' and old.status is not distinct from new.status then
-    return new;
+  if tg_op='UPDATE' then
+    if old.status is not distinct from new.status then
+      return new;
+    end if;
   end if;
 
   select m.id into v_actor_membership_id
