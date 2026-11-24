@@ -3,10 +3,12 @@ import { readFileSync } from "node:fs";
 const migration = readFileSync("supabase/migrations/20261124025805_student_assignment_drafts.sql", "utf8");
 const rpcGrant = readFileSync("supabase/migrations/20261124025839_restore_submission_rpc_execute.sql", "utf8");
 const cleanupMigration = readFileSync("supabase/migrations/20261124030438_delete_draft_after_pdf_finalize.sql", "utf8");
+const invokerMigration = readFileSync("supabase/migrations/20261124030545_student_draft_invoker_wrappers.sql", "utf8");
 const editor = readFileSync("src/app/dashboard/[slug]/classroom/[classroomId]/student-assignment-editor.tsx", "utf8");
 const submitStart = cleanupMigration.indexOf("CREATE OR REPLACE FUNCTION private.submit_classroom_assignment_impl");
 const cleanupStart = cleanupMigration.indexOf("CREATE OR REPLACE FUNCTION public.delete_my_student_assignment_draft_after_submission");
 const submitBody = cleanupMigration.slice(submitStart, cleanupStart);
+const publicWrappers = invokerMigration.slice(invokerMigration.indexOf("CREATE OR REPLACE FUNCTION public.get_my_student_assignment_draft"));
 
 const checks = [
   ["draft table is isolated and RLS-enabled", /CREATE TABLE public\.student_assignment_drafts/.test(migration) && /ALTER TABLE public\.student_assignment_drafts ENABLE ROW LEVEL SECURITY/.test(migration)],
@@ -16,6 +18,7 @@ const checks = [
   ["draft HTML has size and active-content guards", /octet_length\(p_html\) > 5242880/.test(migration) && migration.includes("p_html ~* '<(script|iframe") && /javascript/.test(migration)],
   ["the existing submission RPC can still invoke its protected implementation", /GRANT EXECUTE ON FUNCTION private\.submit_classroom_assignment_impl\(uuid, text\) TO authenticated/.test(rpcGrant)],
   ["draft is retained until a finalized PDF exists", submitStart >= 0 && cleanupStart > submitStart && !submitBody.includes("DELETE FROM public.student_assignment_drafts") && cleanupMigration.includes("f.mime_type = 'application/pdf'") && cleanupMigration.includes("f.status = 'ready'") && cleanupMigration.includes("DELETE FROM public.student_assignment_drafts")],
+  ["public draft RPCs are invoker wrappers around private guarded functions", publicWrappers.includes("LANGUAGE sql") && !publicWrappers.includes("SECURITY DEFINER") && invokerMigration.includes("private.save_my_student_assignment_draft_impl") && invokerMigration.includes("SECURITY DEFINER")],
   ["client clears the draft only after PDF finalization", editor.indexOf("finalize_classroom_file_upload") >= 0 && editor.indexOf("finalize_classroom_file_upload") < editor.indexOf("delete_my_student_assignment_draft_after_submission")],
   ["editor restores cloud drafts and sanitizes restored HTML", /get_my_student_assignment_draft/.test(editor) && /sanitizeDraftHtml\(remote\.html\)/.test(editor)],
   ["editor saves drafts with revision checks and exposes explicit conflict resolution", /save_my_student_assignment_draft/.test(editor) && /p_expected_revision: draftRevisionRef\.current/.test(editor) && /Conservar mi versión/.test(editor) && /Cargar versión del servidor/.test(editor)],
