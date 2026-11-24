@@ -53,15 +53,15 @@ test("student private draft, cross-tab conflict, PDF submission, teacher downloa
     await studentCard.getByLabel("Plantillas de documento").selectOption(templates[index][0]);
     await expect(editor).toContainText(templates[index][1]);
   }
-  await editor.fill("BORRADOR PRIVADO EDUNEXA - primera versión. Desarrollo y conclusión.");
+  await editor.fill("BORRADOR PRIVADO EDUNEXA - primera versión. Desarrollo y conclusión. " + "Contenido de prueba para validar saltos y numeración de páginas. ".repeat(220));
   await studentCard.getByLabel("Encabezado PDF").fill("EDUNEXA · E2E · Encabezado");
   await studentCard.getByLabel("Pie de página").fill("Documento de prueba · Pie");
-  const tinyPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=", "base64");
+  const tinyPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=", "base64");
   await studentCard.locator('input[type="file"][accept="image/png,image/jpeg"]').setInputFiles({
     name: "e2e-pixel.png", mimeType: "image/png", buffer: tinyPng,
   });
   await expect(editor.locator("img")).toHaveCount(1);
-  await expect(studentCard.getByText(/Borrador privado sincronizado/)).toBeVisible({ timeout: 30_000 });
+  await expect(studentCard.getByText(/Borrador privado sincronizado/)).toContainText("versión 1", { timeout: 30_000 });
 
   // A second tab starts from the same server revision, then deliberately saves stale content.
   const secondTab = await studentContext.newPage();
@@ -73,20 +73,21 @@ test("student private draft, cross-tab conflict, PDF submission, teacher downloa
   await editor.press("End");
   await editor.press("Enter");
   await editor.type("Versión de primera pestaña.");
-  await expect(studentCard.getByText(/Borrador privado sincronizado/)).toBeVisible({ timeout: 30_000 });
+  await expect(studentCard.getByText(/Borrador privado sincronizado/)).toContainText("versión 2", { timeout: 30_000 });
   await secondEditor.click();
   await secondEditor.press("End");
   await secondEditor.press("Enter");
   await secondEditor.type("Versión elegida desde segunda pestaña.");
   await expect(secondCard.getByRole("alert")).toContainText("otra versión guardada", { timeout: 30_000 });
   await secondCard.getByRole("button", { name: "Conservar mi versión" }).click();
-  await expect(secondCard.getByText(/Borrador privado sincronizado/)).toBeVisible({ timeout: 30_000 });
+  await expect(secondCard.getByText(/Borrador privado sincronizado/)).toContainText("versión 3", { timeout: 30_000 });
   await secondTab.close();
 
   await studentPage.reload();
   const restoredCard = assignmentCard(studentPage);
   const restoredEditor = restoredCard.getByRole("textbox", { name: "Contenido de la tarea" });
   await expect(restoredEditor).toContainText("versión elegida desde segunda pestaña", { timeout: 30_000 });
+  await expect(restoredEditor.locator("img")).toHaveCount(1);
   await expect(restoredCard.getByLabel("Encabezado PDF")).toHaveValue("EDUNEXA · E2E · Encabezado");
   await expect(restoredCard.getByLabel("Pie de página")).toHaveValue("Documento de prueba · Pie");
 
@@ -109,7 +110,7 @@ test("student private draft, cross-tab conflict, PDF submission, teacher downloa
   const pdfPath = await download.path();
   expect(pdfPath).toBeTruthy();
   const pdf = await PDFDocument.load(await readFile(pdfPath));
-  expect(pdf.getPageCount()).toBeGreaterThan(0);
+  expect(pdf.getPageCount()).toBeGreaterThan(1);
   await preview.getByRole("button", { name: "Cerrar vista previa" }).click();
 
   await restoredCard.getByRole("button", { name: /Entregar tarea en PDF|Actualizar entrega y PDF/ }).click();
