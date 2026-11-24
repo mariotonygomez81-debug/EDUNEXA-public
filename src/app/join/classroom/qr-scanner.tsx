@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Camera, CameraOff, QrCode } from "lucide-react";
 
 type Detector = { detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue: string }>> };
 type DetectorWindow = Window & { BarcodeDetector?: new (options?: { formats: string[] }) => Detector };
 
 export default function ClassroomQrScanner({ schoolSlug }: { schoolSlug: string }) {
+  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [active, setActive] = useState(false);
@@ -52,17 +54,17 @@ export default function ClassroomQrScanner({ schoolSlug }: { schoolSlug: string 
                 const code = url.searchParams.get("code");
                 const school = url.searchParams.get("school") || schoolSlug;
                 if (token) {
-                  window.location.assign(`/join/classroom?school=${encodeURIComponent(school)}&token=${encodeURIComponent(token)}`);
+                  router.push(`/join/classroom?school=${encodeURIComponent(school)}&token=${encodeURIComponent(token)}`);
                   return;
                 }
                 if (code) {
-                  window.location.assign(`/join/classroom?school=${encodeURIComponent(school)}&code=${encodeURIComponent(code)}`);
+                  router.push(`/join/classroom?school=${encodeURIComponent(school)}&code=${encodeURIComponent(code)}`);
                   return;
                 }
               }
             } catch { /* QR may contain a plain classroom code. */ }
             if (/^[a-z0-9]{6,16}$/i.test(value)) {
-              window.location.assign(`/join/classroom?school=${encodeURIComponent(schoolSlug)}&code=${encodeURIComponent(value)}`);
+              router.push(`/join/classroom?school=${encodeURIComponent(schoolSlug)}&code=${encodeURIComponent(value)}`);
               return;
             }
             setMessage("El QR no contiene un código o enlace de aula válido.");
