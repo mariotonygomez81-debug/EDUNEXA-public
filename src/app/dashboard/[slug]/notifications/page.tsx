@@ -36,6 +36,8 @@ const typeLabels: Record<string, string> = {
   attendance: "Asistencia",
   support: "Soporte",
   assignment_due: "Tarea por vencer",
+  appointment: "Citación",
+  report_card: "Boletín",
 };
 
 function formatDate(value: string) {
@@ -71,6 +73,7 @@ export default async function NotificationsPage({
     supabase.from("notifications")
       .select("id,notification_type,title,body,resource_type,resource_id,created_at,read_at")
       .eq("institution_id", institution.id)
+      .eq("recipient_membership_id", membership.id)
       .order("created_at", { ascending: false })
       .limit(50),
     supabase.from("notification_preferences")
@@ -80,6 +83,7 @@ export default async function NotificationsPage({
     supabase.from("notifications")
       .select("id", { count: "exact", head: true })
       .eq("institution_id", institution.id)
+      .eq("recipient_membership_id", membership.id)
       .is("read_at", null),
   ]);
 
@@ -214,8 +218,16 @@ export default async function NotificationsPage({
                         Abrir conversación
                       </Link>
                     ) : notification.resource_type === "assignment" ? (
-                      <Link href={`/dashboard/${slug}/student/tasks`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
-                        Ver mis tareas
+                      <Link href={`/dashboard/${slug}/classroom`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
+                        Ver tareas
+                      </Link>
+                    ) : notification.resource_type === "appointment" || notification.notification_type === "appointment" ? (
+                      <Link href={`/dashboard/${slug}/appointments`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
+                        Ver citación
+                      </Link>
+                    ) : notification.resource_type === "report_card" || notification.notification_type === "report_card" ? (
+                      <Link href={`/dashboard/${slug}/report-cards`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
+                        Ver boletín
                       </Link>
                     ) : <span />}
                     {notification.read_at ? (
