@@ -80,10 +80,12 @@ export default function TutorDemo() {
   const [activeStudent, setActiveStudent] = useState("sofia");
   const [section, setSection] = useState<Section>("resumen");
   const [readNotifications, setReadNotifications] = useState<string[]>([]);
+  const [notificationFilter, setNotificationFilter] = useState<"Todas" | "Sin leer" | "Leídas">("Todas");
   const [taskSearch, setTaskSearch] = useState("");
   const [taskStatus, setTaskStatus] = useState("Todas");
   const student = students.find((item) => item.id === activeStudent) ?? students[0];
   const unread = notifications.length - readNotifications.length;
+  const filteredNotifications = notifications.filter((item) => notificationFilter === "Todas" || (notificationFilter === "Sin leer" ? !readNotifications.includes(item.title) : readNotifications.includes(item.title)));
   const filteredTasks = student.tasks.filter((task) =>
     (task.subject + " " + task.title + " " + task.status).toLocaleLowerCase("es").includes(taskSearch.trim().toLocaleLowerCase("es")) &&
     (taskStatus === "Todas" || task.status === taskStatus)
@@ -287,12 +289,19 @@ export default function TutorDemo() {
           {section === "avisos" && (
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-bold text-slate-900">Centro de notificaciones</h3><p className="mt-1 text-xs text-slate-500">Mensajes, tareas y novedades institucionales ficticias.</p></div><div className="flex items-center gap-2"><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">{unread} sin leer</span>{unread > 0 && <button onClick={() => setReadNotifications(notifications.map((item) => item.title))} className="rounded-lg border border-violet-200 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">Marcar todas como leídas</button>}</div></div>
-              <div className="mt-4 divide-y divide-slate-100">
-                {notifications.map((item) => {
+              <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Filtrar notificaciones">
+                {(["Todas", "Sin leer", "Leídas"] as const).map((filter) => {
+                  const count = filter === "Todas" ? notifications.length : filter === "Sin leer" ? unread : readNotifications.length;
+                  return <button key={filter} type="button" aria-pressed={notificationFilter === filter} onClick={() => setNotificationFilter(filter)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${notificationFilter === filter ? "border-violet-300 bg-violet-50 text-violet-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>{filter} <span className="ml-1 opacity-70">{count}</span></button>;
+                })}
+              </div>
+              <div className="mt-3 divide-y divide-slate-100" aria-live="polite">
+                {filteredNotifications.map((item) => {
                   const Icon = item.icon;
                   const read = readNotifications.includes(item.title);
                   return <div key={item.title} className="flex gap-3 py-4 first:pt-0 last:pb-0"><span className="mt-0.5 rounded-lg bg-violet-50 p-2.5 text-violet-700"><Icon size={18} /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-[10px] font-bold uppercase tracking-wide text-violet-700">{item.type}</span><span className="text-[10px] text-slate-400">{item.date}</span>{!read && <span className="h-1.5 w-1.5 rounded-full bg-violet-600" />}</div><p className="mt-1 text-sm font-semibold text-slate-900">{item.title}</p><p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p><button onClick={() => setReadNotifications((current) => read ? current.filter((title) => title !== item.title) : [...current, item.title])} className="mt-2 text-xs font-semibold text-violet-700 hover:text-violet-900">{read ? "Marcar como no leída" : "Marcar como leída"}</button></div></div>;
                 })}
+                {filteredNotifications.length === 0 && <p className="py-8 text-center text-sm text-slate-500">No hay notificaciones en este filtro.</p>}
               </div>
             </section>
           )}
