@@ -1,7 +1,12 @@
 -- Keep each contextual access decision within the same active membership role.
 -- A role must provide both the contextual scope and the requested permission.
--- This migration intentionally preserves function signatures, SECURITY DEFINER,
--- empty search_path, and existing grants/ACLs.
+-- Guardian grade/attendance access remains governed by can_view_grades and
+-- can_view_attendance. Published report-card audience is intentionally separate:
+-- private.can_view_report_card enforces can_view_report_cards and publication audience.
+-- Classroom teacher delegation remains membership-scoped and must satisfy the
+-- active classroom_teacher_permissions row plus its individual capability flag.
+-- This migration preserves signatures, SECURITY DEFINER, empty search_path,
+-- and existing grants/ACLs. It does not alter the Hosted database.
 
 create or replace function private.can_access_student(
   p_student_id uuid,
