@@ -201,8 +201,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                   )}
                 </div>
 
-                {student.can_view_grades && (
-                  <section className="border-t border-slate-100 px-5 py-4">
+                <section className="border-t border-slate-100 px-5 py-4">
                     <h3 className="text-sm font-semibold text-slate-800">Boletines oficiales publicados</h3>
                     {publishedReportCards.filter((card) => card.student_id === student.student_id).length ? (
                       <ul className="mt-3 space-y-2">
@@ -254,8 +253,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                     ) : (
                       <p className="mt-2 text-xs text-slate-500">Todavía no hay boletines oficiales publicados para este estudiante.</p>
                     )}
-                  </section>
-                )}
+                </section>
 
                 <div className="flex flex-wrap gap-2 border-t border-slate-100 p-5">
                   {student.can_view_grades ? (
