@@ -82,6 +82,20 @@ function publishedSubjectGrades(snapshot: PublishedReportCard["snapshot"]) {
   }).sort((a, b) => a.subject.localeCompare(b.subject, "es"));
 }
 
+function publishedSubjectProgress(snapshot: PublishedReportCard["snapshot"]) {
+  const subjects = publishedSubjectGrades(snapshot);
+  const evaluated = subjects.filter((subject) => subject.percentage !== null);
+  return {
+    subjects,
+    total: subjects.length,
+    evaluated: evaluated.length,
+    approved: evaluated.filter((subject) => subject.isPassing === true).length,
+    reinforce: evaluated.filter((subject) => subject.isPassing === false).length,
+    withoutScale: evaluated.filter((subject) => subject.isPassing === null).length,
+    completion: subjects.length ? Math.round((evaluated.length / subjects.length) * 100) : 0,
+  };
+}
+
 export default async function StudentFamilyPortal({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const supabase = await createClient();
@@ -209,18 +223,46 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                       <ul className="mt-3 space-y-2">
                         {publishedReportCards
                           .filter((card) => card.student_id === student.student_id)
-                          .map((card) => (
-                            <li key={card.workflow_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
-                              <div>
-                                <p className="text-sm font-medium text-slate-800">
-                                  {card.snapshot.period?.name ?? "Boletín académico"}
-                                  {card.snapshot.academic_year?.name ? ` · ${card.snapshot.academic_year.name}` : ""}
-                                  {card.snapshot.workflow_version && card.snapshot.workflow_version > 1 ? ` · v${card.snapshot.workflow_version}` : ""}
-                                </p>
-                                <p className="text-xs text-slate-500">Publicado: {dateLabel(card.snapshot.published_at ?? card.created_at)}</p>
-                                {publishedSubjectGrades(card.snapshot).length ? (
+                          .map((card) => {
+                            const progress = publishedSubjectProgress(card.snapshot);
+                            return (
+                              <li key={card.workflow_id} className="rounded-lg bg-slate-50 px-3 py-3">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-800">
+                                      {card.snapshot.period?.name ?? "Boletín académico"}
+                                      {card.snapshot.academic_year?.name ? ` · ${card.snapshot.academic_year.name}` : ""}
+                                      {card.snapshot.workflow_version && card.snapshot.workflow_version > 1 ? ` · v${card.snapshot.workflow_version}` : ""}
+                                    </p>
+                                    <p className="text-xs text-slate-500">Publicado: {dateLabel(card.snapshot.published_at ?? card.created_at)}</p>
+                                  </div>
+                                  <Link
+                                    href={`/dashboard/${slug}/report-cards/${card.workflow_id}/pdf`}
+                                    className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50"
+                                  >
+                                    <FileText size={14} /> Descargar PDF
+                                  </Link>
+                                </div>
+                                {progress.total ? (
+                                  <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <p className="text-xs font-semibold text-slate-700">Avance de calificaciones publicadas</p>
+                                      <p className="text-xs font-bold tabular-nums text-slate-800">{progress.evaluated} de {progress.total} materias</p>
+                                    </div>
+                                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Materias con calificación final disponible" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.evaluated}>
+                                      <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-[width] duration-500" style={{ width: `${progress.completion}%` }} />
+                                    </div>
+                                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
+                                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-800">{progress.approved} aprobadas</span>
+                                      <span className="rounded-full bg-rose-50 px-2.5 py-1 text-rose-800">{progress.reinforce} a reforzar</span>
+                                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">{progress.total - progress.evaluated} sin nota final</span>
+                                      {progress.withoutScale > 0 ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800">{progress.withoutScale} sin equivalencia de escala</span> : null}
+                                    </div>
+                                  </div>
+                                ) : null}
+                                {progress.subjects.length ? (
                                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                                    {publishedSubjectGrades(card.snapshot).map((grade) => (
+                                    {progress.subjects.map((grade) => (
                                       <div key={grade.subject} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
                                         <p className="text-xs font-semibold text-slate-600">{grade.subject}</p>
                                         {grade.percentage === null ? (
@@ -242,15 +284,9 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                                     ))}
                                   </div>
                                 ) : null}
-                              </div>
-                              <Link
-                                href={`/dashboard/${slug}/report-cards/${card.workflow_id}/pdf`}
-                                className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50"
-                              >
-                                <FileText size={14} /> Descargar PDF
-                              </Link>
-                            </li>
-                          ))}
+                              </li>
+                            );
+                          })}
                       </ul>
                     ) : (
                       <p className="mt-2 text-xs text-slate-500">Todavía no hay boletines oficiales publicados para este estudiante.</p>
