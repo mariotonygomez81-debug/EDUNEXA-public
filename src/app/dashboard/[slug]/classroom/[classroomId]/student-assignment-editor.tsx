@@ -309,6 +309,15 @@ export default function StudentAssignmentEditor({
         <button type="button" title="Rehacer" disabled={locked || busy} onMouseDown={(e) => e.preventDefault()} onClick={() => command("redo")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Redo2 size={17}/></button>
         <span className="ml-auto text-[11px] text-slate-500">{wordCount} palabras · {charCount} caracteres</span>
       </div>
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-3 py-3">
+        <FileText size={16} className="text-violet-600"/>
+        <select aria-label="Plantillas de documento" defaultValue="" disabled={locked || busy} onChange={(e) => { applyTemplate(e.target.value); e.currentTarget.value = ""; }} className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs"><option value="" disabled>Plantillas…</option><option value="practical">Trabajo práctico</option><option value="report">Informe</option><option value="monograph">Monografía</option><option value="project">Proyecto</option></select>
+        <label className="ml-auto inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold"><ImagePlus size={15}/> Insertar imagen<input type="file" accept="image/png,image/jpeg" className="sr-only" disabled={locked || busy} onChange={(e) => { insertImage(e.target.files?.[0]); e.currentTarget.value = ""; }}/></label>
+      </div>
+      <div className="grid gap-2 border-b border-slate-100 bg-slate-50 px-3 py-3 sm:grid-cols-2">
+        <label className="grid gap-1 text-[11px] font-semibold text-slate-600">Encabezado PDF<input value={header} onChange={(e) => setHeader(e.target.value)} maxLength={100} disabled={locked || busy} placeholder="Institución · materia" className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-normal"/></label>
+        <label className="grid gap-1 text-[11px] font-semibold text-slate-600">Pie de página<input value={footer} onChange={(e) => setFooter(e.target.value)} maxLength={100} disabled={locked || busy} placeholder="Curso · ciclo lectivo" className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-normal"/></label>
+      </div>
       <div className="p-3 sm:p-5">
         <div
           ref={editorRef}
