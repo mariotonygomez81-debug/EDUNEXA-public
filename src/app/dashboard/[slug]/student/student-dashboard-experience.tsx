@@ -31,11 +31,21 @@ type Classroom = {
   division_name: string;
   subject_name: string | null;
 };
-type Props = { slug: string; institutionName: string; student: Student; classrooms: Classroom[]; hasLoadError: boolean };
+type StudentTaskPreview = { id: string; title: string; due_at: string | null; classroom_title: string; subject_name: string | null };
+type StudentAnnouncementPreview = { id: string; title: string; body: string; published_at: string | null; audience: string };
+type Props = {
+  slug: string;
+  institutionName: string;
+  student: Student;
+  classrooms: Classroom[];
+  hasLoadError: boolean;
+  taskSummary: { total: number; upcoming: StudentTaskPreview[] };
+  announcements: StudentAnnouncementPreview[];
+};
 
 const filters = ["Todas", "Materias", "Aulas generales"] as const;
 
-export default function StudentDashboardExperience({ slug, institutionName, student, classrooms, hasLoadError }: Props) {
+export default function StudentDashboardExperience({ slug, institutionName, student, classrooms, hasLoadError, taskSummary, announcements }: Props) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof filters)[number]>("Todas");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -106,6 +116,29 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
             <Link href={`/dashboard/${slug}/messages`} className="group flex min-h-[118px] flex-col justify-between rounded-2xl border border-teal-200 bg-[#f1faf7] p-4 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"><span className="grid h-10 w-10 place-items-center rounded-xl bg-teal-100 text-teal-900"><MessageCircle size={20}/></span><span><span className="block text-sm font-bold text-slate-900">Mensajes</span><span className="mt-0.5 block text-xs text-slate-600">Hablá con tus docentes</span></span></Link>
             <Link href={`/dashboard/${slug}/portal`} className="group flex min-h-[118px] flex-col justify-between rounded-2xl border border-lime-200 bg-[#f7faef] p-4 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-600"><span className="grid h-10 w-10 place-items-center rounded-xl bg-lime-100 text-lime-900"><CheckCircle2 size={20}/></span><span><span className="block text-sm font-bold text-slate-900">Mi rendimiento</span><span className="mt-0.5 block text-xs text-slate-600">Notas y boletines publicados</span></span></Link>
           </div>
+        </section>
+
+        <section className="mt-8 grid gap-4 lg:grid-cols-[1.05fr_.95fr]" aria-label="Resumen de actividad">
+          <article className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-amber-100 bg-amber-50/70 px-4 py-4 sm:px-5">
+              <div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-amber-800">Organizá tu semana</p><h2 className="mt-1 text-lg font-extrabold text-slate-900">Próximas actividades</h2></div>
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-100 text-amber-900"><ClipboardCheck size={20}/></span>
+            </div>
+            <div className="p-4 sm:p-5">
+              <div className="mb-3 flex items-center justify-between text-xs text-slate-500"><span>{taskSummary.total} actividades en tus aulas</span><Link href={`/dashboard/${slug}/student/tasks`} className="font-bold text-amber-900 hover:underline">Ver todas <ArrowRight size={13} className="ml-1 inline"/></Link></div>
+              {taskSummary.upcoming.length ? <ul className="space-y-2">{taskSummary.upcoming.map((task) => <li key={task.id} className="flex items-start gap-3 rounded-xl border border-slate-100 p-3"><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-50 text-amber-800"><CalendarDays size={16}/></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-900">{task.title}</p><p className="mt-0.5 truncate text-xs text-slate-500">{task.subject_name ?? task.classroom_title}</p><p className="mt-1 text-[11px] font-semibold text-amber-800">{task.due_at ? new Intl.DateTimeFormat("es-AR",{dateStyle:"medium",timeStyle:"short"}).format(new Date(task.due_at)) : "Sin fecha límite"}</p></div></li>)}</ul> : <div className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center"><CheckCircle2 className="mx-auto text-emerald-700" size={24}/><p className="mt-2 text-sm font-semibold text-slate-800">No hay actividades próximas</p><p className="mt-1 text-xs text-slate-500">Cuando tus docentes publiquen tareas, aparecerán acá.</p></div>}
+            </div>
+          </article>
+          <article className="overflow-hidden rounded-2xl border border-orange-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-orange-100 bg-orange-50/70 px-4 py-4 sm:px-5">
+              <div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-orange-800">Comunidad educativa</p><h2 className="mt-1 text-lg font-extrabold text-slate-900">Últimas novedades</h2></div>
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-orange-100 text-orange-900"><Bell size={20}/></span>
+            </div>
+            <div className="p-4 sm:p-5">
+              {announcements.length ? <ul className="space-y-3">{announcements.slice(0,3).map((item) => <li key={item.id} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0"><p className="text-sm font-bold text-slate-900">{item.title}</p><p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs leading-5 text-slate-600">{item.body}</p><p className="mt-1.5 text-[10px] font-medium text-slate-400">{item.published_at ? new Intl.DateTimeFormat("es-AR",{dateStyle:"medium"}).format(new Date(item.published_at)) : "Publicado"}</p></li>)}</ul> : <div className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center"><Bell className="mx-auto text-orange-700" size={24}/><p className="mt-2 text-sm font-semibold text-slate-800">Sin novedades recientes</p><p className="mt-1 text-xs text-slate-500">Los comunicados habilitados para vos se mostrarán acá.</p></div>}
+              <Link href={`/dashboard/${slug}/announcements`} className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-orange-900 hover:underline">Ir a novedades <ArrowRight size={13}/></Link>
+            </div>
+          </article>
         </section>
 
         <section id="mis-aulas" className="mt-8 scroll-mt-5">
