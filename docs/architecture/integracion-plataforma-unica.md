@@ -3,38 +3,53 @@
 - Estado: **plan de ejecución y criterios de aceptación**
 - Rama de trabajo: `feature/tutor-module`
 - Repositorio: `mariotonygomez81-debug/EDUNEXA-public`
-- Alcance: desarrollo sobre la aplicación central; no autoriza despliegues ni cambios en servicios o bases alojadas.
+- Alcance actual: una instalación para un solo colegio, una aplicación web y una base Supabase.
+- Este documento no autoriza despliegues ni cambios en servicios o bases alojadas.
 
-## 1. Decisión de arquitectura
+## 1. Decisión de arquitectura vigente
 
-EDUNEXA se desarrolla como una única aplicación integral. Los módulos no son productos independientes ni implementaciones temporales que deban reescribirse al pasar a producción.
+EDUNEXA se construye ahora para **un único colegio**. En esta etapa no se implementan multitenancy, selector de instituciones, superadministración global ni provisión automatizada de colegios.
 
-La implementación de cada módulo debe usar desde el primer día:
-- los mismos modelos y contratos de datos definitivos;
-- persistencia PostgreSQL/Supabase;
+La instalación actual utiliza:
+- un repositorio GitHub;
+- una base de datos Supabase;
+- un espacio/servicio Render;
+- un único sitio web con todos los módulos integrados;
+- autenticación central y pantallas comunes de inicio y recuperación de sesión;
+- usuarios, roles y permisos del colegio;
+- datos institucionales compartidos, coherentes y persistentes.
+
+La aplicación debe ser portable para que, en una etapa futura y sólo cuando se indique expresamente, cada colegio pueda tener una instalación independiente (repositorio, Supabase y Render). Esa expansión queda fuera del alcance actual.
+
+## 2. Criterios técnicos no negociables
+
+Cada módulo debe usar desde el primer día:
+- los modelos y contratos de datos definitivos;
+- persistencia PostgreSQL/Supabase, sin reemplazar operaciones reales por estado local o fixtures;
 - autenticación Supabase Auth y sesión compartida;
-- autorización por institución, membresía, rol y permiso;
-- validación en servidor y restricciones en base de datos;
-- navegación y componentes compartidos;
-- auditoría y trazabilidad de operaciones sensibles.
+- autorización por membresía, rol y permiso;
+- validación del lado servidor y políticas RLS;
+- navegación, componentes y servicios compartidos;
+- auditoría para operaciones sensibles.
 
-Los registros ficticios sólo se permiten como datos de prueba sembrados en entornos aislados. No se admiten arreglos locales, estados en memoria ni formularios que simulen altas como sustituto del flujo de producción.
+Los datos de prueba pueden ser ficticios, pero deben respetar la misma estructura, relaciones, constraints, validaciones y reglas de seguridad que los datos operativos. Nunca usar datos reales de menores en desarrollo o CI.
 
-## 2. Arquitectura central observada en el repositorio
+## 3. Arquitectura central observada
 
-- La raíz `/` redirige a `/login`.
-- `/login`, `/forgot-password` y `/reset-password` forman el acceso común.
+- `/` redirige a `/login`.
+- `/login`, `/forgot-password` y `/reset-password` son pantallas centrales.
 - Los clientes Supabase de servidor y navegador están centralizados en `src/lib/supabase/`.
-- `/dashboard` verifica la sesión y la membresía institucional.
-- Los módulos institucionales viven bajo `/dashboard/[slug]/...`.
-- `src/lib/auth/permissions.ts` obtiene permisos de los roles de la membresía. La base de datos/RLS debe seguir siendo la autoridad final.
-- Hay módulos conectados a tablas y RPC de Supabase: alumnos, estructura académica, asistencia, calificaciones, boletines, aula virtual, comunicaciones, mensajes, notificaciones, citaciones, administración y portal familiar.
-- El portal familiar ya dispone de una ruta central `/dashboard/[slug]/portal` y consulta `list_my_portal_students`, además de flujos relacionados con asistencia, tareas, boletines, mensajes, notificaciones y citaciones.
-- Existen rutas de demostración del tutor bajo `/demo/...`; son aisladas y no deben ser el destino final ni publicarse como producto paralelo.
+- `/dashboard` verifica la sesión y resuelve el único colegio asignado a la cuenta.
+- Las rutas de módulos viven bajo el espacio institucional autenticado.
+- `src/lib/auth/permissions.ts` obtiene permisos de los roles de membresía. RLS sigue siendo la autoridad final.
+- El portal familiar central está en `/dashboard/[slug]/portal`; no se desarrolla un sitio de tutor independiente.
+- Las rutas `/demo/...` no son el producto final ni sustituyen flujos persistentes.
 
-## 3. Bloqueo de base de datos identificado
+El dashboard no ofrece selector de colegios. Si no hay membresía activa, se informa que el administrador debe habilitar la cuenta. Si aparecen varias membresías activas en esta instalación, el acceso se bloquea de forma segura y se solicita revisión administrativa; nunca se muestra un selector.
 
-El repositorio contiene migraciones de módulos y tipos TypeScript, pero la auditoría `docs/database/supabase-foundation-inventory.md` identifica que el baseline fundacional no está completo en la secuencia versionada. Entre las dependencias que las migraciones dan por existentes están:
+## 4. Bloqueo de base de datos identificado
+
+La auditoría `docs/database/supabase-foundation-inventory.md` indica que el baseline fundacional no está completo en la secuencia versionada. Entre las dependencias asumidas por las migraciones están:
 
 - `public.institutions`
 - `public.campuses`
@@ -45,95 +60,99 @@ El repositorio contiene migraciones de módulos y tipos TypeScript, pero la audi
 - `public.membership_roles`
 - `public.role_permissions`
 
-La primera migración académica crea tablas académicas que ya referencian instituciones, sedes y membresías. La migración de perfil también presupone `public.profiles`. `supabase/config.toml` conserva el placeholder `your-project-ref`.
+La primera migración académica crea tablas que referencian instituciones, sedes y membresías. La migración de perfil presupone `public.profiles`. `supabase/config.toml` conserva el placeholder `your-project-ref`.
 
-**Regla:** no inventar el DDL de estas entidades, no ejecutar migraciones contra Supabase alojado y no cambiar proyectos hosted. Primero recuperar una fuente schema-only verificable o aprobar una especificación completa; luego validar todo en Supabase local limpio.
+**Regla:** no inventar el DDL, no ejecutar migraciones contra Supabase alojado y no cambiar proyectos hosted. Recuperar primero una fuente schema-only verificable; luego reconstruir y validar en Supabase local limpio.
 
-## 4. Modelo de integración funcional
+## 5. Integración funcional
 
-### Identidad y acceso
-- Una cuenta autenticada mantiene una sesión única en todo el sitio.
-- Una persona puede tener una o más membresías según la política institucional aprobada; el contexto activo se resuelve de forma explícita.
-- Los roles se asignan a membresías, no se aceptan desde metadatos editables del usuario.
+### Identidad y permisos
+- Una cuenta autenticada mantiene una única sesión en todo el sitio.
+- La instalación tiene un solo colegio configurado; el contexto no se elige desde un selector.
+- Los roles se asignan a la membresía y no se aceptan desde metadatos editables por el usuario.
 - Cada operación verifica membresía activa, rol, permiso y alcance institucional en servidor y RLS.
-- El cambio de módulo no solicita un nuevo login.
+- Cambiar de módulo no solicita otro login.
 
-### Datos y relaciones
+### Datos compartidos
 - PostgreSQL es el origen de verdad.
-- Las entidades académicas se relacionan por identificadores y claves foráneas, siempre incluyendo el alcance de institución donde corresponda.
+- Las entidades académicas mantienen relaciones y claves foráneas coherentes.
 - Los módulos consumen servicios/RPC tipados y reutilizables; no duplican datos maestros.
 - Matrícula es la fuente de verdad para nivel, curso, división y ciclo lectivo.
-- Tutoría se relaciona con estudiantes matriculados mediante una relación institucional autorizada. No se crea una segunda ficha académica al vincular un hijo.
-- Las notificaciones, mensajes, tareas, asistencia y boletines referencian los mismos registros y relaciones de origen.
+- Tutoría se vincula con estudiantes matriculados mediante una relación autorizada; no crea una ficha académica paralela.
+- Tareas, asistencia, boletines, citaciones, mensajes y notificaciones deben referenciar los mismos registros de origen.
 
-### Pantallas y navegación
+### Navegación
 - Un solo sitio, layout, navegación y sistema visual.
-- Las pantallas de login y recuperación son centrales.
-- Las rutas de cada módulo están dentro del espacio institucional autenticado.
-- La visibilidad de una opción en el menú es una ayuda de UX; no reemplaza los controles de autorización del servidor y la base de datos.
+- Login y recuperación centrales.
+- Todos los módulos se encuentran dentro de la aplicación autenticada.
+- La visibilidad de opciones en pantalla no reemplaza autorización del servidor ni RLS.
 
-## 5. Secuencia de ejecución
+## 6. Secuencia de ejecución
 
-### Fase 1 — Fundamento reproducible (bloqueante)
-1. Recuperar/verificar el DDL schema-only de las ocho entidades fundacionales y sus dependencias.
-2. Configurar Supabase local con un project_id local, sin `supabase link`.
-3. Aplicar todas las migraciones en una base local limpia.
-4. Corregir el orden y las dependencias hasta que la reconstrucción sea reproducible.
+### Fase 1 — Fundamento reproducible
+1. Recuperar/verificar el DDL schema-only de las entidades fundacionales y dependencias.
+2. Configurar Supabase local sin `supabase link`.
+3. Aplicar migraciones en una base local limpia.
+4. Corregir orden y dependencias hasta lograr reconstrucción reproducible.
 5. Comparar el esquema resultante con `src/types/database.types.ts`.
-6. Ejecutar pruebas de autenticación, RLS, roles y aislamiento multiinstitución con identidades ficticias locales.
+6. Probar autenticación, RLS y permisos con identidades ficticias locales.
 
-Criterio de salida: una base vacía puede reconstruirse íntegramente con migraciones versionadas y todas las políticas críticas pasan pruebas positivas y negativas.
+Criterio de salida: una base vacía se reconstruye con migraciones versionadas y las políticas críticas pasan pruebas positivas y negativas.
 
-### Fase 2 — Núcleo de identidad institucional
+### Fase 2 — Núcleo institucional único
 1. Completar altas/invitaciones y ciclo de vida de cuentas y membresías.
-2. Asegurar catálogo de roles/permisos y asignaciones iniciales.
-3. Centralizar la resolución de contexto institucional y autorización.
+2. Asegurar catálogo de roles/permisos y asignaciones iniciales del colegio.
+3. Centralizar resolución de membresía y autorización sin selector institucional.
 4. Verificar perfil de usuario y perfiles por rol sin duplicar identidad.
 
 ### Fase 3 — Integración funcional de módulos
-1. Publicar todos los módulos bajo el mismo Next.js y el mismo dominio.
+1. Mantener todos los módulos bajo el mismo Next.js y dominio.
 2. Conectar cada pantalla a servicios persistentes y contratos tipados.
 3. Eliminar flujos que dependan de fixtures locales como comportamiento de aplicación.
 4. Unificar perfiles y navegación para administración, directivos, docentes, preceptores, estudiantes y tutores.
 5. Completar relaciones entre matrícula, docentes, familias, aulas, tareas, evaluaciones, boletines, asistencia, mensajes y notificaciones.
 
 ### Fase 4 — Portal del tutor definitivo
-1. Reutilizar el portal familiar central existente; no mantener una app de tutor separada.
+1. Reutilizar el portal familiar central existente.
 2. Permitir editar el perfil de la cuenta autenticada con controles de privacidad.
-3. Permitir vincular uno o más estudiantes ya matriculados.
-4. El formulario solicita sólo los datos de identidad definidos por la institución; nivel, año, división y ciclo se leen de la matrícula.
-5. La coincidencia de identidad no concede acceso automáticamente: una validación del lado servidor verifica la autorización institucional y registra la relación.
-6. Aplicar protección contra enumeración de alumnos, fuerza bruta, abuso, exposición de documentos y registros de datos sensibles.
-7. Reflejar inmediatamente los vínculos autorizados en tareas, asistencia, boletines, citaciones, mensajes y notificaciones.
+3. Permitir vincular estudiantes ya matriculados.
+4. Solicitar sólo los datos de identidad definidos por el colegio; leer nivel, curso, división y ciclo desde matrícula.
+5. Verificar autorización del lado servidor antes de registrar una relación.
+6. Proteger contra enumeración, fuerza bruta, abuso y exposición de identificadores.
+7. Reflejar vínculos autorizados en tareas, asistencia, boletines, citaciones, mensajes y notificaciones.
 
 ### Fase 5 — Calidad y publicación única
-- Pruebas unitarias, integración, E2E y pruebas de permisos por rol.
-- Pruebas de aislamiento entre instituciones y acceso denegado a estudiantes no vinculados.
+- Pruebas unitarias, integración, E2E y permisos por rol.
+- Pruebas de acceso denegado a estudiantes no vinculados.
 - Validación de migraciones y RLS sobre base local limpia.
 - Build, smoke tests y revisión de rutas públicas.
-- Publicación final desde el servicio único autorizado, sólo después de autorización explícita para despliegue.
+- Publicación sólo después de autorización explícita para despliegue.
 
-## 6. Reglas de datos y privacidad
+## 7. Privacidad y datos
 
-- Los datos sintéticos tienen la misma forma, constraints y relaciones que los datos operativos; se cargan mediante seeds de prueba reproducibles.
+- Los datos sintéticos respetan estructura, constraints y relaciones operativas.
 - Nunca se usa información real de menores en desarrollo, CI o demos.
-- DNI, fecha de nacimiento y demás identificadores no se incluyen en logs, mensajes de error, URLs ni telemetría.
-- La búsqueda por identidad se ejecuta en servidor mediante una operación acotada, con autorización, limitación de intentos y respuesta que no permita enumerar alumnos.
-- No se habilita acceso académico por una coincidencia de DNI/fecha solamente.
-- RLS debe proteger cada tabla expuesta; los permisos de UI no sustituyen RLS.
-- Nunca exponer claves secretas o service_role al navegador.
+- DNI, fecha de nacimiento e identificadores no se incluyen en logs, errores, URLs ni telemetría.
+- La búsqueda de identidad se ejecuta en servidor, con autorización y limitación de intentos.
+- Una coincidencia de DNI/fecha no concede acceso académico automáticamente.
+- RLS protege cada tabla expuesta; los permisos de UI no sustituyen RLS.
+- Nunca exponer claves secretas o `service_role` al navegador.
 - Backups, restauración y auditoría forman parte de los criterios de producción.
 
-## 7. Límites operativos de esta etapa
+## 8. Límites operativos
 
-- Sólo se trabaja en `mariotonygomez81-debug/EDUNEXA-public`, rama `feature/tutor-module`.
-- No usar el repositorio privado ni la rama `feature/student-module-mobile`.
+- Sólo trabajar en `mariotonygomez81-debug/EDUNEXA-public`, rama `feature/tutor-module`.
+- No usar el repositorio privado ni `feature/student-module-mobile`.
 - No modificar ni fusionar PR #3.
 - No modificar producción, Supabase hosted ni Render; no desplegar.
 - No ejecutar SQL de escritura en proyectos alojados.
 - No crear servicios, cuentas, contratos ni costos.
-- El proveedor de IA autorizado sigue siendo exclusivamente Groq; no incorporar IA local.
+- El proveedor de IA autorizado es exclusivamente Groq; no incorporar IA local.
 
-## 8. Criterio final de aceptación
+## 9. Expansión futura — fuera del alcance actual
 
-EDUNEXA estará integrada cuando una persona inicie sesión una sola vez en el sitio central, vea los módulos autorizados por su membresía y utilice flujos persistentes que lean y escriban entidades compartidas, con aislamiento institucional y permisos aplicados en servidor y base de datos. Ningún módulo se considerará integrado sólo por tener una pantalla o aparecer en el menú.
+Cuando el usuario lo indique, cada colegio podrá tener su propia instalación independiente: repositorio GitHub, base Supabase y espacio Render. El acceso global del Superadministrador se diseñará en esa etapa. No implementar ahora selector de instituciones, multitenancy, superadministración global ni automatización de provisión.
+
+## 10. Criterio final de aceptación
+
+EDUNEXA estará integrada cuando una persona inicie sesión una sola vez, acceda al único colegio configurado y utilice módulos persistentes que compartan datos institucionales, con permisos aplicados en servidor y base de datos. Ningún módulo se considera integrado sólo por tener una pantalla o aparecer en el menú.
