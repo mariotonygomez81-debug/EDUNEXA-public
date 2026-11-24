@@ -3776,6 +3776,10 @@ export type Database = {
         }
         Returns: string
       }
+      get_classroom_submission_history: {
+        Args: { p_submission_id: string }
+        Returns: Json
+      }
       get_classroom_capabilities: {
         Args: { p_classroom_id: string }
         Returns: Json
