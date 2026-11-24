@@ -1,0 +1,39 @@
+name: Student assignment E2E (staging)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      E2E_BASE_URL: https://edunexa-groq-staging.onrender.com
+      E2E_INSTITUTION_SLUG: ${{ secrets.E2E_INSTITUTION_SLUG }}
+      E2E_CLASSROOM_ID: ${{ secrets.E2E_CLASSROOM_ID }}
+      E2E_ASSIGNMENT_TITLE: ${{ secrets.E2E_ASSIGNMENT_TITLE }}
+      E2E_STUDENT_EMAIL: ${{ secrets.E2E_STUDENT_EMAIL }}
+      E2E_STUDENT_PASSWORD: ${{ secrets.E2E_STUDENT_PASSWORD }}
+      E2E_TEACHER_EMAIL: ${{ secrets.E2E_TEACHER_EMAIL }}
+      E2E_TEACHER_PASSWORD: ${{ secrets.E2E_TEACHER_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Verify dedicated staging test fixture configuration
+        run: |
+          for key in E2E_INSTITUTION_SLUG E2E_CLASSROOM_ID E2E_ASSIGNMENT_TITLE E2E_STUDENT_EMAIL E2E_STUDENT_PASSWORD E2E_TEACHER_EMAIL E2E_TEACHER_PASSWORD; do
+            if [ -z "${!key}" ]; then echo "Missing secret: $key"; exit 1; fi
+          done
+      - name: Install application dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Install pinned Playwright runner
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @playwright/test@1.58.2
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run student and teacher browser workflow against staging
+        run: npx playwright test --config=e2e/playwright.config.mjs
