@@ -87,14 +87,15 @@ async function createTaskPdf(title: string, body: string) {
     }
   };
 
-  const pdfTitle = title.replace(/[^\\u0000-\\u00FF]/g, "?").slice(0, 90);\n  page.drawText(pdfTitle, { x: margin, y, size: 19, font: bold, color: rgb(0.08, 0.28, 0.22) });
+  const pdfTitle = title.replace(/[^\u0000-\u00FF]/g, "?").slice(0, 90);
+  page.drawText(pdfTitle, { x: margin, y, size: 19, font: bold, color: rgb(0.08, 0.28, 0.22) });
   y -= 30;
   page.drawText("EDUNEXA · Entrega de actividad", { x: margin, y, size: 9, font: regular, color: rgb(0.40, 0.45, 0.48) });
   y -= 25;
   page.drawLine({ start: { x: margin, y }, end: { x: page.getWidth() - margin, y }, thickness: 1, color: rgb(0.83, 0.87, 0.85) });
   y -= 24;
 
-  const lines = body.split("\n");
+  const lines = body.replace(/[^\u0000-\u00FF]/g, "?").split("\n");
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line) { y -= 8; continue; }
