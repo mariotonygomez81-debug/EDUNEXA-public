@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  ArrowLeft, Bell, BookOpen, CalendarCheck, CalendarClock, CheckCheck,
+  Bell, BookOpen, CalendarCheck, CalendarClock, CheckCheck,
   ChevronRight, ClipboardList, Download, FileText, GraduationCap,
   LayoutDashboard, MessageCircle, ShieldCheck, TrendingUp, UserRound,
 } from "lucide-react";
