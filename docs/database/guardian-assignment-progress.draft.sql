@@ -31,6 +31,7 @@ as $function$
 declare
   v_user_id uuid := (select auth.uid());
   v_membership_id uuid;
+  v_can_view_grades boolean := false;
 begin
   if v_user_id is null then
     raise exception 'Authentication required' using errcode = '28000';
@@ -59,6 +60,12 @@ begin
     raise exception 'Student progress access denied' using errcode = '42501';
   end if;
 
+  -- Reuse the institution's canonical student permission helper. It checks
+  -- grades.read plus the explicit guardian-child can_view_grades flag.
+  v_can_view_grades := private.can_access_student(
+    p_student_id, p_institution_id, 'grades.read'
+  );
+
   -- Require an explicit guardian-child link and an active enrollment.
   -- This prevents a guardian's access to one child in a division from
   -- implicitly authorizing progress for every other student in that division.
@@ -75,14 +82,14 @@ begin
     sub.submitted_at,
     sub.review_status,
     case
-      when sg.can_view_grades then sub.score
+      when sg.can_view_grades and v_can_view_grades then sub.score
       else null
     end,
     case
-      when sg.can_view_grades then a.max_score
+      when sg.can_view_grades and v_can_view_grades then a.max_score
       else null
     end,
-    sg.can_view_grades
+    (sg.can_view_grades and v_can_view_grades)
   from public.student_guardians sg
   join public.guardians g
     on g.id = sg.guardian_id
