@@ -61,7 +61,7 @@ CREATE OR REPLACE FUNCTION public.get_classroom_submission_history(p_submission_
 RETURNS jsonb
 LANGUAGE sql
 STABLE
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = ''
 AS $function$
   SELECT private.get_submission_history_impl(p_submission_id);
