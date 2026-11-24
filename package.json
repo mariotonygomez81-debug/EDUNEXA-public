@@ -19,7 +19,8 @@
     "test:e2e": "playwright test --config=e2e/playwright.config.mjs",
     "check:assignment-reminders": "node scripts/check-assignment-due-notifications.mjs",
     "check:academic-history": "node scripts/check-published-academic-history.mjs",
-    "check:guardian-notifications": "node scripts/check-guardian-notifications.mjs"
+    "check:guardian-notifications": "node scripts/check-guardian-notifications.mjs",
+    "check:guardian-progress": "node scripts/check-guardian-assignment-progress.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
