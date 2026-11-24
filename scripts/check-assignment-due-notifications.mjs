@@ -13,7 +13,7 @@ const checks = [
   ["reminders are limited to published assignments due within 24 hours", /a\.published_at IS NOT NULL/.test(migration) && /a\.due_at > now\(\)/.test(migration) && /a\.due_at <= now\(\) \+ interval '24 hours'/.test(migration)],
   ["recipients must be active student classroom members with active enrollment", /cm\.member_role = 'student'/.test(migration) && /m\.status = 'active'/.test(migration) && /r\.key = 'student'/.test(migration) && /e\.status = 'active'/.test(migration)],
   ["already submitted assignments are excluded", /NOT EXISTS \([\s\S]*FROM public\.submissions s[\s\S]*s\.submitted_at IS NOT NULL/.test(migration)],
-  ["student preferences are respected and default to enabled", /np\.notification_type = 'assignment_due'/.test(migration) && /), true\)/.test(migration)],
+  ["student preferences are respected and default to enabled", /np\.notification_type = 'assignment_due'/.test(migration) && migration.includes("), true)")],
   ["unique notification key prevents duplicate reminders", /ON CONFLICT \([\s\S]*recipient_membership_id[\s\S]*resource_id[\s\S]*DO NOTHING/.test(migration)],
   ["database scheduler runs every 15 minutes", /'\*\/15 \* \* \* \*'/.test(migration) && /edunexa-assignment-due-notifications/.test(migration)],
   ["only the database scheduler can execute the generator", /REVOKE ALL ON FUNCTION private\.generate_assignment_due_notifications\(\)[\s\S]*FROM PUBLIC, anon, authenticated, service_role/.test(migration)],
