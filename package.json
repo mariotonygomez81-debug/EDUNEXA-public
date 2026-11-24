@@ -21,6 +21,7 @@
     "check:academic-history": "node scripts/check-published-academic-history.mjs",
     "check:guardian-notifications": "node scripts/check-guardian-notifications.mjs",
     "check:guardian-progress": "node scripts/check-guardian-assignment-progress.mjs",
+    "check:tutor-integration": "node scripts/check-tutor-integration.mjs",
     "check:tutor-demo": "node scripts/check-tutor-demo-isolation.mjs"
   },
   "dependencies": {

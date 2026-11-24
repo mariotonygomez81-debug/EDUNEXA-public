@@ -541,7 +541,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                   })()}
                 </section>
 
-                <section className="border-t border-slate-100 px-5 py-4">
+                <section id={`report-cards-${student.student_id}`} className="border-t border-slate-100 px-5 py-4 scroll-mt-6">
                     <h3 className="text-sm font-semibold text-slate-800">Boletines oficiales publicados</h3>
                     {publishedReportCards.filter((card) => card.student_id === student.student_id).length ? (
                       <ul className="mt-3 space-y-2">
@@ -619,7 +619,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
 
                 <div className="flex flex-wrap gap-2 border-t border-slate-100 p-5">
                   {student.can_view_grades ? (
-                    <Link href={`/dashboard/${slug}/report-cards?student=${student.student_id}`}
+                    <Link href={`/dashboard/${slug}/portal#report-cards-${student.student_id}`}
                       className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-800">
                       <FileText size={15} /> Boletines
                     </Link>

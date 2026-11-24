@@ -53,6 +53,8 @@ jobs:
         run: npm run check:guardian-notifications
       - name: Validate Tutor child-scoped academic progress access
         run: npm run check:guardian-progress
+      - name: Validate Tutor integration across eight areas
+        run: npm run check:tutor-integration
       - name: Validate local Tutor demo isolation
         run: npm run check:tutor-demo
       - name: Build
