@@ -79,10 +79,10 @@ export default async function StudentProfilePage({ params, searchParams }: { par
     equivalency: "Por equivalencia", not_approved: "No aprobada",
   };
 
-  return <main className="min-h-screen bg-[#f5f7fb] px-4 py-6 pb-12 text-slate-800 sm:px-7 sm:py-8">
-    <div className="mx-auto max-w-3xl space-y-5">
+  return <main className="student-subpage min-h-screen bg-[#f5f7fb] px-4 py-6 pb-12 text-slate-800 sm:px-7 sm:py-8">
+    <div className="student-subpage-content mx-auto max-w-3xl space-y-5">
       <Link href={`/dashboard/${slug}/student`} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-violet-800"><ArrowLeft size={16}/> Volver a mi espacio</Link>
-      <header className="rounded-3xl bg-gradient-to-br from-[#17345b] via-[#285a83] to-[#3b668c] p-6 text-white shadow-lg sm:p-8">
+      <header className="student-subpage-hero rounded-3xl bg-gradient-to-br from-[#17345b] via-[#285a83] to-[#3b668c] p-6 text-white shadow-lg sm:p-8">
         <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-bold tracking-[.16em] text-sky-100"><GraduationCap size={14}/> PERFIL DEL ALUMNO</span>
         <div className="mt-5 flex items-center gap-4">
           {avatarUrl ? <Image src={avatarUrl} alt="Foto de perfil del alumno" width={128} height={128} unoptimized className="h-28 w-28 shrink-0 rounded-[2rem] border-2 border-white/30 object-cover shadow-md sm:h-32 sm:w-32"/> : <div aria-label={`Avatar ${avatarStyle}`} className="grid h-28 w-28 shrink-0 place-items-center rounded-[2rem] border-2 border-white/30 bg-white/15 text-6xl leading-none shadow-inner sm:h-32 sm:w-32 sm:text-7xl">{avatarStyle === "masculino" ? "👨🏻‍🎓" : avatarStyle === "femenino" ? "👩🏻‍🎓" : <span className="text-4xl font-extrabold sm:text-5xl">{initials}</span>}</div>}
@@ -92,7 +92,7 @@ export default async function StudentProfilePage({ params, searchParams }: { par
       {query.saved ? <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Perfil actualizado correctamente.</div> : null}
       {query.error ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{query.error === "photo" ? "La foto debe ser JPG, PNG o WEBP y pesar hasta 5 MB." : query.error === "upload" ? "No se pudo cargar la fotografía. Intentá nuevamente." : "No se pudo guardar el perfil."}</div> : null}
       {error ? <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">No fue posible cargar los datos académicos. Intentá nuevamente más tarde.</div> : null}
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <section className="student-panel rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <h2 className="flex items-center gap-2 font-bold text-slate-900"><UserRound size={18} className="text-violet-700"/> Datos personales</h2>
         <dl className="mt-4 grid gap-4 sm:grid-cols-2">
           <div><dt className="text-xs font-semibold text-slate-500">Nombre y apellido</dt><dd className="mt-1 font-semibold text-slate-900">{name}</dd></div>
@@ -108,7 +108,7 @@ export default async function StudentProfilePage({ params, searchParams }: { par
           <div><dt className="text-xs font-semibold text-slate-500">Estado de matrícula</dt><dd className="mt-1 font-semibold text-slate-900">{student?.enrollment_status === "active" ? "Activa" : "Pendiente de confirmar"}</dd></div>
         </dl>
       </section>
-      <form action={saveStudentProfile} encType="multipart/form-data" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <form action={saveStudentProfile} encType="multipart/form-data" className="student-interactive-form space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <input type="hidden" name="slug" value={slug}/>
         <h2 className="flex items-center gap-2 font-bold text-slate-900"><Camera size={18} className="text-violet-700"/> Fotografía y avatar</h2>
         <label className="block text-sm font-semibold text-slate-700">Subir fotografía
