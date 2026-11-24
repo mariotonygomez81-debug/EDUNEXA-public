@@ -96,7 +96,7 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
   const recentAnnouncements = (announcementResult.data ?? []) as StudentAnnouncementPreview[];
   const fullName = student ? `${student.first_name} ${student.last_name}` : profile?.display_name ?? "Mi perfil";
   const firstName = student?.first_name ?? profile?.first_name ?? "Estudiante";
-  const initials = fullName.split(/\\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A";
+  const initials = fullName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A";
   let avatarUrl: string | null = null;
   if (profile?.avatar_path) {
     const { data } = await supabase.storage.from("student-profile-photos").createSignedUrl(profile.avatar_path, 600);
