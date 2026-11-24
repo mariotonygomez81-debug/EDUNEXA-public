@@ -117,6 +117,8 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
     addQuick("Panel de Dirección", "Indicadores y seguimiento institucional", "direction", "direction", "quick-violet");
   }
   if (roleKeys.includes("prefect")) addQuick("Espacio de preceptoría", "Divisiones, nóminas y asistencia", "prefect", "prefect", "quick-blue");
+  if (roleKeys.includes("institution_admin")) addQuick("Centro de control", "Administración general y permisos", "admin-center", "users", "quick-indigo");
+  if (roleKeys.includes("administrative") || roleKeys.includes("secretary")) addQuick("Panel administrativo", "Comunicados, boletines y gestión institucional", "administrative-office", "administrative", "quick-cyan");
   if (currentAssignmentCount > 0) addQuick("Mis asignaciones", "Funciones, divisiones y materias", "teaching", "classroom", "quick-green");
   if (permissions.has("admin_documents.read")) addQuick("Documentación", "Archivos institucionales autorizados", "admin-documents", "administrative", "quick-cyan");
   if (permissions.has("memberships.manage")) addQuick("Usuarios y accesos", "Perfiles y permisos institucionales", "users", "users", "quick-indigo");
