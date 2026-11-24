@@ -31,7 +31,7 @@ function richTextFromHtml(html: string) {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
     if (!(node instanceof HTMLElement)) return "";
     const tag = node.tagName.toLowerCase();
-    if (tag === "img") { const src = node.getAttribute("src") || ""; return (src.startsWith("data:image/png;base64,") || src.startsWith("data:image/jpeg;base64,")) ? "[[EDUNEXA_IMAGE:" + src + "]]\\n" : ""; }
+    if (tag === "img") { const src = node.getAttribute("src") || ""; return (src.startsWith("data:image/png;base64,") || src.startsWith("data:image/jpeg;base64,")) ? "[[EDUNEXA_IMAGE:" + src + "]]\n" : ""; }
     const inner = Array.from(node.childNodes).map(render).join("");
     if (tag === "h2") return "# " + inner.trim() + "\n\n";
     if (tag === "h3") return "## " + inner.trim() + "\n\n";
