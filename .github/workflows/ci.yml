@@ -53,6 +53,8 @@ jobs:
         run: npm run check:guardian-notifications
       - name: Validate Tutor child-scoped academic progress access
         run: npm run check:guardian-progress
+      - name: Validate Tutor academic progress in isolated PostgreSQL
+        run: bash scripts/test-guardian-assignment-progress-postgres.sh
       - name: Build
         run: npm run build
       - name: Smoke test public routes
