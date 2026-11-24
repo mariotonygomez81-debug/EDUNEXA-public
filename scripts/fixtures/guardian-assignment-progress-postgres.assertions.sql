@@ -49,6 +49,18 @@ begin
     raise exception 'Withdrawn enrollment unexpectedly returned assignments';
   end if;
 
+  select pg_get_function_result(
+    'public.list_my_child_assignment_progress(uuid,uuid)'::regprocedure
+  ) into v_result;
+  if v_result ilike '%body%' or v_result ilike '%feedback%' or v_result ilike '%file_path%' then
+    raise exception 'Private submission content leaked in RPC result definition: %', v_result;
+  end if;
+end
+$test$;
+
+select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000003',false);
+do $test$
+begin
   begin
     perform * from public.list_my_child_assignment_progress(
       '30000000-0000-0000-0000-000000000001',
@@ -58,13 +70,6 @@ begin
   exception when insufficient_privilege then
     null;
   end;
-
-  select pg_get_function_result(
-    'public.list_my_child_assignment_progress(uuid,uuid)'::regprocedure
-  ) into v_result;
-  if v_result ilike '%body%' or v_result ilike '%feedback%' or v_result ilike '%file_path%' then
-    raise exception 'Private submission content leaked in RPC result definition: %', v_result;
-  end if;
 end
 $test$;
 
