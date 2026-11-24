@@ -324,6 +324,15 @@ begin
     return new;
   end if;
 
+  if not exists (
+    select 1 from public.memberships recipient
+    where recipient.id=v_recipient_membership_id
+      and recipient.institution_id=new.institution_id
+      and recipient.status='active'
+  ) then
+    return new;
+  end if;
+
   if v_recipient_membership_id=new.guardian_membership_id
     and not exists (
       select 1 from public.guardians g
@@ -352,7 +361,7 @@ begin
     v_recipient_membership_id,
     'appointment',
     v_title,
-    left('Estado: '||v_status_label||'. Fecha: '||v_scheduled_label||'. Motivo: '||new.reason,500),
+    left('Estado: '||v_status_label||'. Fecha: '||v_scheduled_label||'.',500),
     'appointment',
     new.id
   )
@@ -387,7 +396,7 @@ as $function$
 begin
   if new.status<>'published'
     or old.status is not distinct from 'published'
-    or new.publication_audience not in ('guardian','both') then
+    or coalesce(new.publication_audience,'') not in ('guardian','both') then
     return new;
   end if;
 
