@@ -21,9 +21,14 @@ must have an active enrollment and classroom membership. The assignment must be 
 not expired, have a maximum score of 100, and have no prior submission or grade for the test
 student. Keep this assignment disposable: the test submits a PDF and grades it with 95%.
 
-The browser test covers all four document templates, image insertion and cloud recovery, header
-and footer restoration, multi-tab optimistic concurrency, teacher invisibility before submission,
-multi-page PDF preview/download, submission attachment visibility, and teacher grading feedback.
+The browser test covers the student notification bell and enabled task-due preference, all four
+document templates, image insertion and cloud recovery, header and footer restoration, multi-tab
+optimistic concurrency, teacher invisibility before submission, multi-page PDF preview/download,
+submission attachment visibility, and teacher grading feedback.
+
+The database scheduler creates one in-app reminder per student and assignment when a published,
+unsubmitted task enters its final 24 hours. It runs every 15 minutes in the staging Supabase project.
+The reminder is visible in the notification center and links students to `Mis tareas`.
 
 The E2E workflow is separate from normal CI because it needs dedicated staging credentials and
 a disposable academic fixture. Normal CI runs static security regression checks, lint, TypeScript,
