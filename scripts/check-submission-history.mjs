@@ -18,7 +18,7 @@ const checks = [
   [reader, "History reader checks grading permission", /private\.can_access_submission\(p_submission_id, v_institution_id, 'classroom\.grade'\)/],
   [reader, "History reader returns attachment audit metadata", /'files',[\s\S]*'file_id',[\s\S]*'original_filename',[\s\S]*'changed_at'/],
   [reader, "History reader uses a locked search path", /security definer[\s\S]*set search_path = ''/],
-  [fileListing, "File listing delegates to the scoped file-read helper", /private\.can_read_classroom_file\(f\.bucket_id,\\s*f\.object_path\)/],
+  [fileListing, "File listing delegates to the scoped file-read helper", /private\\.can_read_classroom_file\\(f\\.bucket_id,\\s*f\\.object_path\\)/],
   [roster, "Teacher UI renders file audit events", /const fileevents = history\?\.files \?\? \[\]/],
   [roster, "Teacher UI resolves file links by exact file ID", /files\.find\(\(item\) => item\.file_id === event\.file_id\)/],
 ];
