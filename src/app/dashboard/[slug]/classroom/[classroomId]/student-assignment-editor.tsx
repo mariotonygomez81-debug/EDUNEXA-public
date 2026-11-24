@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Undo2, Redo2, FileDown, Send, LoaderCircle, CheckCircle2 } from "lucide-react";
+import { Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Undo2, Redo2, FileDown, Send, LoaderCircle, CheckCircle2, AlignLeft, AlignCenter, AlignRight, Link2, Quote } from "lucide-react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { createClient } from "@/lib/supabase/client";
 import { submitClassroomAssignment } from "./actions";
@@ -34,6 +34,7 @@ function richTextFromHtml(html: string) {
     const tag = node.tagName.toLowerCase();
     if (tag === "h2") return "# " + inner.trim() + "\n\n";
     if (tag === "h3") return "## " + inner.trim() + "\n\n";
+    if (tag === "blockquote") return "> " + inner.trim() + "\n";
     if (tag === "li") return "- " + inner.trim() + "\n";
     if (["strong","b"].includes(tag)) return "**" + inner + "**";
     if (["em","i"].includes(tag)) return "*" + inner + "*";
@@ -242,6 +243,11 @@ export default function StudentAssignmentEditor({
         <span className="mx-1 h-6 w-px bg-slate-200"/>
         <button type="button" title="Lista con viñetas" disabled={locked || busy} onClick={() => command("insertUnorderedList")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><List size={17}/></button>
         <button type="button" title="Lista numerada" disabled={locked || busy} onClick={() => command("insertOrderedList")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><ListOrdered size={17}/></button>
+        <button type="button" title="Cita" disabled={locked || busy} onClick={() => command("formatBlock", "blockquote")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Quote size={17}/></button>
+        <button type="button" title="Alinear a la izquierda" disabled={locked || busy} onClick={() => command("justifyLeft")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><AlignLeft size={17}/></button>
+        <button type="button" title="Centrar" disabled={locked || busy} onClick={() => command("justifyCenter")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><AlignCenter size={17}/></button>
+        <button type="button" title="Alinear a la derecha" disabled={locked || busy} onClick={() => command("justifyRight")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><AlignRight size={17}/></button>
+        <button type="button" title="Insertar enlace" disabled={locked || busy} onClick={() => { const url = window.prompt("Pegá la dirección del enlace (https://...)"); if (url && /^https?:\\/\\//i.test(url)) command("createLink", url); }} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Link2 size={17}/></button>
         <span className="mx-1 h-6 w-px bg-slate-200"/>
         <button type="button" title="Deshacer" disabled={locked || busy} onClick={() => command("undo")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Undo2 size={17}/></button>
         <button type="button" title="Rehacer" disabled={locked || busy} onClick={() => command("redo")} className="rounded-lg p-2 text-slate-700 hover:bg-white disabled:opacity-40"><Redo2 size={17}/></button>
