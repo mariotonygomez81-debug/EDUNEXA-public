@@ -89,15 +89,11 @@ export async function updateReportCardWorkflow(formData: FormData) {
       const result = await supabase.rpc("approve_report_card", { p_workflow_id: current.id });
       error = result.error;
     } else {
-      const audienceResult = await supabase.rpc("set_report_card_publication_audience", {
+      const result = await supabase.rpc("publish_report_card_with_audience", {
         p_workflow_id: current.id,
         p_audience: audience,
       });
-      if (audienceResult.error) error = audienceResult.error;
-      else {
-        const result = await supabase.rpc("publish_report_card", { p_workflow_id: current.id });
-        error = result.error;
-      }
+      error = result.error;
     }
   }
 
