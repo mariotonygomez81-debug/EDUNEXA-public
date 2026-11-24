@@ -6,6 +6,7 @@ const dashboard = read("src/app/dashboard/[slug]/page.tsx");
 const portal = read("src/app/dashboard/[slug]/portal/page.tsx");
 const attendance = read("src/app/dashboard/[slug]/portal/attendance/[studentId]/page.tsx");
 const notifications = read("src/app/dashboard/[slug]/notifications/page.tsx");
+const portalNotifications = portal;
 const notificationActions = read("src/app/dashboard/[slug]/notifications/actions.ts");
 const messages = read("src/app/dashboard/[slug]/messages/page.tsx");
 const conversation = read("src/app/dashboard/[slug]/messages/[conversationId]/page.tsx");
@@ -53,6 +54,12 @@ const checks = [
     /list_my_conversations/.test(conversation) &&
     /list_conversation_messages/.test(conversation) &&
     /\.find\(\(item\) => item\.conversation_id === conversationId\)/.test(conversation)],
+  ["notificaciones: tareas y boletines del estudiante/tutor abren el portal autorizado, no pantallas de otros perfiles",
+    /const isStudentOrGuardian = roleKeys\.some\(\(role\) => role === "student" \|\| role === "guardian"\)/.test(notifications) &&
+    /isStudentOrGuardian \? `\\/dashboard\/\$\{slug\}\/portal` : `\\/dashboard\/\$\{slug\}\/student\/tasks`/.test(notifications) &&
+    /isStudentOrGuardian \? `\\/dashboard\/\$\{slug\}\/portal` : `\\/dashboard\/\$\{slug\}\/report-cards`/.test(notifications) &&
+    /resource_type === "assignment"[\\s\\S]*return `\\/dashboard\/\$\{slug\}\/portal`/.test(portalNotifications) &&
+    /resource_type === "report_card"[\\s\\S]*return `\\/dashboard\/\$\{slug\}\/portal`/.test(portalNotifications)],
   ["citaciones: guardian role selects the guardian-specific appointments RPC",
     /roles\.includes\("guardian"\)/.test(appointments) &&
     /isGuardian \?/.test(appointments) &&
