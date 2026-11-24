@@ -57,7 +57,7 @@ function plainTextFromHtml(html: string) {
     .trim();
 }
 
-async function createTaskPdf(title: string, body: string) {
+async function createTaskPdf(title: string, body: string, header = "", footer = "") {
   const pdf = await PDFDocument.create();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -131,7 +131,8 @@ async function createTaskPdf(title: string, body: string) {
 
   const pages = pdf.getPages();
   pages.forEach((p, index) => {
-    p.drawText("Documento generado desde EDUNEXA", { x: margin, y: 25, size: 8, font: regular, color: rgb(0.50, 0.54, 0.56) });
+    if (header.trim()) p.drawText(header.slice(0, 100), { x: margin, y: p.getHeight() - 25, size: 8, font: regular, color: rgb(0.40, 0.45, 0.48) });
+    p.drawText((footer.trim() || "Documento generado desde EDUNEXA").slice(0, 100), { x: margin, y: 25, size: 8, font: regular, color: rgb(0.50, 0.54, 0.56) });
     const label = String(index + 1) + " / " + String(pages.length);
     p.drawText(label, { x: p.getWidth() - margin - regular.widthOfTextAtSize(label, 8), y: 25, size: 8, font: regular, color: rgb(0.50, 0.54, 0.56) });
   });
@@ -232,7 +233,7 @@ export default function StudentAssignmentEditor({
     setBusy(true);
     setMessage("");
     try {
-      const pdfBlob = await createTaskPdf(assignmentTitle, richTextFromHtml(editorRef.current?.innerHTML ?? html));
+      const pdfBlob = await createTaskPdf(assignmentTitle, richTextFromHtml(editorRef.current?.innerHTML ?? html), header, footer);
       if (pdfBlob.size > MAX_PDF_BYTES) throw new Error("El PDF supera el límite de 10 MB.");
       const formData = new FormData();
       formData.set("slug", slug);
