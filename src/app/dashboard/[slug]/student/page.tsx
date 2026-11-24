@@ -25,6 +25,21 @@ type Classroom = {
   subject_name: string | null;
 };
 
+type StudentTaskPreview = {
+  id: string;
+  title: string;
+  due_at: string | null;
+  classroom_title: string;
+  subject_name: string | null;
+};
+type StudentAnnouncementPreview = {
+  id: string;
+  title: string;
+  body: string;
+  published_at: string | null;
+  audience: string;
+};
+
 export default async function StudentWorkspace({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const supabase = await createClient();
@@ -53,6 +68,32 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
   const students = (studentRows ?? []) as StudentSummary[];
   const student = students.find((item) => item.is_self) ?? students[0] ?? null;
   const classrooms = (classroomRows ?? []) as Classroom[];
+  const now = new Date();
+  const [taskResults, announcementResult] = await Promise.all([
+    Promise.all(classrooms.map(async (classroom) => {
+      const result = await supabase.rpc("get_classroom_overview", { p_classroom_id: classroom.id });
+      const overview = (result.data ?? {}) as { assignments?: { id: string; title: string; due_at: string | null }[] };
+      return (overview.assignments ?? []).map((assignment) => ({
+        id: assignment.id,
+        title: assignment.title,
+        due_at: assignment.due_at,
+        classroom_title: classroom.title,
+        subject_name: classroom.subject_name,
+      }));
+    })),
+    supabase.from("announcements")
+      .select("id,title,body,published_at,audience")
+      .eq("institution_id", institution.id)
+      .not("published_at", "is", null)
+      .or(`expires_at.is.null,expires_at.gte.${now.toISOString()}`)
+      .order("published_at", { ascending: false })
+      .limit(4),
+  ]);
+  const allTasks = taskResults.flat().sort((a,b) =>
+    (a.due_at ? Date.parse(a.due_at) : Number.MAX_SAFE_INTEGER) -
+    (b.due_at ? Date.parse(b.due_at) : Number.MAX_SAFE_INTEGER));
+  const upcomingTasks: StudentTaskPreview[] = allTasks.filter((task) => !task.due_at || Date.parse(task.due_at) >= now.getTime()).slice(0,3);
+  const recentAnnouncements = (announcementResult.data ?? []) as StudentAnnouncementPreview[];
   const fullName = student ? `${student.first_name} ${student.last_name}` : profile?.display_name ?? "Mi perfil";
   const firstName = student?.first_name ?? profile?.first_name ?? "Estudiante";
   const initials = fullName.split(/\\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A";
@@ -67,6 +108,8 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
     institutionName={institution.display_name}
     hasLoadError={Boolean(studentError || classroomError)}
     classrooms={classrooms}
+    taskSummary={{ total: allTasks.length, pending: allTasks.length, upcoming: upcomingTasks }}
+    announcements={recentAnnouncements}
     student={{
       firstName: firstName.length > 18 ? firstName.slice(0, 18) : firstName,
       fullName,
