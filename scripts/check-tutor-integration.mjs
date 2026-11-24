@@ -55,11 +55,11 @@ const checks = [
     /list_conversation_messages/.test(conversation) &&
     /\.find\(\(item\) => item\.conversation_id === conversationId\)/.test(conversation)],
   ["notificaciones: tareas y boletines del estudiante/tutor abren el portal autorizado, no pantallas de otros perfiles",
-    /const isStudentOrGuardian = roleKeys\.some\(\(role\) => role === "student" \|\| role === "guardian"\)/.test(notifications) &&
-    /isStudentOrGuardian \? `\\/dashboard\/\$\{slug\}\/portal` : `\\/dashboard\/\$\{slug\}\/student\/tasks`/.test(notifications) &&
-    /isStudentOrGuardian \? `\\/dashboard\/\$\{slug\}\/portal` : `\\/dashboard\/\$\{slug\}\/report-cards`/.test(notifications) &&
-    /resource_type === "assignment"[\\s\\S]*return `\\/dashboard\/\$\{slug\}\/portal`/.test(portalNotifications) &&
-    /resource_type === "report_card"[\\s\\S]*return `\\/dashboard\/\$\{slug\}\/portal`/.test(portalNotifications)],
+    notifications.includes('const isStudentOrGuardian = roleKeys.some((role) => role === "student" || role === "guardian");') &&
+    notifications.includes('isStudentOrGuardian ? `/dashboard/${slug}/portal` : `/dashboard/${slug}/student/tasks`') &&
+    notifications.includes('isStudentOrGuardian ? `/dashboard/${slug}/portal` : `/dashboard/${slug}/report-cards`') &&
+    portalNotifications.includes('if (item.resource_type === "report_card" || item.notification_type === "report_card" || item.notification_type === "grade") return `/dashboard/${slug}/portal`;') &&
+    portalNotifications.includes('if (item.resource_type === "assignment") return `/dashboard/${slug}/portal`;')],
   ["citaciones: guardian role selects the guardian-specific appointments RPC",
     /roles\.includes\("guardian"\)/.test(appointments) &&
     /isGuardian \?/.test(appointments) &&
