@@ -30,8 +30,9 @@ function richTextFromHtml(html: string) {
   const render = (node: Node): string => {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
     if (!(node instanceof HTMLElement)) return "";
-    const inner = Array.from(node.childNodes).map(render).join("");
     const tag = node.tagName.toLowerCase();
+    if (tag === "img") { const src = node.getAttribute("src") || ""; return (src.startsWith("data:image/png;base64,") || src.startsWith("data:image/jpeg;base64,")) ? "[[EDUNEXA_IMAGE:" + src + "]]\\n" : ""; }
+    const inner = Array.from(node.childNodes).map(render).join("");
     if (tag === "h2") return "# " + inner.trim() + "\n\n";
     if (tag === "h3") return "## " + inner.trim() + "\n\n";
     if (tag === "blockquote") return "> " + inner.trim() + "\n";
@@ -338,7 +339,7 @@ export default function StudentAssignmentEditor({
           <button type="button" onClick={submit} disabled={busy || locked || saved} className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-400">{busy ? <LoaderCircle className="animate-spin" size={17}/> : saved ? <CheckCircle2 size={17}/> : <Send size={16}/>} {busy ? "Preparando y entregando..." : saved ? "Entrega realizada" : existingSubmissionId ? "Actualizar entrega y PDF" : "Entregar tarea en PDF"}</button>
         </div>
         {message ? <p role="status" aria-live="polite" className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700">{message}</p> : null}
-        <p className="mt-3 text-[11px] leading-5 text-slate-400">El documento se guarda como PDF en el espacio privado del aula. También podés adjuntar otros archivos después de entregar.</p>
+        <p className="mt-3 flex items-center gap-2 text-[11px] leading-5 text-slate-500"><Save size={13}/>{draftStatus}. El borrador se conserva en esta sesión del dispositivo.</p>{previewUrl ? <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-2" role="dialog" aria-modal="true" aria-label="Vista previa PDF"><div className="flex h-[95vh] w-full max-w-5xl flex-col rounded-2xl bg-white"><div className="flex items-center justify-between border-b p-3"><strong>Vista previa PDF</strong><button type="button" onClick={() => { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }} aria-label="Cerrar vista previa"><X size={20}/></button></div><iframe title="Vista previa PDF" src={previewUrl} className="min-h-0 flex-1"/><div className="p-3 text-right"><button type="button" onClick={() => { const a=document.createElement("a"); a.href=previewUrl; a.download="EDUNEXA-entrega.pdf"; a.click(); }} className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white">Descargar PDF</button></div></div></div> : null}
       </div>
     </section>
   );
