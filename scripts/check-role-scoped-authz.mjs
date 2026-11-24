@@ -55,7 +55,7 @@ for (const role of Object.keys(hostedRoleMatrix)) {
   const roleBlock = migration.toLowerCase();
   assert.ok(roleBlock.includes(`'${role}'`), `authorization migration must explicitly account for ${role}`);
 }
-assert.match(migration, /classroom_teacher_permissions[\\s\\S]*?ctp\.is_active/i, "delegated classroom access must require an active delegation");
+assert.match(migration, /classroom_teacher_permissions[\s\S]*?ctp\.is_active/i, "delegated classroom access must require an active delegation");
 assert.match(migration, /ctp\.can_grade/i, "delegated grading must check can_grade");
 assert.match(migration, /ctp\.can_edit_materials/i, "delegated material editing must check can_edit_materials");
 assert.match(migration, /ctp\.can_edit_assignments/i, "delegated assignment editing must check can_edit_assignments");
