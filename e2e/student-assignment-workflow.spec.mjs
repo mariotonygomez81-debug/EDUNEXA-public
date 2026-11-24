@@ -40,6 +40,17 @@ test("student private draft, cross-tab conflict, PDF submission, teacher downloa
   const studentContext = await browser.newContext();
   const studentPage = await studentContext.newPage();
   await signIn(studentPage, process.env.E2E_STUDENT_EMAIL, process.env.E2E_STUDENT_PASSWORD);
+  await studentPage.goto(`/dashboard/${encodeURIComponent(slug)}/student`);
+  const notificationBell = studentPage.getByRole("link", { name: /Notificaciones:/ });
+  await expect(notificationBell).toBeVisible();
+  await notificationBell.click();
+  await expect(studentPage.getByRole("heading", { name: "Notificaciones" })).toBeVisible();
+  await expect(studentPage.getByText("Tareas próximas a vencer")).toBeVisible();
+  const duePreference = studentPage.locator("form").filter({
+    has: studentPage.locator('input[name="notification_type"][value="assignment_due"]'),
+  });
+  await expect(duePreference.getByRole("checkbox")).toBeChecked();
+  await studentPage.goto(classroomUrl);
   const studentCard = assignmentCard(studentPage);
   const editor = studentCard.getByRole("textbox", { name: "Contenido de la tarea" });
   await expect(editor).toBeVisible();
