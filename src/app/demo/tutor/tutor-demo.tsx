@@ -91,7 +91,7 @@ export default function TutorDemo() {
   const [notificationFilter, setNotificationFilter] = useState<"Todas" | "Sin leer" | "Leídas">("Todas");
   const [taskSearch, setTaskSearch] = useState("");
   const [taskStatus, setTaskStatus] = useState("Todas");
-  const student = studentRecords.find((item) => item.id === activeStudent) ?? students[0];
+  const student = studentRecords.find((item) => item.id === activeStudent) ?? studentRecords[0];
   const profileCompletion = [tutorProfile.fullName, tutorProfile.email, tutorProfile.phone, tutorProfile.address].filter((value) => value.trim()).length;
   const unread = notifications.length - readNotifications.length;
   const filteredNotifications = notifications.filter((item) => notificationFilter === "Todas" || (notificationFilter === "Sin leer" ? !readNotifications.includes(item.title) : readNotifications.includes(item.title)));
@@ -284,9 +284,9 @@ export default function TutorDemo() {
               </form>
               <p className="mt-5 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">Por seguridad, no solicitamos DNI ni fecha de nacimiento en este formulario de demostración. El código real deberá ser único, temporal o revocable y validado por la institución antes de otorgar acceso a datos académicos.</p>
               <div className="mt-6 border-t border-slate-100 pt-5">
-                <h4 className="mb-3 text-sm font-bold text-slate-900">Estudiantes vinculados ({students.length})</h4>
+                <h4 className="mb-3 text-sm font-bold text-slate-900">Estudiantes vinculados ({studentRecords.length})</h4>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {students.map((item) => <button key={item.id} type="button" onClick={() => { selectStudent(item.id); setSection("resumen"); }} className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${activeStudent === item.id ? "border-violet-300 bg-violet-50" : "border-slate-200 hover:bg-slate-50"}`}><span className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800">{item.initials}</span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-slate-900">{item.name}</span><span className="block text-xs text-slate-500">{item.course} · {item.division}</span></span><ChevronRight size={16} className="text-slate-400" /></button>)}
+                  {studentRecords.map((item) => <button key={item.id} type="button" onClick={() => { selectStudent(item.id); setSection("resumen"); }} className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${activeStudent === item.id ? "border-violet-300 bg-violet-50" : "border-slate-200 hover:bg-slate-50"}`}><span className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800">{item.initials}</span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-slate-900">{item.name}</span><span className="block text-xs text-slate-500">{item.course} · {item.division}</span></span><ChevronRight size={16} className="text-slate-400" /></button>)}
                 </div>
               </div>
             </section>
