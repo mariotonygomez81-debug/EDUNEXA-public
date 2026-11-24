@@ -203,7 +203,11 @@ export default async function ClassroomDetailPage({
         return [submission.submission_id, historyError ? null : data] as const;
       }))
     : [];
-  const historyBySubmission = Object.fromEntries(submissionHistories);
+  const historyBySubmission = Object.fromEntries(submissionHistories) as unknown as Record<string, {
+    revisions?: { revision_number: number; body: string | null; file_path: string | null; submitted_at: string | null; changed_at: string }[];
+    grades?: { previous_score: number | null; new_score: number | null; previous_feedback: string | null; new_feedback: string | null; changed_at: string }[];
+    files?: { file_id: string; original_filename: string; mime_type: string; byte_size: number; changed_at: string }[];
+  } | null>;
   const { data: assignmentRosterData, error: assignmentRosterError } = canGrade
     ? await supabase.rpc("list_classroom_assignment_roster", { p_classroom_id: classroomId })
     : { data: [], error: null };
