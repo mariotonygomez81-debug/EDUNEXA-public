@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import {
   ArrowRight, Bell, BookOpen, CalendarDays, CheckCircle2, ClipboardCheck,
   GraduationCap, LayoutGrid, List, MessageCircle, Plus, Search, Sparkles,
-  UserRound, X,
+  UserRound, X, Focus,
 } from "lucide-react";
 
 type Student = {
@@ -49,6 +49,7 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof filters)[number]>("Todas");
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [focusMode, setFocusMode] = useState(false);
   const subjectsCount = new Set(classrooms.map((item) => item.subject_name).filter(Boolean)).size;
   const visibleClassrooms = useMemo(() => classrooms.filter((item) => {
     const matchesQuery = [item.title, item.subject_name, item.course_name, item.division_name]
@@ -66,10 +67,12 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
   ];
 
   return (
-    <main className="min-h-screen bg-[#f6f7f4] pb-28 text-slate-800">
-      <div className="mx-auto max-w-6xl px-4 pb-8 pt-4 sm:px-7 sm:pt-7">
-        <header className="mb-5 flex items-center justify-between">
+    <main className="student-dashboard min-h-screen bg-[#f6f7f4] pb-28 text-slate-800">
+      <div className="student-dashboard-content mx-auto max-w-6xl px-4 pb-8 pt-4 sm:px-7 sm:pt-7">
+        <header className="student-dashboard-header mb-5 flex items-center justify-between">
           <Link href={`/dashboard/${slug}`} className="text-lg font-black tracking-[.17em] text-slate-900">EDUNEXA</Link>
+          <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setFocusMode((current) => !current)} aria-pressed={focusMode} className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${focusMode ? "border-emerald-700 bg-emerald-800 text-white shadow-md" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50"}`}><Focus size={15}/><span className="hidden sm:inline">{focusMode ? "Salir de enfoque" : "Modo enfoque"}</span></button>
           <Link href={profileHref} className="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-3 shadow-sm transition hover:border-emerald-300" aria-label="Abrir mi perfil">
             <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-emerald-100 text-xl font-bold text-emerald-900">
               {student.avatarUrl ? <Image src={student.avatarUrl} alt="" width={40} height={40} unoptimized className="h-full w-full object-cover"/> : student.avatarStyle === "masculino" ? "👨🏻‍🎓" : student.avatarStyle === "femenino" ? "👩🏻‍🎓" : student.initials}
@@ -77,9 +80,10 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
             <span className="hidden text-left sm:block"><span className="block text-xs font-bold text-slate-800">{student.fullName}</span><span className="block text-[10px] text-slate-500">Mi perfil</span></span>
             <UserRound size={16} className="text-slate-400 sm:hidden"/>
           </Link>
+          </div>
         </header>
 
-        <section className="relative overflow-hidden rounded-[30px] border border-emerald-900/10 bg-gradient-to-br from-[#174b3d] via-[#22634d] to-[#4b8064] p-5 text-white shadow-[0_18px_45px_rgba(27,78,60,.16)] sm:p-8">
+        <section className="student-hero relative overflow-hidden rounded-[30px] border border-emerald-900/10 bg-gradient-to-br from-[#174b3d] via-[#22634d] to-[#4b8064] p-5 text-white shadow-[0_18px_45px_rgba(27,78,60,.16)] sm:p-8">
           <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full border-[42px] border-white/[.07]"/>
           <div className="pointer-events-none absolute bottom-[-95px] right-[20%] h-48 w-48 rounded-full bg-amber-200/10 blur-2xl"/>
           <div className="relative flex flex-wrap items-start justify-between gap-5">
@@ -96,7 +100,7 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
           </div>
         </section>
 
-        <section aria-label="Resumen académico" className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <section aria-label="Resumen académico" className={`${focusMode ? "hidden" : "student-stagger mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4"}`}>
           {[
             { label: "Mis aulas", value: String(classrooms.length), icon: BookOpen, tint: "bg-emerald-50 text-emerald-800" },
             { label: "Mis materias", value: String(subjectsCount), icon: GraduationCap, tint: "bg-amber-50 text-amber-800" },
@@ -118,18 +122,18 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
           </div>
         </section>
 
-        <section className="mt-8 grid gap-4 lg:grid-cols-[1.05fr_.95fr]" aria-label="Resumen de actividad">
-          <article className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
+        <section className="student-stagger mt-8 grid gap-4 lg:grid-cols-[1.05fr_.95fr]" aria-label="Resumen de actividad">
+          <article className="student-card overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
             <div className="flex items-center justify-between gap-3 border-b border-amber-100 bg-amber-50/70 px-4 py-4 sm:px-5">
               <div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-amber-800">Organizá tu semana</p><h2 className="mt-1 text-lg font-extrabold text-slate-900">Próximas actividades</h2></div>
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-100 text-amber-900"><ClipboardCheck size={20}/></span>
             </div>
             <div className="p-4 sm:p-5">
               <div className="mb-3 flex items-center justify-between text-xs text-slate-500"><span>{taskSummary.total} actividades en tus aulas</span><Link href={`/dashboard/${slug}/student/tasks`} className="font-bold text-amber-900 hover:underline">Ver todas <ArrowRight size={13} className="ml-1 inline"/></Link></div>
-              {taskSummary.upcoming.length ? <ul className="space-y-2">{taskSummary.upcoming.map((task) => <li key={task.id} className="flex items-start gap-3 rounded-xl border border-slate-100 p-3"><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-50 text-amber-800"><CalendarDays size={16}/></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-900">{task.title}</p><p className="mt-0.5 truncate text-xs text-slate-500">{task.subject_name ?? task.classroom_title}</p><p className="mt-1 text-[11px] font-semibold text-amber-800">{task.due_at ? new Intl.DateTimeFormat("es-AR",{dateStyle:"medium",timeStyle:"short"}).format(new Date(task.due_at)) : "Sin fecha límite"}</p></div></li>)}</ul> : <div className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center"><CheckCircle2 className="mx-auto text-emerald-700" size={24}/><p className="mt-2 text-sm font-semibold text-slate-800">No hay actividades próximas</p><p className="mt-1 text-xs text-slate-500">Cuando tus docentes publiquen tareas, aparecerán acá.</p></div>}
+              {taskSummary.upcoming.length ? <ul className="space-y-2">{taskSummary.upcoming.map((task) => <li key={task.id} className="student-task-item flex items-start gap-3 rounded-xl border border-slate-100 p-3"><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-50 text-amber-800"><CalendarDays size={16}/></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-900">{task.title}</p><p className="mt-0.5 truncate text-xs text-slate-500">{task.subject_name ?? task.classroom_title}</p><p className="mt-1 text-[11px] font-semibold text-amber-800">{task.due_at ? new Intl.DateTimeFormat("es-AR",{dateStyle:"medium",timeStyle:"short"}).format(new Date(task.due_at)) : "Sin fecha límite"}</p></div></li>)}</ul> : <div className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center"><CheckCircle2 className="mx-auto text-emerald-700" size={24}/><p className="mt-2 text-sm font-semibold text-slate-800">No hay actividades próximas</p><p className="mt-1 text-xs text-slate-500">Cuando tus docentes publiquen tareas, aparecerán acá.</p></div>}
             </div>
           </article>
-          <article className="overflow-hidden rounded-2xl border border-orange-200 bg-white shadow-sm">
+          <article className={focusMode ? "hidden" : "student-card overflow-hidden rounded-2xl border border-orange-200 bg-white shadow-sm"}>
             <div className="flex items-center justify-between gap-3 border-b border-orange-100 bg-orange-50/70 px-4 py-4 sm:px-5">
               <div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-orange-800">Comunidad educativa</p><h2 className="mt-1 text-lg font-extrabold text-slate-900">Últimas novedades</h2></div>
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-orange-100 text-orange-900"><Bell size={20}/></span>
@@ -141,7 +145,7 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
           </article>
         </section>
 
-        <section id="mis-aulas" className="mt-8 scroll-mt-5">
+        <section id="mis-aulas" className="student-stagger mt-8 scroll-mt-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-emerald-800">Tus espacios de estudio</p><h2 className="mt-1 text-xl font-black text-slate-900">Mis aulas</h2><p className="mt-1 text-sm text-slate-500">Elegí una materia para ver sus actividades, materiales y novedades.</p></div>
             <Link href={joinHref} className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-bold text-emerald-950 transition hover:bg-emerald-100 sm:text-sm"><Plus size={16}/> Agregar aula</Link>
@@ -155,7 +159,7 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
               <p className="mt-3 text-xs text-slate-500" aria-live="polite">Mostrando <strong className="text-slate-700">{visibleClassrooms.length}</strong> de {classrooms.length} aulas</p>
             </div>
             {visibleClassrooms.length ? <div className={view === "grid" ? "mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3" : "mt-3 space-y-2"}>
-              {visibleClassrooms.map((classroom, index) => <Link key={classroom.id} href={`/dashboard/${slug}/classroom/${classroom.id}`} className={`group flex gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_3px_14px_rgba(15,23,42,.035)] transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${view === "list" ? "items-center" : "min-h-[174px] flex-col"}`}>
+              {visibleClassrooms.map((classroom, index) => <Link key={classroom.id} href={`/dashboard/${slug}/classroom/${classroom.id}`} className={`student-classroom-card group flex gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_3px_14px_rgba(15,23,42,.035)] transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${view === "list" ? "items-center" : "min-h-[174px] flex-col"}`}>
                 <div className="flex w-full items-start justify-between gap-2"><span className={`grid h-11 w-11 place-items-center rounded-2xl ${index % 3 === 0 ? "bg-emerald-100 text-emerald-900" : index % 3 === 1 ? "bg-amber-100 text-amber-900" : "bg-stone-100 text-stone-800"}`}><BookOpen size={21}/></span><ArrowRight size={18} className="text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-800"/></div>
                 <div className="min-w-0 flex-1"><p className="text-[11px] font-semibold text-slate-500">{classroom.course_name} · {classroom.division_name}</p><h3 className="mt-1 truncate text-base font-bold text-slate-900">{classroom.title}</h3><p className="mt-1 text-sm text-slate-600">{classroom.subject_name ?? "Aula general"}</p>{view === "grid" && classroom.description ? <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">{classroom.description}</p> : null}</div>
                 {view === "list" ? <span className="hidden shrink-0 text-xs font-bold text-emerald-900 sm:block">Entrar al aula</span> : <span className="mt-auto inline-flex items-center gap-1 text-xs font-bold text-emerald-900">Abrir aula <ArrowRight size={13}/></span>}
@@ -164,9 +168,9 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
           </>}
         </section>
 
-        <section className="mt-6 rounded-2xl border border-sky-200 bg-sky-50/70 p-4 shadow-sm sm:p-5"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-sky-100 text-sky-900"><UserRound size={19}/></span><div className="min-w-0 flex-1"><h2 className="font-bold text-slate-900">Mi trayectoria escolar</h2><p className="mt-1 text-sm text-slate-600">Consultá tus datos personales, año de cursado y materias previas.</p></div><Link href={profileHref} className="shrink-0 rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-bold text-sky-900 hover:bg-sky-100">Ver perfil</Link></div></section>
+        <section className={focusMode ? "hidden" : "student-card mt-6 rounded-2xl border border-sky-200 bg-sky-50/70 p-4 shadow-sm sm:p-5"}><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-sky-100 text-sky-900"><UserRound size={19}/></span><div className="min-w-0 flex-1"><h2 className="font-bold text-slate-900">Mi trayectoria escolar</h2><p className="mt-1 text-sm text-slate-600">Consultá tus datos personales, año de cursado y materias previas.</p></div><Link href={profileHref} className="shrink-0 rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-bold text-sky-900 hover:bg-sky-100">Ver perfil</Link></div></section>
 
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <section className={focusMode ? "hidden" : "student-card mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"}>
           <div className="flex items-center gap-3">
             <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-emerald-100 text-2xl font-bold text-emerald-900">{student.avatarUrl ? <Image src={student.avatarUrl} alt="" width={48} height={48} unoptimized className="h-full w-full object-cover"/> : student.avatarStyle === "masculino" ? "👨🏻‍🎓" : student.avatarStyle === "femenino" ? "👩🏻‍🎓" : student.initials}</span>
             <div className="min-w-0 flex-1"><h2 className="font-bold text-slate-900">Mi perfil académico</h2><p className="mt-1 truncate text-sm text-slate-600">{student.fullName}</p><p className="mt-1 text-xs text-slate-500">{student.enrollmentStatus === "active" ? "Matrícula activa" : "Matrícula pendiente de confirmar"}</p></div>
