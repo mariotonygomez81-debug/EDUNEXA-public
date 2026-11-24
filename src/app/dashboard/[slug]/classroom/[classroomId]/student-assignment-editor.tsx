@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Undo2, Redo2, FileDown, Send, LoaderCircle, CheckCircle2, AlignLeft, AlignCenter, AlignRight, Link2, Quote } from "lucide-react";
+import { Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Undo2, Redo2, FileDown, Send, LoaderCircle, CheckCircle2, AlignLeft, AlignCenter, AlignRight, Link2, Quote, Strikethrough, Highlighter, Subscript, Superscript, Indent, Outdent, Eraser, Table2, Minus, Palette } from "lucide-react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { createClient } from "@/lib/supabase/client";
 import { submitClassroomAssignment } from "./actions";
@@ -148,6 +148,7 @@ export default function StudentAssignmentEditor({
   const [message, setMessage] = useState("");
   const [saved, setSaved] = useState(false);
   const [wordCount, setWordCount] = useState(0);
+  const [charCount, setCharCount] = useState(0);
   const [html, setHtml] = useState((initialBody || "").split("\n").map(escapeHtml).join("<br>"));
 
   function syncEditor() {
@@ -155,6 +156,7 @@ export default function StudentAssignmentEditor({
     const text = plainTextFromHtml(value);
     setHtml(value);
     setWordCount(text ? text.split(/\s+/).length : 0);
+    setCharCount(text.length);
     setSaved(false);
   }
 
@@ -162,6 +164,20 @@ export default function StudentAssignmentEditor({
     editorRef.current?.focus();
     document.execCommand(name, false, value);
     syncEditor();
+  }
+
+  function insertTable() {
+    const rows = Math.max(2, Math.min(8, Number(window.prompt("Filas (2 a 8)", "3")) || 3));
+    const cols = Math.max(2, Math.min(6, Number(window.prompt("Columnas (2 a 6)", "3")) || 3));
+    const table = "<table><tbody>" + Array.from({ length: rows }, (_, row) => "<tr>" + Array.from({ length: cols }, () => row === 0 ? "<th>Encabezado</th>" : "<td>Escribí aquí</td>").join("") + "</tr>").join("") + "</tbody></table><p><br></p>";
+    command("insertHTML", table);
+  }
+
+  function insertLink() {
+    const url = window.prompt("Pegá un enlace http:// o https://");
+    if (!url) return;
+    try { const parsed = new URL(url); if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("invalid"); command("createLink", parsed.toString()); }
+    catch { setMessage("Ingresá una dirección válida que comience con http:// o https://."); }
   }
 
   async function downloadPdf() {
