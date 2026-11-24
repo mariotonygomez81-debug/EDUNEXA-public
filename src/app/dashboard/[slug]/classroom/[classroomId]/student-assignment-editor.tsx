@@ -7,6 +7,56 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { createClient } from "@/lib/supabase/client";
 import { submitClassroomAssignment } from "./actions";
 
+
+type DraftSnapshot = {
+  found?: boolean;
+  saved?: boolean;
+  conflict?: boolean;
+  html?: string;
+  header?: string;
+  footer?: string;
+  revision?: number;
+  updated_at?: string;
+};
+type DraftRpcClient = {
+  rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
+function sanitizeDraftHtml(input: string) {
+  const doc = new DOMParser().parseFromString(input, "text/html");
+  const allowed = new Set(["P","DIV","H2","H3","STRONG","B","EM","I","U","S","UL","OL","LI","BLOCKQUOTE","TABLE","TBODY","THEAD","TR","TD","TH","BR","HR","A","IMG","PRE","CODE","SPAN","SUB","SUP"]);
+  doc.querySelectorAll("script,style,iframe,object,embed,svg,math,form,link,meta").forEach((node) => node.remove());
+  Array.from(doc.body.querySelectorAll("*")).forEach((node) => {
+    if (!allowed.has(node.tagName)) {
+      node.replaceWith(...Array.from(node.childNodes));
+      return;
+    }
+    const tag = node.tagName;
+    const href = tag === "A" ? node.getAttribute("href") : null;
+    const src = tag === "IMG" ? node.getAttribute("src") : null;
+    const alt = tag === "IMG" ? node.getAttribute("alt") : null;
+    const style = node.getAttribute("style") || "";
+    Array.from(node.attributes).forEach((attribute) => node.removeAttribute(attribute.name));
+    if (tag === "A" && href) {
+      try {
+        const parsed = new URL(href, window.location.origin);
+        if (["http:", "https:"].includes(parsed.protocol)) {
+          node.setAttribute("href", parsed.toString());
+          node.setAttribute("rel", "noopener noreferrer");
+          node.setAttribute("target", "_blank");
+        }
+      } catch { /* discard unsafe link */ }
+    }
+    if (tag === "IMG") {
+      if (src && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/i.test(src)) node.setAttribute("src", src);
+      else { node.remove(); return; }
+      if (alt) node.setAttribute("alt", alt.slice(0, 160));
+      if (/^\s*max-width\s*:\s*100%\s*;?\s*(height\s*:\s*auto\s*;?)?$/i.test(style)) node.setAttribute("style", "max-width:100%;height:auto");
+    }
+  });
+  return doc.body.innerHTML;
+}
+
 type Props = {
   slug: string;
   classroomId: string;
@@ -170,11 +220,126 @@ export default function StudentAssignmentEditor({
   const [html, setHtml] = useState((initialBody || "").split("\n").map(escapeHtml).join("<br>"));
   const [header, setHeader] = useState("");
   const [footer, setFooter] = useState("");
-  const [draftStatus, setDraftStatus] = useState("Sin cambios guardados");
+  const [draftStatus, setDraftStatus] = useState("Preparando borrador privado…");
+  const [draftRevision, setDraftRevision] = useState(0);
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftSaveNonce, setDraftSaveNonce] = useState(0);
+  const [conflictDraft, setConflictDraft] = useState<DraftSnapshot | null>(null);
+  const draftRevisionRef = useRef(0);
+  const skipNextDraftSaveRef = useRef(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const draftKey = "edunexa:draft:" + slug + ":" + classroomId + ":" + assignmentId;
-  useEffect(() => { const timer = window.setTimeout(() => { try { const raw = sessionStorage.getItem(draftKey); if (raw) { const d = JSON.parse(raw); if (typeof d.html === "string" && d.html.length < 1000000) { setHtml(d.html); setHeader(d.header || ""); setFooter(d.footer || ""); setDraftStatus("Borrador recuperado"); } } } catch { setDraftStatus("No se pudo recuperar"); } }, 0); return () => window.clearTimeout(timer); }, [draftKey, initialBody]);
-  useEffect(() => { if (locked || saved) return; const timer = window.setTimeout(() => { try { sessionStorage.setItem(draftKey, JSON.stringify({html,header,footer})); setDraftStatus("Borrador guardado en este dispositivo"); } catch { setDraftStatus("No se pudo guardar"); } }, 700); return () => window.clearTimeout(timer); }, [draftKey, html, header, footer, locked, saved]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      const restoreLocal = () => {
+        try {
+          const raw = sessionStorage.getItem(draftKey);
+          if (!raw) return false;
+          const local = JSON.parse(raw) as { html?: string; header?: string; footer?: string };
+          if (typeof local.html !== "string" || local.html.length > 5_242_880) return false;
+          setHtml(sanitizeDraftHtml(local.html));
+          setHeader(typeof local.header === "string" ? local.header.slice(0, 100) : "");
+          setFooter(typeof local.footer === "string" ? local.footer.slice(0, 100) : "");
+          setDraftStatus("Copia local recuperada; sincronizando con EDUNEXA…");
+          return true;
+        } catch { return false; }
+      };
+      try {
+        const supabase = createClient();
+        const client = supabase as unknown as DraftRpcClient;
+        const { data, error } = await client.rpc("get_my_student_assignment_draft", { p_assignment_id: assignmentId });
+        if (error) throw new Error(error.message);
+        if (cancelled) return;
+        const remote = data as DraftSnapshot;
+        if (remote?.found && typeof remote.html === "string") {
+          const safeHtml = sanitizeDraftHtml(remote.html);
+          skipNextDraftSaveRef.current = true;
+          setHtml(safeHtml);
+          setHeader(typeof remote.header === "string" ? remote.header : "");
+          setFooter(typeof remote.footer === "string" ? remote.footer : "");
+          const revision = Number(remote.revision) || 0;
+          draftRevisionRef.current = revision;
+          setDraftRevision(revision);
+          setDraftStatus("Borrador privado recuperado de tu cuenta");
+        } else {
+          restoreLocal();
+        }
+      } catch {
+        if (!cancelled) {
+          restoreLocal();
+          setDraftStatus("Sin conexión al borrador en la nube; se conserva la copia local");
+        }
+      } finally {
+        if (!cancelled) setDraftReady(true);
+      }
+    }, 0);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [draftKey, assignmentId]);
+
+  useEffect(() => {
+    if (!draftReady || locked || saved || conflictDraft) return;
+    if (skipNextDraftSaveRef.current) {
+      skipNextDraftSaveRef.current = false;
+      return;
+    }
+    const currentHtml = editorRef.current?.innerHTML ?? html;
+    const localSnapshot = { html: currentHtml, header, footer };
+    try { sessionStorage.setItem(draftKey, JSON.stringify(localSnapshot)); } catch { /* local backup is best effort */ }
+    const timer = window.setTimeout(async () => {
+      setDraftStatus("Guardando borrador privado…");
+      try {
+        const supabase = createClient();
+        const client = supabase as unknown as DraftRpcClient;
+        const { data, error } = await client.rpc("save_my_student_assignment_draft", {
+          p_assignment_id: assignmentId,
+          p_html: currentHtml,
+          p_header: header,
+          p_footer: footer,
+          p_expected_revision: draftRevisionRef.current,
+        });
+        if (error) throw new Error(error.message);
+        const result = data as DraftSnapshot;
+        if (result?.conflict) {
+          setConflictDraft({ ...result, html: typeof result.html === "string" ? sanitizeDraftHtml(result.html) : "" });
+          setDraftStatus("Hay otra versión guardada; elegí cómo resolver el conflicto");
+          return;
+        }
+        const revision = Number(result?.revision);
+        if (!result?.saved || !Number.isInteger(revision)) throw new Error("Respuesta de guardado inválida");
+        draftRevisionRef.current = revision;
+        setDraftRevision(revision);
+        setDraftStatus("Borrador privado sincronizado · versión " + revision);
+      } catch {
+        setDraftStatus("No se pudo sincronizar; tu copia local sigue disponible");
+      }
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [draftKey, html, header, footer, draftReady, locked, saved, conflictDraft, draftSaveNonce, assignmentId]);
+
+  function loadServerDraft() {
+    if (!conflictDraft) return;
+    const safeHtml = sanitizeDraftHtml(conflictDraft.html || "");
+    setHtml(safeHtml);
+    if (editorRef.current) editorRef.current.innerHTML = safeHtml;
+    setHeader(conflictDraft.header || "");
+    setFooter(conflictDraft.footer || "");
+    const revision = Number(conflictDraft.revision) || 0;
+    draftRevisionRef.current = revision;
+    setDraftRevision(revision);
+    setConflictDraft(null);
+    setDraftStatus("Se cargó la versión más reciente del servidor");
+  }
+
+  function keepLocalDraft() {
+    if (!conflictDraft) return;
+    draftRevisionRef.current = Number(conflictDraft.revision) || 0;
+    setDraftRevision(draftRevisionRef.current);
+    setConflictDraft(null);
+    setDraftStatus("Guardando tu versión sobre la última versión del servidor…");
+    setDraftSaveNonce((value) => value + 1);
+  }
 
   function syncEditor() {
     const value = editorRef.current?.innerHTML ?? "";
@@ -355,7 +520,9 @@ export default function StudentAssignmentEditor({
           <button type="button" onClick={submit} disabled={busy || locked || saved} className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-400">{busy ? <LoaderCircle className="animate-spin" size={17}/> : saved ? <CheckCircle2 size={17}/> : <Send size={16}/>} {busy ? "Preparando y entregando..." : saved ? "Entrega realizada" : existingSubmissionId ? "Actualizar entrega y PDF" : "Entregar tarea en PDF"}</button>
         </div>
         {message ? <p role="status" aria-live="polite" className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700">{message}</p> : null}
-        <p className="mt-3 flex items-center gap-2 text-[11px] leading-5 text-slate-500"><Save size={13}/>{draftStatus}. El borrador se conserva en esta sesión del dispositivo.</p>{previewUrl ? <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-2" role="dialog" aria-modal="true" aria-label="Vista previa PDF"><div className="flex h-[95vh] w-full max-w-5xl flex-col rounded-2xl bg-white"><div className="flex items-center justify-between border-b p-3"><strong>Vista previa PDF</strong><button type="button" onClick={() => { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }} aria-label="Cerrar vista previa"><X size={20}/></button></div><iframe title="Vista previa PDF" src={previewUrl} className="min-h-0 flex-1"/><div className="p-3 text-right"><button type="button" onClick={() => { const a=document.createElement("a"); a.href=previewUrl; a.download="EDUNEXA-entrega.pdf"; a.click(); }} className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white">Descargar PDF</button></div></div></div> : null}
+        <p className="mt-3 flex items-center gap-2 text-[11px] leading-5 text-slate-500"><Save size={13}/>{draftStatus}. El borrador se guarda de forma privada en tu cuenta; la copia local funciona como respaldo.</p>
+        {conflictDraft ? <div role="alert" className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950"><p className="font-bold">Detectamos cambios guardados desde otra pestaña o dispositivo.</p><p className="mt-1">Para evitar sobrescribir trabajo, elegí qué versión querés conservar.</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={loadServerDraft} className="rounded-lg border border-amber-400 bg-white px-3 py-2 font-semibold">Cargar versión del servidor</button><button type="button" onClick={keepLocalDraft} className="rounded-lg bg-amber-800 px-3 py-2 font-semibold text-white">Conservar mi versión</button></div></div> : null}
+        {previewUrl ? <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-2" role="dialog" aria-modal="true" aria-label="Vista previa PDF"><div className="flex h-[95vh] w-full max-w-5xl flex-col rounded-2xl bg-white"><div className="flex items-center justify-between border-b p-3"><strong>Vista previa PDF</strong><button type="button" onClick={() => { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }} aria-label="Cerrar vista previa"><X size={20}/></button></div><iframe title="Vista previa PDF" src={previewUrl} className="min-h-0 flex-1"/><div className="p-3 text-right"><button type="button" onClick={() => { const a=document.createElement("a"); a.href=previewUrl; a.download="EDUNEXA-entrega.pdf"; a.click(); }} className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white">Descargar PDF</button></div></div></div> : null}
       </div>
     </section>
   );
