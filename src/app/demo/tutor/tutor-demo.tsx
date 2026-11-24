@@ -106,7 +106,7 @@ export default function TutorDemo() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800">
       <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-xs font-semibold text-amber-900">
-        MODO DEMOSTRACIÓN LOCAL · DATOS FICTICIOS · SIN CONEXIÓN A SUPABASE NI GROQ
+        MODO DEMOSTRACIÓN · DATOS FICTICIOS · SIN CONEXIÓN A SUPABASE NI GROQ
       </div>
 
       <header className="bg-gradient-to-br from-slate-950 via-indigo-950 to-violet-900 text-white">
@@ -121,7 +121,7 @@ export default function TutorDemo() {
             </div>
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-100">
-                <ShieldCheck size={14} /> Entorno local seguro
+                <ShieldCheck size={14} /> Entorno de demostración
               </span>
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-sm font-bold">TG</div>
             </div>
