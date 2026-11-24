@@ -20,6 +20,28 @@ type Props = {
 const MAX_BODY = 20000;
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
+function escapeHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function richTextFromHtml(html: string) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("script,style,iframe,object").forEach((node) => node.remove());
+  const render = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
+    if (!(node instanceof HTMLElement)) return "";
+    const inner = Array.from(node.childNodes).map(render).join("");
+    const tag = node.tagName.toLowerCase();
+    if (tag === "h2") return "# " + inner.trim() + "\n\n";
+    if (tag === "h3") return "## " + inner.trim() + "\n\n";
+    if (tag === "li") return "- " + inner.trim() + "\n";
+    if (["p","div","ul","ol"].includes(tag)) return inner.trim() + "\n";
+    if (tag === "br") return "\n";
+    return inner;
+  };
+  return Array.from(doc.body.childNodes).map(render).join("").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 function plainTextFromHtml(html: string) {
   const doc = new DOMParser().parseFromString(html, "text/html");
   doc.querySelectorAll("script,style,iframe,object").forEach((node) => node.remove());
@@ -81,7 +103,7 @@ async function createTaskPdf(title: string, body: string) {
       drawWrapped(line.replace(/^#{1,2}\s/, ""), bold, line.startsWith("# ") ? 15 : 13);
       y -= 4;
     } else if (/^[-*]\s/.test(line)) {
-      drawWrapped("• " + line.slice(2), regular, fontSize, 10);
+      drawWrapped("- " + line.slice(2), regular, fontSize, 10);
     } else if (/^\d+[.)]\s/.test(line)) {
       drawWrapped(line, regular, fontSize, 10);
     } else {
@@ -107,7 +129,7 @@ export default function StudentAssignmentEditor({
   const [message, setMessage] = useState("");
   const [saved, setSaved] = useState(false);
   const [wordCount, setWordCount] = useState(0);
-  const [html, setHtml] = useState(initialBody || "");
+  const [html, setHtml] = useState((initialBody || "").split("\n").map(escapeHtml).join("<br>"));
 
   function syncEditor() {
     const value = editorRef.current?.innerHTML ?? "";
@@ -124,8 +146,8 @@ export default function StudentAssignmentEditor({
   }
 
   async function downloadPdf() {
-    const text = plainTextFromHtml(editorRef.current?.innerHTML ?? html);
-    if (!text) { setMessage("Escribí el contenido de tu tarea antes de generar el PDF."); return; }
+    const text = richTextFromHtml(editorRef.current?.innerHTML ?? html);
+    if (!plainTextFromHtml(editorRef.current?.innerHTML ?? html)) { setMessage("Escribí el contenido de tu tarea antes de generar el PDF."); return; }
     try {
       const blob = await createTaskPdf(assignmentTitle, text);
       const url = URL.createObjectURL(blob);
@@ -147,7 +169,7 @@ export default function StudentAssignmentEditor({
     setBusy(true);
     setMessage("");
     try {
-      const pdfBlob = await createTaskPdf(assignmentTitle, body);
+      const pdfBlob = await createTaskPdf(assignmentTitle, richTextFromHtml(editorRef.current?.innerHTML ?? html));
       if (pdfBlob.size > MAX_PDF_BYTES) throw new Error("El PDF supera el límite de 10 MB.");
       const formData = new FormData();
       formData.set("slug", slug);
