@@ -3886,6 +3886,24 @@ export type Database = {
           student_number: string
         }[]
       }
+      list_my_child_assignment_progress: {
+        Args: { p_institution_id: string; p_student_id: string }
+        Returns: {
+          assignment_id: string
+          classroom_id: string
+          subject_name: string
+          classroom_title: string
+          assignment_title: string
+          due_at: string | null
+          published_at: string | null
+          submitted: boolean
+          submitted_at: string | null
+          review_status: string | null
+          score: number | null
+          max_score: number | null
+          can_view_grade: boolean
+        }[]
+      }
       list_my_student_attendance: {
         Args: {
           p_institution_id: string
