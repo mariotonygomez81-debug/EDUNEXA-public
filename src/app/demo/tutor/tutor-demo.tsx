@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import {
   Bell, BookOpen, CalendarCheck, CalendarClock, CheckCheck,
   ChevronRight, ClipboardList, Download, FileText, GraduationCap,
@@ -112,7 +112,7 @@ export default function TutorDemo() {
     setTaskStatus("Todas");
   }
 
-  function saveTutorProfile(event: React.FormEvent<HTMLFormElement>) {
+  function saveTutorProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setProfileSaved(true);
   }
@@ -125,7 +125,7 @@ export default function TutorDemo() {
     if (!fullName || !course || !division || !childForm.institutionCode.trim()) return;
     const initials = fullName.split(/\\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
     const newStudent = {
-      id: `demo-${Date.now()}`, name: fullName, initials, course, division,
+      id: `demo-${Date.now()}`, name: fullName, initials, course: `${course} · ${childForm.level}`, division,
       year: "Ciclo lectivo 2026",
       attendance: { present: 0, absent: 0, late: 0, justified: 0 },
       grades: [], tasks: [],
