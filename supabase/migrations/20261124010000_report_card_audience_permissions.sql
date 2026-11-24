@@ -372,7 +372,25 @@ begin
   v_recipient_student:='student'=any(v_recipient_roles);
   v_recipient_guardian:='guardian'=any(v_recipient_roles);
 
-  if v_sender_admin or v_recipient_admin then return true; end if;
+  if v_sender_admin then return true; end if;
+
+  -- A student account can initiate conversations only with an assigned
+  -- classroom teacher or a teacher responsible for a pending previous subject.
+  if v_sender_student then
+    if v_recipient_staff then
+      if private.is_staff_assigned_to_student_classroom(
+        p_sender_membership_id,p_recipient_membership_id,p_institution_id
+      ) then
+        return true;
+      end if;
+      return private.is_staff_assigned_to_previous_subject(
+        p_sender_membership_id,p_recipient_membership_id,p_institution_id
+      );
+    end if;
+    return false;
+  end if;
+
+  if v_recipient_admin then return true; end if;
   if v_sender_staff and v_recipient_staff then return true; end if;
 
   -- Symmetric scope: staff can contact a student only if the student
@@ -398,17 +416,6 @@ begin
         and private.is_staff_assigned_to_division(
           p_sender_membership_id,p_institution_id,e.division_id
         )
-    );
-  end if;
-
-  if v_sender_student and v_recipient_staff then
-    if private.is_staff_assigned_to_student_classroom(
-      p_sender_membership_id,p_recipient_membership_id,p_institution_id
-    ) then
-      return true;
-    end if;
-    return private.is_staff_assigned_to_previous_subject(
-      p_sender_membership_id,p_recipient_membership_id,p_institution_id
     );
   end if;
 
