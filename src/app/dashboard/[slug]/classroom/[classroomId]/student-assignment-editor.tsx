@@ -87,7 +87,7 @@ async function createTaskPdf(title: string, body: string) {
     }
   };
 
-  page.drawText(title.slice(0, 120), { x: margin, y, size: 19, font: bold, color: rgb(0.08, 0.28, 0.22) });
+  const pdfTitle = title.replace(/[^\\u0000-\\u00FF]/g, "?").slice(0, 90);\n  page.drawText(pdfTitle, { x: margin, y, size: 19, font: bold, color: rgb(0.08, 0.28, 0.22) });
   y -= 30;
   page.drawText("EDUNEXA · Entrega de actividad", { x: margin, y, size: 9, font: regular, color: rgb(0.40, 0.45, 0.48) });
   y -= 25;
