@@ -73,13 +73,13 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
     Promise.all(classrooms.map(async (classroom) => {
       const result = await supabase.rpc("get_classroom_overview", { p_classroom_id: classroom.id });
       const overview = (result.data ?? {}) as { assignments?: { id: string; title: string; due_at: string | null }[] };
-      return (overview.assignments ?? []).map((assignment) => ({
+      return { error: Boolean(result.error), tasks: (overview.assignments ?? []).map((assignment) => ({
         id: assignment.id,
         title: assignment.title,
         due_at: assignment.due_at,
         classroom_title: classroom.title,
         subject_name: classroom.subject_name,
-      }));
+      })) };
     })),
     supabase.from("announcements")
       .select("id,title,body,published_at,audience")
@@ -89,7 +89,8 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
       .order("published_at", { ascending: false })
       .limit(4),
   ]);
-  const allTasks = taskResults.flat().sort((a,b) =>
+  const taskLoadError = taskResults.some((result) => result.error);
+  const allTasks = taskResults.flatMap((result) => result.tasks).sort((a,b) =>
     (a.due_at ? Date.parse(a.due_at) : Number.MAX_SAFE_INTEGER) -
     (b.due_at ? Date.parse(b.due_at) : Number.MAX_SAFE_INTEGER));
   const upcomingTasks: StudentTaskPreview[] = allTasks.filter((task) => !task.due_at || Date.parse(task.due_at) >= now.getTime()).slice(0,3);
@@ -106,7 +107,7 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
   return <StudentDashboardExperience
     slug={slug}
     institutionName={institution.display_name}
-    hasLoadError={Boolean(studentError || classroomError)}
+    hasLoadError={Boolean(studentError || classroomError || taskLoadError || announcementResult.error)}
     classrooms={classrooms}
     taskSummary={{ total: allTasks.length, upcoming: upcomingTasks }}
     announcements={recentAnnouncements}
