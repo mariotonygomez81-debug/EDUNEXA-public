@@ -13,6 +13,8 @@ type Section = "resumen" | "tareas" | "calificaciones" | "boletines" | "avisos" 
 const students = [
   {
     id: "sofia",
+    dni: "99123456",
+    birthDate: "2012-05-14",
     name: "Sofía Gómez",
     initials: "SG",
     course: "2.º año",
@@ -33,6 +35,8 @@ const students = [
   },
   {
     id: "mateo",
+    dni: "99234567",
+    birthDate: "2015-09-22",
     name: "Mateo Gómez",
     initials: "MG",
     course: "5.º grado",
@@ -48,6 +52,28 @@ const students = [
     tasks: [
       { subject: "Matemática", title: "Problemas con medidas", due: "27 nov 2026", status: "Aprobada" },
       { subject: "Prácticas del lenguaje", title: "Producción de un cuento", due: "29 nov 2026", status: "Sin entregar" },
+    ],
+  },
+];
+
+const enrolledStudents = [
+  ...students,
+  {
+    id: "valentina-demo",
+    dni: "99345678",
+    birthDate: "2014-03-08",
+    name: "Valentina Fernández",
+    initials: "VF",
+    course: "6.º grado",
+    division: "División A",
+    year: "Ciclo lectivo 2026",
+    attendance: { present: 88, absent: 3, late: 1, justified: 1 },
+    grades: [
+      { subject: "Matemática", grade: "8", percent: 80, trend: "Estable" },
+      { subject: "Lengua", grade: "9", percent: 90, trend: "En mejora" },
+    ],
+    tasks: [
+      { subject: "Matemática", title: "Fracciones y problemas", due: "28 nov 2026", status: "Sin entregar" },
     ],
   },
 ];
@@ -85,7 +111,7 @@ export default function TutorDemo() {
   const [section, setSection] = useState<Section>("resumen");
   const [tutorProfile, setTutorProfile] = useState({ fullName: "", email: "tutor.demo@edunexa.test", phone: "", address: "", relationship: "Madre / Padre / Tutor" });
   const [profileSaved, setProfileSaved] = useState(false);
-  const [childForm, setChildForm] = useState({ name: "", dni: "", birthDate: "", level: "Primario", course: "", division: "", institutionCode: "" });
+  const [childForm, setChildForm] = useState({ dni: "", birthDate: "" });
   const [childMessage, setChildMessage] = useState("");
   const [readNotifications, setReadNotifications] = useState<string[]>([]);
   const [notificationFilter, setNotificationFilter] = useState<"Todas" | "Sin leer" | "Leídas">("Todas");
@@ -117,26 +143,31 @@ export default function TutorDemo() {
     setProfileSaved(true);
   }
 
-  function addChild(event: React.FormEvent<HTMLFormElement>) {
+  function addChild(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const fullName = childForm.name.trim();
-    const course = childForm.course.trim();
-    const division = childForm.division.trim();
-    if (!fullName || !course || !division || !childForm.institutionCode.trim() || !/^\d{7,8}$/.test(childForm.dni) || !childForm.birthDate || childForm.birthDate > new Date().toISOString().slice(0, 10)) return;
-    const initials = fullName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-    const newStudent = {
-      id: `demo-${Date.now()}`, name: fullName, initials, course: `${course} · ${childForm.level}`, division,
-      year: "Ciclo lectivo 2026",
-      attendance: { present: 0, absent: 0, late: 0, justified: 0 },
-      grades: [], tasks: [],
-    };
-    setStudentRecords((current) => [...current, newStudent]);
-    setActiveStudent(newStudent.id);
-    setChildForm({ name: "", dni: "", birthDate: "", level: "Primario", course: "", division: "", institutionCode: "" });
-    setChildMessage("Estudiante agregado a esta demostración. La vinculación real requiere validación de la institución.");
+    const dni = childForm.dni.trim();
+    const birthDate = childForm.birthDate;
+    if (!/^\d{7,8}$/.test(dni) || !birthDate || birthDate > new Date().toISOString().slice(0, 10)) return;
+
+    const enrolledStudent = enrolledStudents.find(
+      (item) => item.dni === dni && item.birthDate === birthDate
+    );
+
+    if (!enrolledStudent) {
+      setChildMessage("No encontramos un alumno matriculado con esos datos. Verificá el DNI y la fecha de nacimiento o comunicate con la institución.");
+      return;
+    }
+    if (studentRecords.some((item) => item.id === enrolledStudent.id)) {
+      setChildMessage("Este alumno ya está vinculado a tu perfil.");
+      return;
+    }
+
+    setStudentRecords((current) => [...current, enrolledStudent]);
+    setActiveStudent(enrolledStudent.id);
+    setChildForm({ dni: "", birthDate: "" });
+    setChildMessage("Alumno encontrado en la matrícula institucional y agregado a esta demostración. La autorización real deberá validarse en el sistema.");
     setSection("hijos");
   }
-
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800">
       <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-xs font-semibold text-amber-900">
@@ -259,36 +290,21 @@ export default function TutorDemo() {
 
           {section === "hijos" && (
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-5 flex items-center gap-3"><span className="rounded-xl bg-violet-50 p-3 text-violet-700"><Users size={22} /></span><div><h3 className="font-bold text-slate-900">Agregar estudiante a mi grupo familiar</h3><p className="mt-1 text-xs text-slate-500">Ingresá los datos solicitados por la institución para iniciar la vinculación.</p></div></div>
+              <div className="mb-5 flex items-center gap-3"><span className="rounded-xl bg-violet-50 p-3 text-violet-700"><Users size={22} /></span><div><h3 className="font-bold text-slate-900">Agregar estudiante a mi grupo familiar</h3><p className="mt-1 text-xs text-slate-500">Ingresá únicamente el DNI y la fecha de nacimiento. Los datos académicos se recuperan de la matrícula institucional.</p></div></div>
               {childMessage && <p role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{childMessage}</p>}
               <form onSubmit={addChild} className="grid gap-4 sm:grid-cols-2">
-                <label className="text-sm font-medium text-slate-700 sm:col-span-2">Nombre y apellido del estudiante *
-                  <input required value={childForm.name} onChange={(event) => setChildForm({ ...childForm, name: event.target.value })} placeholder="Nombre completo" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
-                </label>
                 <label className="text-sm font-medium text-slate-700">DNI del estudiante *
-                  <input required inputMode="numeric" autoComplete="off" maxLength={8} pattern="[0-9]{7,8}" value={childForm.dni} onChange={(event) => setChildForm({ ...childForm, dni: event.target.value.replace(/\D/g, "").slice(0, 8) })} placeholder="Ingresá 7 u 8 números" title="Ingresá un DNI de 7 u 8 números, sin puntos" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                  <input required inputMode="numeric" autoComplete="off" maxLength={8} pattern="[0-9]{7,8}" value={childForm.dni} onChange={(event) => { setChildForm({ ...childForm, dni: event.target.value.replace(/\D/g, "").slice(0, 8) }); setChildMessage(""); }} placeholder="Ingresá 7 u 8 números" title="Ingresá un DNI de 7 u 8 números, sin puntos" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
                 </label>
                 <label className="text-sm font-medium text-slate-700">Fecha de nacimiento *
-                  <input required type="date" max={new Date().toISOString().slice(0, 10)} value={childForm.birthDate} onChange={(event) => setChildForm({ ...childForm, birthDate: event.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
-                </label>
-                <label className="text-sm font-medium text-slate-700">Nivel educativo *
-                  <select value={childForm.level} onChange={(event) => setChildForm({ ...childForm, level: event.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"><option>Primario</option><option>Secundario</option><option>Inicial</option><option>Superior</option></select>
-                </label>
-                <label className="text-sm font-medium text-slate-700">Año / grado *
-                  <input required value={childForm.course} onChange={(event) => setChildForm({ ...childForm, course: event.target.value })} placeholder="Ej.: 3.º grado o 1.º año" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
-                </label>
-                <label className="text-sm font-medium text-slate-700">División *
-                  <input required value={childForm.division} onChange={(event) => setChildForm({ ...childForm, division: event.target.value })} placeholder="Ej.: A" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
-                </label>
-                <label className="text-sm font-medium text-slate-700">Código de vinculación institucional *
-                  <input required value={childForm.institutionCode} onChange={(event) => setChildForm({ ...childForm, institutionCode: event.target.value })} placeholder="Código entregado por la escuela" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                  <input required type="date" max={new Date().toISOString().slice(0, 10)} value={childForm.birthDate} onChange={(event) => { setChildForm({ ...childForm, birthDate: event.target.value }); setChildMessage(""); }} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
                 </label>
                 <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
-                  <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800"><UserPlus size={16} /> Agregar estudiante</button>
-                  <button type="button" onClick={() => { setSection("resumen"); setChildMessage(""); }} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancelar</button>
+                  <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800"><UserPlus size={16} /> Buscar y vincular alumno</button>
+                  <button type="button" onClick={() => { setSection("resumen"); setChildMessage(""); setChildForm({ dni: "", birthDate: "" }); }} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancelar</button>
                 </div>
               </form>
-              <p className="mt-5 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">En el sistema real, el DNI y la fecha de nacimiento deberán verificarse de forma segura junto con el código de vinculación institucional. No se debe conceder acceso académico hasta confirmar la identidad y la autorización del tutor.</p>
+              <p className="mt-5 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">El sistema buscará al alumno en la matrícula de la institución. El curso, nivel y división ya registrados no se vuelven a cargar. En producción, la vinculación deberá validar además que el tutor esté autorizado antes de mostrar información académica.</p>
               <div className="mt-6 border-t border-slate-100 pt-5">
                 <h4 className="mb-3 text-sm font-bold text-slate-900">Estudiantes vinculados ({studentRecords.length})</h4>
                 <div className="grid gap-2 sm:grid-cols-2">
