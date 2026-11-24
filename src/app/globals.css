@@ -755,3 +755,12 @@ body{
 }
 
 .student-subpage :target{scroll-margin-top:1.5rem}
+
+
+/* Additional interaction polish for student workflow surfaces. */
+.student-task-card{will-change:transform;transform:translateZ(0)}
+.student-task-card:focus-within{border-color:#86c5a8;box-shadow:0 0 0 3px #10a36b14,0 12px 28px #142c4510}
+.student-subpage .student-panel{box-shadow:0 5px 18px #142c4508}
+.student-subpage .student-panel:focus-within{border-color:#a7cbb9;box-shadow:0 0 0 3px #10a36b12}
+.student-subpage-hero .rounded-full,.student-subpage-hero .rounded-2xl{backdrop-filter:blur(8px)}
+@media(prefers-reduced-motion:reduce){.student-task-card{will-change:auto;transform:none}}
