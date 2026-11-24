@@ -409,3 +409,39 @@ export async function updateStudentPreviousSubjectStatus(formData: FormData) {
   revalidatePath(`/dashboard/${slug}/student/profile`);
   redirect(`/dashboard/${slug}/students/${studentId}?previous_updated=1`);
 }
+
+
+export async function updateStudentGuardianPermissions(formData: FormData) {
+  const slug = value(formData, "slug");
+  const studentId = value(formData, "student_id");
+  const guardianId = value(formData, "guardian_id");
+  const canViewGrades = value(formData, "can_view_grades") === "on";
+  const canViewAttendance = value(formData, "can_view_attendance") === "on";
+  const canViewReportCards = value(formData, "can_view_report_cards") === "on";
+  if (!slug || !/^[0-9a-f-]{36}$/i.test(studentId) || !/^[0-9a-f-]{36}$/i.test(guardianId)) {
+    redirect(`/dashboard/${encodeURIComponent(slug)}/students/${encodeURIComponent(studentId)}?error=guardian_invalid`);
+  }
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data: institution } = await supabase.from("institutions")
+    .select("id").eq("slug", slug).maybeSingle();
+  if (!institution) redirect("/dashboard");
+  const { data: membership } = await supabase.from("memberships")
+    .select("id").eq("institution_id", institution.id)
+    .eq("user_id", user.id).eq("status", "active").maybeSingle();
+  if (!membership) redirect("/dashboard");
+  const permissions = await getMembershipPermissions(supabase, membership.id);
+  if (!permissions.has("students.manage")) {
+    redirect(`/dashboard/${slug}/students/${studentId}?error=forbidden`);
+  }
+  const { error } = await supabase.from("student_guardians").update({
+    can_view_grades: canViewGrades,
+    can_view_attendance: canViewAttendance,
+    can_view_report_cards: canViewReportCards,
+  }).eq("institution_id", institution.id)
+    .eq("student_id", studentId).eq("guardian_id", guardianId);
+  if (error) redirect(`/dashboard/${slug}/students/${studentId}?error=guardian_save`);
+  revalidatePath(`/dashboard/${slug}/students/${studentId}`);
+  redirect(`/dashboard/${slug}/students/${studentId}?guardian_permissions=1`);
+}
