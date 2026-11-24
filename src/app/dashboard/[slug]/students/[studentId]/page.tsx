@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ArrowLeftRight, GraduationCap, History, PencilLine, UsersRound, UserPlus, UserMinus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { closeStudentEnrollment, createEnrollment, createStudentPreviousSubject, linkStudentGuardian, transferStudentEnrollment, unlinkStudentGuardian, updateStudent, updateStudentPreviousSubjectStatus } from "../actions";
+import { closeStudentEnrollment, createEnrollment, createStudentPreviousSubject, linkStudentGuardian, transferStudentEnrollment, unlinkStudentGuardian, updateStudent, updateStudentGuardianPermissions, updateStudentPreviousSubjectStatus } from "../actions";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 
 function addDays(value: string, days: number) {
@@ -119,7 +119,7 @@ export default async function StudentDetailPage({
 
   const { data: guardianLinks } = canManageStudents
     ? await supabase.from("student_guardians")
-        .select("guardian_id,can_view_grades,can_view_attendance,can_authorize")
+        .select("guardian_id,can_view_grades,can_view_attendance,can_view_report_cards,can_authorize")
         .eq("institution_id", institution.id).eq("student_id", student.id)
     : { data: [] };
   const { data: guardianPayload } = canManageStudents
@@ -182,10 +182,15 @@ export default async function StudentDetailPage({
                     <div>
                       <p className="font-medium">{link.guardian?.display_name ?? "Tutor vinculado"}</p>
                       <p className="text-sm text-slate-500">{link.guardian?.email ?? "Cuenta institucional"} · {link.guardian?.relationship_label ?? "Familiar"}</p>
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                        <span className={link.can_view_grades ? "rounded-full bg-emerald-50 px-2 py-1 text-emerald-700" : "rounded-full bg-slate-100 px-2 py-1 text-slate-500"}>Calificaciones {link.can_view_grades ? "habilitadas" : "no habilitadas"}</span>
-                        <span className={link.can_view_attendance ? "rounded-full bg-emerald-50 px-2 py-1 text-emerald-700" : "rounded-full bg-slate-100 px-2 py-1 text-slate-500"}>Asistencia {link.can_view_attendance ? "habilitada" : "no habilitada"}</span>
-                      </div>
+                      <form action={updateStudentGuardianPermissions} className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg bg-slate-50 p-3 text-xs">
+                        <input type="hidden" name="slug" value={slug} />
+                        <input type="hidden" name="student_id" value={student.id} />
+                        <input type="hidden" name="guardian_id" value={link.guardian_id} />
+                        <label className="inline-flex items-center gap-1.5"><input type="checkbox" name="can_view_grades" defaultChecked={link.can_view_grades} /> Ver calificaciones</label>
+                        <label className="inline-flex items-center gap-1.5"><input type="checkbox" name="can_view_attendance" defaultChecked={link.can_view_attendance} /> Ver asistencia</label>
+                        <label className="inline-flex items-center gap-1.5 font-semibold text-violet-800"><input type="checkbox" name="can_view_report_cards" defaultChecked={link.can_view_report_cards} /> Ver boletines publicados</label>
+                        <button className="rounded-lg bg-violet-700 px-3 py-1.5 font-semibold text-white hover:bg-violet-800">Guardar permisos</button>
+                      </form>
                     </div>
                     <form action={unlinkStudentGuardian}>
                       <input type="hidden" name="slug" value={slug} />
@@ -215,6 +220,7 @@ export default async function StudentDetailPage({
                   <div className="flex flex-wrap gap-4 text-sm">
                     <label className="inline-flex items-center gap-2"><input type="checkbox" name="can_view_grades" defaultChecked /> Puede ver calificaciones</label>
                     <label className="inline-flex items-center gap-2"><input type="checkbox" name="can_view_attendance" defaultChecked /> Puede ver asistencia</label>
+                    <label className="inline-flex items-center gap-2 font-semibold text-violet-800"><input type="checkbox" name="can_view_report_cards" /> Puede ver boletines publicados</label>
                   </div>
                 </div>
                 <button className="inline-flex h-fit items-center justify-center gap-2 self-end rounded-lg bg-violet-700 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-800"><UserPlus size={16} /> Vincular tutor</button>
