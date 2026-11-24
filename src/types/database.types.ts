@@ -2111,6 +2111,7 @@ export type Database = {
           institution_id: string
           published_at: string | null
           published_by_membership_id: string | null
+          publication_audience: string
           rectification_reason: string | null
           status: string
           student_id: string
@@ -2129,6 +2130,7 @@ export type Database = {
           institution_id: string
           published_at?: string | null
           published_by_membership_id?: string | null
+          publication_audience?: string
           rectification_reason?: string | null
           status?: string
           student_id: string
@@ -2147,6 +2149,7 @@ export type Database = {
           institution_id?: string
           published_at?: string | null
           published_by_membership_id?: string | null
+          publication_audience?: string
           rectification_reason?: string | null
           status?: string
           student_id?: string
@@ -2328,6 +2331,7 @@ export type Database = {
           can_authorize: boolean
           can_view_attendance: boolean
           can_view_grades: boolean
+          can_view_report_cards: boolean
           created_at: string
           guardian_id: string
           institution_id: string
@@ -2338,6 +2342,7 @@ export type Database = {
           can_authorize?: boolean
           can_view_attendance?: boolean
           can_view_grades?: boolean
+          can_view_report_cards?: boolean
           created_at?: string
           guardian_id: string
           institution_id: string
@@ -2348,6 +2353,7 @@ export type Database = {
           can_authorize?: boolean
           can_view_attendance?: boolean
           can_view_grades?: boolean
+          can_view_report_cards?: boolean
           created_at?: string
           guardian_id?: string
           institution_id?: string
