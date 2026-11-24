@@ -88,6 +88,18 @@ export default function TutorDemo() {
     (task.subject + " " + task.title + " " + task.status).toLocaleLowerCase("es").includes(taskSearch.trim().toLocaleLowerCase("es")) &&
     (taskStatus === "Todas" || task.status === taskStatus)
   );
+  const taskFiltersActive = taskSearch.trim().length > 0 || taskStatus !== "Todas";
+
+  function selectStudent(studentId: string) {
+    setActiveStudent(studentId);
+    setTaskSearch("");
+    setTaskStatus("Todas");
+  }
+
+  function clearTaskFilters() {
+    setTaskSearch("");
+    setTaskStatus("Todas");
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800">
@@ -133,7 +145,7 @@ export default function TutorDemo() {
             <div className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-900"><UserRound size={17} className="text-violet-600" /> Estudiantes vinculados</div>
             <div className="space-y-2">
               {students.map((item) => (
-                <button key={item.id} onClick={() => setActiveStudent(item.id)} aria-pressed={activeStudent === item.id}
+                <button key={item.id} onClick={() => selectStudent(item.id)} aria-pressed={activeStudent === item.id}
                   className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${activeStudent === item.id ? "border-violet-300 bg-violet-50 ring-2 ring-violet-100" : "border-slate-100 hover:bg-slate-50"}`}>
                   <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold ${activeStudent === item.id ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-600"}`}>{item.initials}</span>
                   <span className="min-w-0 flex-1">
@@ -235,11 +247,15 @@ export default function TutorDemo() {
                 <input value={taskSearch} onChange={(event) => setTaskSearch(event.target.value)} placeholder="Buscar por materia o tarea..." className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400" />
                 {taskSearch && <button type="button" onClick={() => setTaskSearch("")} className="text-xs font-semibold text-violet-700">Limpiar</button>}
               </label>
-              <div className="mb-4 flex flex-wrap gap-2" aria-label="Filtrar tareas por estado">
+              <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filtrar tareas por estado">
                 {["Todas", "Sin entregar", "Entregada · pendiente", "Aprobada"].map((status) => {
                   const count = status === "Todas" ? student.tasks.length : student.tasks.filter((task) => task.status === status).length;
                   return <button key={status} type="button" aria-pressed={taskStatus === status} onClick={() => setTaskStatus(status)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${taskStatus === status ? "border-violet-300 bg-violet-50 text-violet-800" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>{status} <span className="ml-1 opacity-70">{count}</span></button>;
                 })}
+              </div>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500" aria-live="polite">
+                <span>{filteredTasks.length} de {student.tasks.length} tareas</span>
+                {taskFiltersActive && <button type="button" onClick={clearTaskFilters} className="font-semibold text-violet-700 hover:text-violet-900">Quitar filtros</button>}
               </div>
               <div className="divide-y divide-slate-100">
                 {filteredTasks.map((task) => <div key={task.title} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0"><div className="min-w-0"><p className="text-xs font-semibold text-violet-700">{task.subject}</p><p className="mt-1 font-semibold text-slate-900">{task.title}</p><p className="mt-1 text-xs text-slate-500">Fecha límite: {task.due}</p></div><Status value={task.status} /></div>)}
