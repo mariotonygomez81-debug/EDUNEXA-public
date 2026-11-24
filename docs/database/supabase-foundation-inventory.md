@@ -13,13 +13,14 @@ Se revisaron las referencias Git visibles, el árbol completo del snapshot y la 
 - El commit inmediatamente anterior al snapshot, `381dce457740d95d8e0ec36371c37fadb8f103f9`, contiene únicamente `README.md`.
 - El commit `2fe22d9afaf5d6b60327d95c8991ec9a17bdff7a` introduce el snapshot sanitizado y las migraciones disponibles. La primera migración versionada es `20261120024755_academic_core_and_learning_modules.sql`.
 - En `feature/tutor-module` hay 156 archivos bajo `supabase/migrations/`; el árbol no contiene un `schema.sql`, `supabase dump`, backup SQL o baseline fundacional identificable.
+- La API de GitHub permite revisar refs publicadas, commits alcanzables y árboles versionados; no permite enumerar objetos Git inalcanzables/dangling ni reflogs del servidor. No se ejecutó `git fsck --full --no-reflogs --unreachable` sobre un clon/bare repo del original. Por lo tanto, la ausencia de un objeto SQL no referenciado todavía no puede descartarse.
 - Las referencias Git consultadas exponen las ramas `main`, `feature/groq-only-academic-ai`, `feature/ollama-windows-preflight`, `feature/student-module-mobile` y `feature/tutor-module`, además de refs de PR. No se encontraron refs de tags en la respuesta de refs.
 - La búsqueda de repositorios instalados en la conexión GitHub sólo devolvió `EDUNEXA-public`. No hay otro repositorio privado EDUNEXA disponible para esta conexión.
 - El repositorio no declara un mirror remoto (`mirror_url = null`). GitHub muestra la URL de clonación del propio repositorio público, pero no conserva el contenido de `.git/config`; por ello no se puede concluir que el repositorio original nunca haya tenido otro remoto.
 - La documentación de arquitectura describe repositorios privados por institución, pero no identifica el nombre ni la URL del repositorio fundacional original.
 - `supabase/config.toml` conserva el placeholder `project_id = "your-project-ref"`.
 
-**Conclusión de procedencia:** no se ha localizado una fuente autoritativa del esquema fundacional en los objetos Git, ramas, commits, tags, documentación y repositorios instalados que están disponibles. No es posible reconstruir fielmente ese esquema con la evidencia actual.
+**Conclusión de procedencia:** no se ha localizado una fuente autoritativa del esquema fundacional entre las refs publicadas, commits alcanzables, árboles versionados, documentación y repositorios instalados que están disponibles. La búsqueda de objetos inalcanzables requiere el clon o bundle original y sigue pendiente. No es posible reconstruir fielmente ese esquema con la evidencia actual.
 
 ## 2. Inventario de objetos fundacionales faltantes
 
