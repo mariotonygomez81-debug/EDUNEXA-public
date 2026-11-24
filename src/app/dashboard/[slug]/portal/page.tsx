@@ -101,14 +101,14 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
     p_institution_id: institution.id,
   });
   const students = (rows ?? []) as PortalStudent[];
-  const gradeStudentIds = students
-    .filter((student) => student.can_view_grades)
-    .map((student) => student.student_id);
-  const { data: publishedSnapshots } = gradeStudentIds.length
+  // The database RLS policy filters each immutable snapshot by its publication audience.
+  // Query all linked student IDs so a guardian with report-card-only access is not excluded.
+  const portalStudentIds = students.map((student) => student.student_id);
+  const { data: publishedSnapshots } = portalStudentIds.length
     ? await supabase.from("report_card_snapshots")
       .select("workflow_id,student_id,created_at,snapshot")
       .eq("institution_id", institution.id)
-      .in("student_id", gradeStudentIds)
+      .in("student_id", portalStudentIds)
       .order("created_at", { ascending: false })
     : { data: [] as PublishedReportCard[] };
   const publishedReportCards = (publishedSnapshots ?? []) as PublishedReportCard[];
