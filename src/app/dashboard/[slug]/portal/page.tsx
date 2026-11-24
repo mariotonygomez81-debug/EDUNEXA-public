@@ -192,12 +192,14 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                   ) : (
                     <p className="text-xs text-slate-400">Tu perfil no tiene habilitada la consulta de asistencia para este estudiante.</p>
                   )}
-                  {student.can_view_grades ? (
+                  {student.published_report_card_count > 0 ? (
                     <p className="mt-1 text-xs text-slate-500">
                       {student.published_report_card_count} boletines publicados · Último: {dateLabel(student.latest_report_card_at)}
                     </p>
+                  ) : student.can_view_grades ? (
+                    <p className="mt-1 text-xs text-slate-500">No hay boletines publicados disponibles.</p>
                   ) : (
-                    <p className="mt-1 text-xs text-slate-400">Tu perfil no tiene habilitada la consulta de calificaciones para este estudiante.</p>
+                    <p className="mt-1 text-xs text-slate-400">No hay boletines habilitados para esta cuenta.</p>
                   )}
                 </div>
 
