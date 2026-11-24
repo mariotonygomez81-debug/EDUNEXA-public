@@ -182,6 +182,25 @@ export default function StudentAssignmentEditor({
     command("insertHTML", table);
   }
 
+  function insertImage(file?: File) {
+    if (!file) return;
+    if (!["image/png", "image/jpeg"].includes(file.type) || file.size > 4 * 1024 * 1024) { setMessage("Elegí una imagen PNG o JPG de hasta 4 MB."); return; }
+    const reader = new FileReader();
+    reader.onload = () => { const src = typeof reader.result === "string" ? reader.result : ""; if (src) command("insertHTML", "<img src=\"" + src + "\" alt=\"" + escapeHtml(file.name) + "\" style=\"max-width:100%;height:auto\"/><p><br></p>"); };
+    reader.onerror = () => setMessage("No se pudo leer la imagen.");
+    reader.readAsDataURL(file);
+  }
+
+  function applyTemplate(kind: string) {
+    const templates: Record<string,string> = {
+      practical: "<h2>Trabajo práctico</h2><p><strong>Objetivos</strong></p><p><strong>Materiales y procedimiento</strong></p><p><strong>Resultados</strong></p><p><strong>Conclusión</strong></p>",
+      report: "<h2>Informe</h2><p><strong>Introducción</strong></p><p><strong>Desarrollo</strong></p><p><strong>Conclusión</strong></p><p><strong>Bibliografía</strong></p>",
+      monograph: "<h2>Monografía</h2><p><strong>Resumen</strong></p><p><strong>Introducción</strong></p><p><strong>Marco teórico</strong></p><p><strong>Desarrollo</strong></p><p><strong>Conclusiones</strong></p><p><strong>Bibliografía</strong></p>",
+      project: "<h2>Proyecto</h2><p><strong>Fundamentación</strong></p><p><strong>Problema</strong></p><p><strong>Objetivos</strong></p><p><strong>Plan de trabajo</strong></p><p><strong>Resultados esperados</strong></p>"
+    };
+    if (templates[kind] && (!plainTextFromHtml(editorRef.current?.innerHTML ?? html) || window.confirm("La plantilla se agregará al contenido actual. ¿Continuar?"))) command("insertHTML", templates[kind]);
+  }
+
   function insertLink() {
     const url = window.prompt("Pegá un enlace http:// o https://");
     if (!url) return;
@@ -193,7 +212,7 @@ export default function StudentAssignmentEditor({
     const text = richTextFromHtml(editorRef.current?.innerHTML ?? html);
     if (!plainTextFromHtml(editorRef.current?.innerHTML ?? html)) { setMessage("Escribí el contenido de tu tarea antes de generar el PDF."); return; }
     try {
-      const blob = await createTaskPdf(assignmentTitle, text);
+      const blob = await createTaskPdf(assignmentTitle, text, header, footer);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -242,6 +261,7 @@ export default function StudentAssignmentEditor({
       const { error: finalizeError } = await supabase.rpc("finalize_classroom_file_upload", { p_file_id: intent.file_id });
       if (finalizeError) throw new Error("El PDF se cargó, pero no pudo validarse. Volvé a intentarlo desde los archivos adjuntos.");
       setSaved(true);
+      try { sessionStorage.removeItem(draftKey); } catch { /* storage unavailable */ }
       setMessage("¡Tarea entregada! El documento PDF quedó adjunto para tu docente.");
       router.refresh();
     } catch (error) {
