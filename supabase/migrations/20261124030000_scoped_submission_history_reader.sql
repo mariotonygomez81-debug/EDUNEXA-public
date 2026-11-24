@@ -54,8 +54,7 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION private.get_submission_history_impl(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION private.get_submission_history_impl(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION private.get_submission_history_impl(uuid) FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.get_classroom_submission_history(p_submission_id uuid)
 RETURNS jsonb
