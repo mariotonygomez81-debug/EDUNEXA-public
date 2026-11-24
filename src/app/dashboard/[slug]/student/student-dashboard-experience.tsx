@@ -39,6 +39,7 @@ type Props = {
   student: Student;
   classrooms: Classroom[];
   hasLoadError: boolean;
+  unreadNotificationCount: number;
   taskSummary: { total: number; upcoming: StudentTaskPreview[] };
   announcements: StudentAnnouncementPreview[];
 };
@@ -63,6 +64,7 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
     { label: "Inicio", href: `/dashboard/${slug}/student`, icon: GraduationCap, active: true },
     { label: "Aulas", href: "#mis-aulas", icon: BookOpen },
     { label: "Mensajes", href: `/dashboard/${slug}/messages`, icon: MessageCircle },
+    { label: "Avisos", href: `/dashboard/${slug}/notifications`, icon: Bell },
     { label: "Mi avance", href: `/dashboard/${slug}/portal`, icon: ClipboardCheck },
   ];
 
@@ -72,6 +74,7 @@ export default function StudentDashboardExperience({ slug, institutionName, stud
         <header className="student-dashboard-header mb-5 flex items-center justify-between">
           <Link href={`/dashboard/${slug}`} className="text-lg font-black tracking-[.17em] text-slate-900">EDUNEXA</Link>
           <div className="flex items-center gap-2">
+          <Link href={`/dashboard/${slug}/notifications`} aria-label={`Notificaciones: ${unreadNotificationCount} sin leer`} className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50"><Bell size={18}/>{unreadNotificationCount > 0 ? <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-black text-white">{unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}</span> : null}</Link>
           <button type="button" onClick={() => setFocusMode((current) => !current)} aria-pressed={focusMode} className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${focusMode ? "border-emerald-700 bg-emerald-800 text-white shadow-md" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50"}`}><Focus size={15}/><span className="hidden sm:inline">{focusMode ? "Salir de enfoque" : "Modo enfoque"}</span></button>
           <Link href={profileHref} className="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-3 shadow-sm transition hover:border-emerald-300" aria-label="Abrir mi perfil">
             <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-emerald-100 text-xl font-bold text-emerald-900">
