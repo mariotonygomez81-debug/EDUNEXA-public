@@ -108,7 +108,7 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
     institutionName={institution.display_name}
     hasLoadError={Boolean(studentError || classroomError)}
     classrooms={classrooms}
-    taskSummary={{ total: allTasks.length, pending: allTasks.length, upcoming: upcomingTasks }}
+    taskSummary={{ total: allTasks.length, upcoming: upcomingTasks }}
     announcements={recentAnnouncements}
     student={{
       firstName: firstName.length > 18 ? firstName.slice(0, 18) : firstName,
