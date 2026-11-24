@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 
 const migration = readFileSync("supabase/migrations/20261124025805_student_assignment_drafts.sql", "utf8");
 const rpcGrant = readFileSync("supabase/migrations/20261124025839_restore_submission_rpc_execute.sql", "utf8");
+const cleanupMigration = readFileSync("supabase/migrations/20261124030438_delete_draft_after_pdf_finalize.sql", "utf8");
 const editor = readFileSync("src/app/dashboard/[slug]/classroom/[classroomId]/student-assignment-editor.tsx", "utf8");
+const submitStart = cleanupMigration.indexOf("CREATE OR REPLACE FUNCTION private.submit_classroom_assignment_impl");
+const cleanupStart = cleanupMigration.indexOf("CREATE OR REPLACE FUNCTION public.delete_my_student_assignment_draft_after_submission");
+const submitBody = cleanupMigration.slice(submitStart, cleanupStart);
 
 const checks = [
   ["draft table is isolated and RLS-enabled", /CREATE TABLE public\.student_assignment_drafts/.test(migration) && /ALTER TABLE public\.student_assignment_drafts ENABLE ROW LEVEL SECURITY/.test(migration)],
@@ -10,8 +14,9 @@ const checks = [
   ["draft reads and writes validate the signed-in student and classroom submission permission", /auth\.uid\(\)/.test(migration) && /private\.can_submit_to_assignment/.test(migration) && /cm\.member_role = 'student'/.test(migration)],
   ["optimistic concurrency uses an expected revision and returns conflicts", /p_expected_revision integer/.test(migration) && /d\.revision = p_expected_revision/.test(migration) && /'conflict', true/.test(migration)],
   ["draft HTML has size and active-content guards", /octet_length\(p_html\) > 5242880/.test(migration) && migration.includes("p_html ~* '<(script|iframe") && /javascript/.test(migration)],
-  ["official submission removes only the matching student's private draft", /DELETE FROM public\.student_assignment_drafts[\s\S]*assignment_id = p_assignment_id[\s\S]*student_id = v_student_id/.test(migration)],
   ["the existing submission RPC can still invoke its protected implementation", /GRANT EXECUTE ON FUNCTION private\.submit_classroom_assignment_impl\(uuid, text\) TO authenticated/.test(rpcGrant)],
+  ["draft is retained until a finalized PDF exists", submitStart >= 0 && cleanupStart > submitStart && !submitBody.includes("DELETE FROM public.student_assignment_drafts") && cleanupMigration.includes("f.mime_type = 'application/pdf'") && cleanupMigration.includes("f.status = 'ready'") && cleanupMigration.includes("DELETE FROM public.student_assignment_drafts")],
+  ["client clears the draft only after PDF finalization", editor.indexOf("finalize_classroom_file_upload") >= 0 && editor.indexOf("finalize_classroom_file_upload") < editor.indexOf("delete_my_student_assignment_draft_after_submission")],
   ["editor restores cloud drafts and sanitizes restored HTML", /get_my_student_assignment_draft/.test(editor) && /sanitizeDraftHtml\(remote\.html\)/.test(editor)],
   ["editor saves drafts with revision checks and exposes explicit conflict resolution", /save_my_student_assignment_draft/.test(editor) && /p_expected_revision: draftRevisionRef\.current/.test(editor) && /Conservar mi versión/.test(editor) && /Cargar versión del servidor/.test(editor)],
   ["local session backup remains available when cloud saving fails", /sessionStorage\.setItem\(draftKey/.test(editor) && /tu copia local sigue disponible/.test(editor)],
@@ -19,8 +24,8 @@ const checks = [
 
 let failed = false;
 for (const [label, passed] of checks) {
-  process.stdout.write(`${passed ? "PASS" : "FAIL"} ${label}\n`);
+  process.stdout.write(\`\${passed ? "PASS" : "FAIL"} \${label}\n\`);
   if (!passed) failed = true;
 }
 if (failed) process.exit(1);
-process.stdout.write(`Validated ${checks.length} student draft persistence security checks.\n`);
+process.stdout.write(\`Validated \${checks.length} student draft persistence security checks.\n\`);
