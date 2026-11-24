@@ -15,12 +15,15 @@ const checks = [
   ["progress is restricted to current active enrollment",
     /e\.status = 'active'/.test(sql) && /e\.enrolled_on <= current_date/.test(sql) &&
     /e\.ended_on is null or e\.ended_on >= current_date/.test(sql)],
-  ["only published tasks in classrooms the guardian can read are returned",
+  ["only already-published tasks are returned with explicit classroom.read permission",
     /a\.published_at is not null/.test(sql) &&
-    /private\.can_access_classroom\([\s\S]*'classroom\.read'/.test(sql)],
+    /a\.published_at <= now\(\)/.test(sql) &&
+    /private\.has_institution_permission\(p_institution_id, 'classroom\.read'\)/.test(sql) &&
+    !/private\.can_access_classroom/.test(sql)],
   ["grades are individually gated by the linked guardian-child permission",
     /sg\.can_view_grades/.test(sql) &&
-    /when sg\.can_view_grades then sub\.score/.test(sql)],
+    /when sg\.can_view_grades then sub\.score/.test(sql) &&
+    /when sg\.can_view_grades then a\.max_score/.test(sql)],
   ["result includes task, subject, due date, submission and review status",
     /subject_name text/.test(sql) && /assignment_title text/.test(sql) &&
     /due_at timestamptz/.test(sql) && /submitted_at timestamptz/.test(sql) &&
