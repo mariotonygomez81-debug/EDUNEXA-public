@@ -220,7 +220,7 @@ export default async function NotificationsPage({
                         Abrir conversación
                       </Link>
                     ) : notification.resource_type === "assignment" ? (
-                      <Link href={`/dashboard/${slug}/classroom`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
+                      <Link href={`/dashboard/${slug}/student/tasks`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
                         Ver tareas
                       </Link>
                     ) : notification.resource_type === "appointment" || notification.notification_type === "appointment" ? (
