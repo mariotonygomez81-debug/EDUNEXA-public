@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BookOpen, CalendarClock, CheckCircle2, ClipboardList, Clock3 } from "lucide-react";
+import { ArrowLeft, CalendarClock, CheckCircle2, ClipboardList, Clock3 } from "lucide-react";
+import StudentTaskList from "./student-task-list";
 import { createClient } from "@/lib/supabase/server";
 
 type Classroom = { id: string; title: string; course_name: string; division_name: string; subject_name: string | null };
@@ -68,10 +69,10 @@ export default async function StudentTasksPage({ params }: { params: Promise<{ s
     (b.assignment.due_at ? Date.parse(b.assignment.due_at) : Number.MAX_SAFE_INTEGER));
 
   return (
-    <main className="min-h-screen bg-[#f6f7f4] px-4 py-6 pb-12 text-slate-800 sm:px-7 sm:py-8">
-      <div className="mx-auto max-w-5xl space-y-6">
+    <main className="student-subpage min-h-screen bg-[#f6f7f4 px-4 py-6 pb-12 text-slate-800 sm:px-7 sm:py-8">
+      <div className="student-subpage-content mx-auto max-w-5xl space-y-6">
         <Link href={"/dashboard/" + slug + "/student"} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-emerald-800"><ArrowLeft size={16}/> Volver a mi espacio</Link>
-        <header className="rounded-3xl bg-gradient-to-br from-[#174b3d] via-[#22634d] to-[#4b8064] p-6 text-white shadow-lg sm:p-8">
+        <header className="student-subpage-hero rounded-3xl bg-gradient-to-br from-[#174b3d] via-[#22634d] to-[#4b8064] p-6 text-white shadow-lg sm:p-8">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-bold tracking-[.14em] text-emerald-50"><ClipboardList size={14}/> ORGANIZACIÓN ESCOLAR</span>
           <h1 className="mt-4 text-3xl font-black tracking-tight">Mis tareas</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50">Revisá las actividades de tus aulas, las fechas de entrega y las devoluciones de tus docentes.</p>
@@ -84,35 +85,26 @@ export default async function StudentTasksPage({ params }: { params: Promise<{ s
           {unknownStatusCount > 0 ? <p className="mt-3 text-xs text-white/80">{unknownStatusCount} actividades con estado pendiente de consulta.</p> : null}
         </header>
         {hasPartialError ? <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Algunas actividades no pudieron cargarse. La información disponible se muestra sin habilitar accesos alternativos.</div> : null}
-        {tasks.length ? <section className="space-y-3" aria-label="Listado de tareas">
-          {tasks.map((task) => {
-            const status = statusFor(task, now);
-            const StatusIcon = status.icon;
-            return (
-              <article key={task.assignment.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-emerald-200 sm:p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-emerald-800">{task.classroom.subject_name ?? "Aula general"} · {task.classroom.course_name} · {task.classroom.division_name}</p>
-                    <h2 className="mt-1 text-lg font-bold text-slate-900">{task.assignment.title}</h2>
-                    {task.assignment.instructions ? <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{task.assignment.instructions}</p> : null}
-                  </div>
-                  <span className={"inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold " + status.style}><StatusIcon size={14}/>{status.label}</span>
-                </div>
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
-                  <div className="text-xs text-slate-500"><span className="font-semibold text-slate-700">Fecha límite:</span> {dateLabel(task.assignment.due_at)}{task.submission?.submitted_at ? <span className="ml-2"><span className="font-semibold text-slate-700">Enviada:</span> {dateLabel(task.submission.submitted_at)}</span> : null}</div>
-                  <Link href={"/dashboard/" + slug + "/classroom/" + task.classroom.id + "?section=work#lista-clases"} className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-950 hover:bg-emerald-100"><BookOpen size={14}/> Ver actividad y archivos</Link>
-                </div>
-                {!task.submissionLoadError && task.submission?.score !== null && task.submission?.score !== undefined ? <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Calificación: {task.submission.score}</p> : null}
-                {!task.submissionLoadError && task.submission?.feedback ? <p className="mt-2 rounded-xl bg-sky-50 p-3 text-sm leading-6 text-sky-900">Devolución docente: {task.submission.feedback}</p> : null}
-              </article>
-            );
-          })}
-        </section> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-9 text-center">
-          <ClipboardList className="mx-auto text-emerald-700" size={32}/>
-          <h2 className="mt-3 text-lg font-bold text-slate-900">Todavía no hay tareas publicadas</h2>
-          <p className="mt-1 text-sm text-slate-500">Cuando tus docentes publiquen actividades, vas a encontrarlas acá.</p>
-          <Link href={"/dashboard/" + slug + "/student"} className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Volver al inicio</Link>
-        </div>}
+        <StudentTaskList slug={slug} items={tasks.map((task) => {
+          const status = statusFor(task, now);
+          const submission = task.submission;
+          const statusKind: "pending" | "overdue" | "submitted" | "review" | "unknown" =
+            task.submissionLoadError ? "unknown" :
+            submission?.review_status === "aprobado" || submission?.review_status === "desaprobado" ||
+            submission?.review_status === "corregir" || (submission?.score !== null && submission?.score !== undefined) ? "review" :
+            submission ? "submitted" :
+            task.assignment.due_at && Date.parse(task.assignment.due_at) < now ? "overdue" : "pending";
+          return {
+            id: task.assignment.id, title: task.assignment.title, instructions: task.assignment.instructions,
+            dueLabel: dateLabel(task.assignment.due_at), classroomId: task.classroom.id,
+            classroomName: `${task.classroom.course_name} · ${task.classroom.division_name}`,
+            subjectName: task.classroom.subject_name ?? "Aula general", status: status.label,
+            statusStyle: status.style, statusKind,
+            submittedLabel: submission?.submitted_at ? dateLabel(submission.submitted_at) : null,
+            score: task.submissionLoadError ? null : submission?.score ?? null,
+            feedback: task.submissionLoadError ? null : submission?.feedback ?? null,
+          };
+        })} />
       </div>
     </main>
   );
