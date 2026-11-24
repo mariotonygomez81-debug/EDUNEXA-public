@@ -71,7 +71,8 @@ export default async function NotificationsPage({
     .eq("user_id", user.id).eq("status", "active").maybeSingle();
   if (!membership) redirect("/dashboard");
 
-  const [{ data: notificationRows, error: notificationError }, { data: preferenceRows }, unreadCountResult] = await Promise.all([
+  const [{ data: roleRows, error: roleError }, { data: notificationRows, error: notificationError }, { data: preferenceRows }, unreadCountResult] = await Promise.all([
+    supabase.from("membership_roles").select("roles(key)").eq("membership_id", membership.id).eq("institution_id", institution.id),
     supabase.from("notifications")
       .select("id,notification_type,title,body,resource_type,resource_id,created_at,read_at")
       .eq("institution_id", institution.id)
@@ -89,6 +90,9 @@ export default async function NotificationsPage({
       .is("read_at", null),
   ]);
 
+  if (roleError) throw new Error("No se pudieron verificar tus permisos.");
+  const roleKeys = (roleRows ?? []).map((row) => row.roles?.key).filter(Boolean) as string[];
+  const isStudentOrGuardian = roleKeys.some((role) => role === "student" || role === "guardian");
   const notifications = (notificationRows ?? []) as Notification[];
   const preferences = (preferenceRows ?? []) as Preference[];
   const preferenceMap = new Map(preferences.map((item) => [item.notification_type, item.in_app_enabled]));
@@ -220,7 +224,7 @@ export default async function NotificationsPage({
                         Abrir conversación
                       </Link>
                     ) : notification.resource_type === "assignment" ? (
-                      <Link href={`/dashboard/${slug}/student/tasks`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
+                      <Link href={isStudentOrGuardian ? `/dashboard/${slug}/portal` : `/dashboard/${slug}/student/tasks`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
                         Ver tareas
                       </Link>
                     ) : notification.resource_type === "appointment" || notification.notification_type === "appointment" ? (
@@ -228,7 +232,7 @@ export default async function NotificationsPage({
                         Ver citación
                       </Link>
                     ) : notification.resource_type === "report_card" || notification.notification_type === "report_card" ? (
-                      <Link href={`/dashboard/${slug}/report-cards`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
+                      <Link href={isStudentOrGuardian ? `/dashboard/${slug}/portal` : `/dashboard/${slug}/report-cards`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
                         Ver boletín
                       </Link>
                     ) : <span />}
