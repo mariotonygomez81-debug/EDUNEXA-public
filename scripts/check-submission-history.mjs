@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 const migration = readFileSync("supabase/migrations/20261124040000_submission_file_history_audit.sql", "utf8").toLowerCase();
 const reader = readFileSync("supabase/migrations/20261124030000_scoped_submission_history_reader.sql", "utf8").toLowerCase();
 const fileListing = readFileSync("supabase/migrations/20261120213440_add_scoped_classroom_file_listing.sql", "utf8").toLowerCase();
+const submissionScope = readFileSync("supabase/migrations/20261120042544_scope_classroom_submissions.sql", "utf8").toLowerCase();
 const roster = readFileSync("src/app/dashboard/[slug]/classroom/[classroomId]/submission-roster.tsx", "utf8").toLowerCase();
 
 const checks = [
