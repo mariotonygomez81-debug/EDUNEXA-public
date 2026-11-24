@@ -30,15 +30,14 @@ begin
     raise exception 'Submission/review status was not returned correctly';
   end if;
 
-  begin
-    perform * from public.list_my_child_assignment_progress(
-      '30000000-0000-0000-0000-000000000001',
-      '60000000-0000-0000-0000-000000000002'
-    );
-    raise exception 'Guardian unexpectedly accessed an unlinked child';
-  exception when insufficient_privilege then
-    null;
-  end;
+  select count(*) into v_count
+  from public.list_my_child_assignment_progress(
+    '30000000-0000-0000-0000-000000000001',
+    '60000000-0000-0000-0000-000000000002'
+  );
+  if v_count <> 0 then
+    raise exception 'Unlinked child returned academic progress';
+  end if;
 
   select count(*) into v_count
   from public.list_my_child_assignment_progress(
