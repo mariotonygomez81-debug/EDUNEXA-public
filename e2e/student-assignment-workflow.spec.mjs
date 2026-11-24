@@ -70,12 +70,12 @@ test("student private draft, cross-tab conflict, PDF submission, teacher downloa
   const secondEditor = secondCard.getByRole("textbox", { name: "Contenido de la tarea" });
   await expect(secondEditor).toContainText("BORRADOR PRIVADO EDUNEXA", { timeout: 30_000 });
   await editor.click();
-  await editor.press("End");
+  await editor.press("Control+End");
   await editor.press("Enter");
   await editor.type("Versión de primera pestaña.");
   await expect(studentCard.getByText(/Borrador privado sincronizado/)).toContainText("versión 2", { timeout: 30_000 });
   await secondEditor.click();
-  await secondEditor.press("End");
+  await secondEditor.press("Control+End");
   await secondEditor.press("Enter");
   await secondEditor.type("Versión elegida desde segunda pestaña.");
   await expect(secondCard.getByRole("alert")).toContainText("otra versión guardada", { timeout: 30_000 });
