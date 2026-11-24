@@ -435,9 +435,15 @@ export default function StudentAssignmentEditor({
       if (uploadError) throw new Error("La respuesta se guardó, pero falló la carga del PDF. Podés adjuntarlo nuevamente.");
       const { error: finalizeError } = await supabase.rpc("finalize_classroom_file_upload", { p_file_id: intent.file_id });
       if (finalizeError) throw new Error("El PDF se cargó, pero no pudo validarse. Volvé a intentarlo desde los archivos adjuntos.");
+      const draftRpc = supabase as unknown as DraftRpcClient;
+      const { error: cleanupError } = await draftRpc.rpc("delete_my_student_assignment_draft_after_submission", {
+        p_assignment_id: assignmentId,
+      });
       setSaved(true);
       try { sessionStorage.removeItem(draftKey); } catch { /* storage unavailable */ }
-      setMessage("¡Tarea entregada! El documento PDF quedó adjunto para tu docente.");
+      setMessage(cleanupError
+        ? "¡Tarea entregada! El PDF quedó adjunto; conservamos el borrador privado por seguridad."
+        : "¡Tarea entregada! El documento PDF quedó adjunto para tu docente.");
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No se pudo completar la entrega.");
