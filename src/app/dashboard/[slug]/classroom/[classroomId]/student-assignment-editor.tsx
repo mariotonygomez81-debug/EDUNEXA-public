@@ -221,7 +221,6 @@ export default function StudentAssignmentEditor({
   const [header, setHeader] = useState("");
   const [footer, setFooter] = useState("");
   const [draftStatus, setDraftStatus] = useState("Preparando borrador privado…");
-  const [draftRevision, setDraftRevision] = useState(0);
   const [draftReady, setDraftReady] = useState(false);
   const [draftSaveNonce, setDraftSaveNonce] = useState(0);
   const [conflictDraft, setConflictDraft] = useState<DraftSnapshot | null>(null);
@@ -261,7 +260,6 @@ export default function StudentAssignmentEditor({
           setFooter(typeof remote.footer === "string" ? remote.footer : "");
           const revision = Number(remote.revision) || 0;
           draftRevisionRef.current = revision;
-          setDraftRevision(revision);
           setDraftStatus("Borrador privado recuperado de tu cuenta");
         } else {
           restoreLocal();
@@ -309,7 +307,6 @@ export default function StudentAssignmentEditor({
         const revision = Number(result?.revision);
         if (!result?.saved || !Number.isInteger(revision)) throw new Error("Respuesta de guardado inválida");
         draftRevisionRef.current = revision;
-        setDraftRevision(revision);
         setDraftStatus("Borrador privado sincronizado · versión " + revision);
       } catch {
         setDraftStatus("No se pudo sincronizar; tu copia local sigue disponible");
@@ -327,7 +324,6 @@ export default function StudentAssignmentEditor({
     setFooter(conflictDraft.footer || "");
     const revision = Number(conflictDraft.revision) || 0;
     draftRevisionRef.current = revision;
-    setDraftRevision(revision);
     setConflictDraft(null);
     setDraftStatus("Se cargó la versión más reciente del servidor");
   }
@@ -335,7 +331,6 @@ export default function StudentAssignmentEditor({
   function keepLocalDraft() {
     if (!conflictDraft) return;
     draftRevisionRef.current = Number(conflictDraft.revision) || 0;
-    setDraftRevision(draftRevisionRef.current);
     setConflictDraft(null);
     setDraftStatus("Guardando tu versión sobre la última versión del servidor…");
     setDraftSaveNonce((value) => value + 1);
