@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BookOpen, CalendarCheck, FileText, GraduationCap, MessageCircle, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Bell, BookOpen, CalendarCheck, CheckCheck, FileText, GraduationCap, MessageCircle, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 type PublishedReportCard = {
@@ -22,6 +22,17 @@ type PublishedReportCard = {
       assessments?: { title: string; score: number | null; maximum_score: number; weight_percent: number | null }[];
     }[];
   };
+};
+
+type PortalNotification = {
+  id: string;
+  notification_type: string;
+  title: string;
+  body: string;
+  resource_type: string;
+  resource_id: string;
+  created_at: string;
+  read_at: string | null;
 };
 
 type PortalStudent = {
@@ -48,6 +59,24 @@ type PortalStudent = {
   published_report_card_count: number;
   latest_report_card_at: string | null;
 };
+
+function notificationLabel(type: string) {
+  const labels: Record<string, string> = {
+    message: "Mensaje", announcement: "Comunicado", appointment: "Citación",
+    report_card: "Boletín", grade: "Calificación", attendance: "Asistencia",
+    assignment_due: "Tarea", support: "Aviso institucional",
+  };
+  return labels[type] ?? "Notificación";
+}
+
+function notificationHref(slug: string, item: PortalNotification) {
+  if (item.resource_type === "announcement") return `/dashboard/${slug}/announcements`;
+  if (item.resource_type === "conversation") return `/dashboard/${slug}/messages/${item.resource_id}`;
+  if (item.resource_type === "appointment" || item.notification_type === "appointment") return `/dashboard/${slug}/appointments`;
+  if (item.resource_type === "report_card" || item.notification_type === "report_card" || item.notification_type === "grade") return `/dashboard/${slug}/report-cards`;
+  if (item.resource_type === "assignment") return `/dashboard/${slug}/classroom`;
+  return `/dashboard/${slug}/notifications`;
+}
 
 function dateLabel(value: string | null) {
   if (!value) return "Sin registros";
@@ -180,6 +209,22 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
     .eq("user_id", user.id).eq("status", "active").maybeSingle();
   if (!membership) redirect("/dashboard");
 
+  const [{ data: notificationRows, error: notificationError }, unreadResult] = await Promise.all([
+    supabase.from("notifications")
+      .select("id,notification_type,title,body,resource_type,resource_id,created_at,read_at")
+      .eq("institution_id", institution.id)
+      .eq("recipient_membership_id", membership.id)
+      .order("created_at", { ascending: false })
+      .limit(8),
+    supabase.from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("institution_id", institution.id)
+      .eq("recipient_membership_id", membership.id)
+      .is("read_at", null),
+  ]);
+  const portalNotifications = (notificationRows ?? []) as PortalNotification[];
+  const unreadNotifications = unreadResult.count ?? 0;
+
   const { data: rows, error } = await supabase.rpc("list_my_portal_students", {
     p_institution_id: institution.id,
   });
@@ -212,6 +257,49 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
             Consultá la información académica habilitada para tu cuenta en {institution.display_name}.
           </p>
         </header>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-amber-100 p-3 text-amber-700"><Bell size={21} /></div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Notificaciones</h2>
+                <p className="text-sm text-slate-500">Mensajes, comunicados, citaciones, boletines y novedades académicas.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="rounded-full bg-violet-100 px-3 py-1.5 text-xs font-semibold text-violet-800">{unreadNotifications} sin leer</span>
+              <Link href={`/dashboard/${slug}/notifications`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">Ver todas</Link>
+            </div>
+          </div>
+          {notificationError ? (
+            <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900" role="alert">No fue posible cargar las notificaciones.</p>
+          ) : portalNotifications.length ? (
+            <ul className="mt-4 divide-y divide-slate-100">
+              {portalNotifications.map((item) => (
+                <li key={item.id} className="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${item.read_at ? "bg-slate-300" : "bg-violet-600"}`} aria-label={item.read_at ? "Leída" : "No leída"} />
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{notificationLabel(item.notification_type)}</span>
+                        <time className="text-[11px] text-slate-400">{dateLabel(item.created_at)}</time>
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-slate-800">{item.title}</p>
+                      <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs leading-5 text-slate-500">{item.body}</p>
+                    </div>
+                  </div>
+                  <Link href={notificationHref(slug, item)} className="shrink-0 text-xs font-semibold text-violet-700 hover:text-violet-900">Abrir</Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-4 rounded-xl border border-dashed border-slate-200 p-5 text-center">
+              <CheckCheck className="mx-auto text-slate-300" size={24} />
+              <p className="mt-2 text-sm text-slate-500">No tenés notificaciones nuevas.</p>
+            </div>
+          )}
+        </section>
 
         {error ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="alert">
