@@ -76,13 +76,13 @@ export default async function MessagesPage({
   const conversations = (conversationsResult.data ?? []) as Conversation[];
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
+    <main className="student-subpage min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
         <Link href={`/dashboard/${slug}`} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-violet-700">
           <ArrowLeft size={16} /> Volver al espacio institucional
         </Link>
 
-        <header className="rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-violet-900 p-7 text-white shadow-sm sm:p-9">
+        <header className="student-subpage-hero rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-violet-900 p-7 text-white shadow-sm sm:p-9">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-indigo-100">
             <MessagesSquare size={14} /> MENSAJERÍA PRIVADA
           </span>
@@ -102,7 +102,7 @@ export default async function MessagesPage({
           </div>
         ) : null}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="student-panel rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center gap-3">
             <div className="rounded-xl bg-violet-100 p-3 text-violet-700"><Plus size={21} /></div>
             <div>
@@ -114,7 +114,7 @@ export default async function MessagesPage({
           {contactsResult.error ? (
             <p className="text-sm text-amber-800">No fue posible cargar los contactos habilitados.</p>
           ) : contacts.length ? (
-            <form action={createDirectConversation} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <form action={createDirectConversation} className="student-interactive-form grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <input type="hidden" name="slug" value={slug} />
               <label className="block text-sm font-medium text-slate-700">
                 Contacto
@@ -147,7 +147,7 @@ export default async function MessagesPage({
           )}
         </section>
 
-        <section className="space-y-4">
+        <section className="student-stagger space-y-4">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">Tus conversaciones</h2>
             <p className="text-sm text-slate-500">Los mensajes y las confirmaciones de lectura son privados para sus participantes.</p>
