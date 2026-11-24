@@ -222,7 +222,7 @@ export default async function GradesPage({
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-100 bg-violet-50 p-4">
           <div><p className="font-semibold text-violet-950">Boletines de calificaciones</p><p className="mt-1 text-sm text-violet-800">Consultá el resumen académico por alumno y período.</p></div>
-          <Link href={`/dashboard/${slug}/report-cards`} className="rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800">Abrir boletines</Link>
+          <Link href={`/dashboard/${slug}/report-cards`} style={{ color: "#ffffff" }} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-violet-700 px-5 py-2.5 text-sm font-semibold !text-white shadow-sm transition-colors hover:bg-violet-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2">Abrir boletines</Link>
         </div>
 
 
