@@ -29,6 +29,7 @@ const roleLabels: Record<string, string> = {
   prefect: "Preceptor",
   student: "Estudiante",
   guardian: "Familia",
+  previous_subject_contact: "Materia previa",
 };
 
 function formatDate(value: string | null) {
