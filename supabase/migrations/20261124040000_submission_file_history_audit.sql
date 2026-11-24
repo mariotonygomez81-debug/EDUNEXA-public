@@ -1,14 +1,14 @@
 -- Keep a tamper-resistant, scoped event for every finalized submission attachment.
 CREATE TABLE public.submission_file_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
+  institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE RESTRICT,
   submission_id uuid NOT NULL,
-  file_id uuid NOT NULL UNIQUE REFERENCES public.classroom_file_objects(id) ON DELETE CASCADE,
-  changed_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  file_id uuid NOT NULL UNIQUE REFERENCES public.classroom_file_objects(id) ON DELETE RESTRICT,
+  changed_by uuid, -- immutable actor snapshot; intentionally no FK to auth.users
   changed_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT submission_file_events_submission_scope_fkey
     FOREIGN KEY (submission_id, institution_id)
-    REFERENCES public.submissions(id, institution_id) ON DELETE CASCADE
+    REFERENCES public.submissions(id, institution_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX submission_file_events_submission_idx
@@ -110,6 +110,7 @@ AS $function$
               AND cm.institution_id = f.institution_id
               AND cm.classroom_id = f.classroom_id
               AND cm.file_path = f.object_path
+              AND (cm.published_at IS NOT NULL OR private.can_access_classroom(f.classroom_id, f.institution_id, 'classroom.manage'))
               AND private.can_access_classroom(f.classroom_id, f.institution_id, 'classroom.read')
           )
         )
@@ -203,8 +204,7 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION private.get_submission_history_impl(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION private.get_submission_history_impl(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION private.get_submission_history_impl(uuid) FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.get_classroom_submission_history(p_submission_id uuid)
 RETURNS jsonb
