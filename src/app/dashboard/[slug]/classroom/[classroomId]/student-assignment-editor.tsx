@@ -117,6 +117,20 @@ async function createTaskPdf(title: string, body: string, header = "", footer = 
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line) { y -= 8; continue; }
+    const imageMatch = line.match(/^\[\[EDUNEXA_IMAGE:(data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+)\]\]$/);
+    if (imageMatch) {
+      try {
+        const parts = imageMatch[1].split(";base64,");
+        const bytes = Uint8Array.from(atob(parts[1]), (ch) => ch.charCodeAt(0));
+        const image = parts[0] === "data:image/png" ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes);
+        const scale = Math.min(1, (page.getWidth() - margin * 2) / image.width, 220 / image.height);
+        const width = image.width * scale, height = image.height * scale;
+        if (y - height < margin + lineHeight) addPage();
+        page.drawImage(image, { x: margin, y: y - height, width, height });
+        y -= height + 14;
+      } catch { drawWrapped("[Imagen no compatible]", italic, 9); }
+      continue;
+    }
     if (/^#{1,2}\s/.test(line)) {
       y -= 5;
       drawWrapped(line.replace(/^#{1,2}\s/, ""), bold, line.startsWith("# ") ? 15 : 13);
