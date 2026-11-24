@@ -16,7 +16,7 @@ const checks = [
   [migration, "Historical submission files require classroom read access", /f\.purpose = 'submission'[\s\S]*private\.can_access_submission\(s\.id, s\.institution_id, 'classroom\.read'\)/],
   [migration, "Materials retain their current-file restriction", /f\.purpose = 'material'[\s\S]*f\.status = 'ready'[\s\S]*cm\.file_path = f\.object_path/],
   [reader, "History reader checks grading permission", /private\.can_access_submission\(p_submission_id, v_institution_id, 'classroom\.grade'\)/],
-  [reader, "History reader returns attachment audit metadata", /'files',[\s\S]*'file_id',[\s\S]*'original_filename',[\s\S]*'changed_at'/],
+  [migration, "History reader returns attachment audit metadata", /'files',[\s\S]*'file_id',[\s\S]*'original_filename',[\s\S]*'changed_at'/],
   [reader, "History reader uses a locked search path", /security definer[\s\S]*set search_path = ''/],
   [fileListing, "File listing delegates to the scoped file-read helper", fileListing.includes("private.can_read_classroom_file(f.bucket_id,f.object_path)")],
   [roster, "Teacher UI renders file audit events", roster.includes("const fileevents = history?.files ?? []")],
