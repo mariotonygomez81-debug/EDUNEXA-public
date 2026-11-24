@@ -91,6 +91,13 @@ create table public.submissions (
   review_status text
 );
 
+create table private.fixture_membership_permissions (
+  membership_id uuid not null,
+  institution_id uuid not null,
+  permission_key text not null,
+  primary key (membership_id, institution_id, permission_key)
+);
+
 create or replace function private.has_institution_permission(
   p_institution_id uuid,
   p_permission_key text
@@ -100,19 +107,22 @@ stable
 security definer
 set search_path = ''
 as $function$
-  select p_permission_key in ('classroom.read', 'grades.read')
-    and exists (
-      select 1
-      from public.memberships m
-      join public.membership_roles mr
-        on mr.membership_id = m.id
-       and mr.institution_id = m.institution_id
-      join public.roles r on r.id = mr.role_id
-      where m.user_id = (select auth.uid())
-        and m.institution_id = p_institution_id
-        and m.status = 'active'
-        and r.key = 'guardian'
-    );
+  select exists (
+    select 1
+    from public.memberships m
+    join public.membership_roles mr
+      on mr.membership_id = m.id
+     and mr.institution_id = m.institution_id
+    join public.roles r on r.id = mr.role_id
+    join private.fixture_membership_permissions fp
+      on fp.membership_id = m.id
+     and fp.institution_id = m.institution_id
+     and fp.permission_key = p_permission_key
+    where m.user_id = (select auth.uid())
+      and m.institution_id = p_institution_id
+      and m.status = 'active'
+      and r.key = 'guardian'
+  );
 $function$;
 
 create or replace function private.can_access_student(
@@ -162,6 +172,14 @@ insert into public.membership_roles (membership_id,institution_id,role_id) value
   ('20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001'),
   ('20000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001'),
   ('20000000-0000-0000-0000-000000000003','30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001');
+
+insert into private.fixture_membership_permissions (membership_id,institution_id,permission_key) values
+  ('20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.read'),
+  ('20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','grades.read'),
+  ('20000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','classroom.read'),
+  ('20000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','grades.read'),
+  ('20000000-0000-0000-0000-000000000003','30000000-0000-0000-0000-000000000001','classroom.read'),
+  ('20000000-0000-0000-0000-000000000003','30000000-0000-0000-0000-000000000001','grades.read');
 
 insert into public.guardians (id,institution_id,membership_id) values
   ('50000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001'),
