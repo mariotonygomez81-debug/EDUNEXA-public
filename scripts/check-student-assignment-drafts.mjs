@@ -27,8 +27,8 @@ const checks = [
 
 let failed = false;
 for (const [label, passed] of checks) {
-  process.stdout.write(\`\${passed ? "PASS" : "FAIL"} \${label}\n\`);
+  process.stdout.write((passed ? "PASS" : "FAIL") + " " + label + "\n");
   if (!passed) failed = true;
 }
 if (failed) process.exit(1);
-process.stdout.write(\`Validated \${checks.length} student draft persistence security checks.\n\`);
+process.stdout.write("Validated " + checks.length + " student draft persistence security checks.\n");
