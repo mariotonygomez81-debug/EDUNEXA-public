@@ -146,7 +146,7 @@ create or replace function public.set_report_card_publication_audience(
   p_workflow_id uuid,
   p_audience text
 ) returns void
-language plpgsql security invoker set search_path = ''
+language plpgsql security definer set search_path = ''
 as $function$
 declare
   v_institution_id uuid;
