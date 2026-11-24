@@ -5,7 +5,8 @@ import { signOut } from "../actions";
 import { WorkspaceExperience } from "./workspace-experience";
 
 const modules: { name: string; detail: string; icon: string; href: string; permission: string; roles?: string[]; category: "Académico" | "Gestión" | "Comunidad" }[] = [
-  { name: "Alumnos", detail: "Legajos y trayectorias", icon: "students", href: "students", permission: "students.read", category: "Académico" as const },
+  { name: "Alumnos", detail: "Legajos y trayectorias", icon: "students", href: "students", permission: "students.read", roles: ["institution_admin", "administrative", "director", "secretary", "teacher", "prefect"], category: "Académico" as const },
+  { name: "Mi espacio de alumno", detail: "Mis aulas, actividades y aprendizaje", icon: "portal", href: "student", permission: "institution.read", roles: ["student"], category: "Académico" as const },
   { name: "Gestión administrativa", detail: "Documentación, trámites y registros internos", icon: "administrative", href: "administrative", permission: "administrative_records.read", roles: ["institution_admin", "administrative"], category: "Gestión" as const },
   { name: "Asistencia", detail: "Presentismo y justificaciones", icon: "attendance", href: "attendance", permission: "attendance.read", roles: ["institution_admin", "administrative", "director", "teacher", "prefect"], category: "Académico" as const },
   { name: "Calificaciones", detail: "Evaluaciones, notas y boletines", icon: "grades", href: "grades", permission: "grades.read", roles: ["institution_admin", "administrative", "director", "teacher"], category: "Académico" as const },
@@ -36,7 +37,6 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
     .select("roles(key,name)").eq("membership_id", membership.id);
   const roleNames = (roleRows ?? []).map((row) => row.roles?.name).filter(Boolean) as string[];
   const roleKeys = (roleRows ?? []).map((row) => row.roles?.key).filter(Boolean) as string[];
-  if (roleKeys.includes("student") && !roleKeys.includes("teacher") && !roleKeys.includes("guardian")) redirect(`/dashboard/${slug}/student`);
   const permissions = await getMembershipPermissions(supabase, membership.id);
   const visibleModules = modules.filter((module) =>
     permissions.has(module.permission) && (module.roles?.some((role) => roleKeys.includes(role)) ?? true)
