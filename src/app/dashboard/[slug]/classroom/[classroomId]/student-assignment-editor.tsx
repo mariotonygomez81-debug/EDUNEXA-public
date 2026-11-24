@@ -214,13 +214,9 @@ export default function StudentAssignmentEditor({
     if (!plainTextFromHtml(editorRef.current?.innerHTML ?? html)) { setMessage("Escribí el contenido de tu tarea antes de generar el PDF."); return; }
     try {
       const blob = await createTaskPdf(assignmentTitle, text, header, footer);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = "Tarea-" + assignmentTitle.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").slice(0, 55) + ".pdf";
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setMessage("PDF generado. Al enviar la tarea, también se adjuntará automáticamente.");
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(blob));
+      setMessage("Vista previa del PDF lista. Revisá el documento antes de entregarlo.");
     } catch {
       setMessage("No se pudo generar el PDF. Probá nuevamente.");
     }
@@ -329,7 +325,7 @@ export default function StudentAssignmentEditor({
         />
         {locked ? <p className="mt-2 text-xs text-amber-700">Esta entrega ya tiene calificación y no puede modificarse.</p> : null}
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" onClick={downloadPdf} disabled={busy || locked} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><FileDown size={16}/> Descargar vista previa PDF</button>
+          <button type="button" onClick={downloadPdf} disabled={busy || locked} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Eye size={16}/> Vista previa PDF</button>
           <button type="button" onClick={submit} disabled={busy || locked || saved} className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-400">{busy ? <LoaderCircle className="animate-spin" size={17}/> : saved ? <CheckCircle2 size={17}/> : <Send size={16}/>} {busy ? "Preparando y entregando..." : saved ? "Entrega realizada" : existingSubmissionId ? "Actualizar entrega y PDF" : "Entregar tarea en PDF"}</button>
         </div>
         {message ? <p role="status" aria-live="polite" className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700">{message}</p> : null}
