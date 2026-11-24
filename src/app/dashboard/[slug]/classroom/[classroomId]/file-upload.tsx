@@ -96,7 +96,6 @@ export default function ClassroomFileUpload({
           disabled={busy}
           className="sr-only"
           onChange={(event) => {
-            const file = event.currentTarget.files?.[0];
             void uploadFiles(event.currentTarget.files);
             event.currentTarget.value = "";
           }}
