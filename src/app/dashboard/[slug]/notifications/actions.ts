@@ -54,7 +54,7 @@ export async function setNotificationPreference(formData: FormData) {
   const enabled = formData.getAll("enabled").some((value) => value === "true");
 
   if (!/^[a-z0-9-]{2,80}$/i.test(slug) ||
-      !["announcement", "message", "grade", "attendance", "support"].includes(notificationType)) {
+      !["announcement", "message", "grade", "attendance", "support", "assignment_due"].includes(notificationType)) {
     back(slug, "error=invalid");
   }
 
