@@ -45,6 +45,8 @@ jobs:
         run: npm run check:submission-history
       - name: Validate private student assignment drafts
         run: npm run check:student-drafts
+      - name: Validate student assignment due reminders
+        run: npm run check:assignment-reminders
       - name: Build
         run: npm run build
       - name: Smoke test public routes
