@@ -35,6 +35,8 @@ function richTextFromHtml(html: string) {
     if (tag === "h2") return "# " + inner.trim() + "\n\n";
     if (tag === "h3") return "## " + inner.trim() + "\n\n";
     if (tag === "li") return "- " + inner.trim() + "\n";
+    if (["strong","b"].includes(tag)) return "**" + inner + "**";
+    if (["em","i"].includes(tag)) return "*" + inner + "*";
     if (["p","div","ul","ol"].includes(tag)) return inner.trim() + "\n";
     if (tag === "br") return "\n";
     return inner;
@@ -56,6 +58,7 @@ async function createTaskPdf(title: string, body: string) {
   const pdf = await PDFDocument.create();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const italic = await pdf.embedFont(StandardFonts.HelveticaOblique);
   const pageSize: [number, number] = [595.28, 841.89];
   const margin = 54;
   const fontSize = 11;
@@ -69,22 +72,33 @@ async function createTaskPdf(title: string, body: string) {
   };
   const drawWrapped = (text: string, font = regular, size = fontSize, indent = 0) => {
     const maxWidth = page.getWidth() - margin * 2 - indent;
-    const words = text.split(/\s+/);
-    let line = "";
-    for (const word of words) {
-      const candidate = line ? line + " " + word : word;
-      if (line && font.widthOfTextAtSize(candidate, size) > maxWidth) {
-        if (y < margin + lineHeight) addPage();
-        page.drawText(line, { x: margin + indent, y, size, font, color: rgb(0.16, 0.20, 0.24) });
-        y -= lineHeight;
-        line = word;
-      } else line = candidate;
-    }
-    if (line) {
+    const tokens = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).filter(Boolean);
+    let runs: { text: string; font: typeof regular }[] = [];
+    let lineWidth = 0;
+    const flushLine = () => {
+      if (!runs.length) return;
       if (y < margin + lineHeight) addPage();
-      page.drawText(line, { x: margin + indent, y, size, font, color: rgb(0.16, 0.20, 0.24) });
+      let x = margin + indent;
+      for (const run of runs) {
+        page.drawText(run.text, { x, y, size, font: run.font, color: rgb(0.16, 0.20, 0.24) });
+        x += run.font.widthOfTextAtSize(run.text, size);
+      }
       y -= lineHeight;
+      runs = [];
+      lineWidth = 0;
+    };
+    for (const token of tokens) {
+      const tokenFont = token.startsWith("**") ? bold : token.startsWith("*") ? italic : font;
+      const clean = token.replace(/^\*\*|\*\*$/g, "").replace(/^\*|\*$/g, "");
+      const pieces = clean.match(/\S+\s*/g) ?? [];
+      for (const piece of pieces) {
+        const width = tokenFont.widthOfTextAtSize(piece, size);
+        if (lineWidth > 0 && lineWidth + width > maxWidth) flushLine();
+        runs.push({ text: piece, font: tokenFont });
+        lineWidth += width;
+      }
     }
+    flushLine();
   };
 
   const pdfTitle = title.replace(/[^\u0000-\u00FF]/g, "?").slice(0, 90);
