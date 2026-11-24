@@ -210,7 +210,7 @@ end;
 $function$;
 
 revoke all on function private.is_staff_assigned_to_previous_subject(uuid,uuid,uuid) from public,anon;
-grant execute on function private.is_staff_assigned_to_previous_subject(uuid,uuid,uuid) to authenticated;
+revoke all on function private.is_staff_assigned_to_previous_subject(uuid,uuid,uuid) from public,anon,authenticated;
 revoke all on function private.can_message_members(uuid,uuid,uuid) from public,anon,authenticated;
 revoke all on function private.list_messageable_contacts_impl(uuid) from public,anon;
 grant execute on function private.list_messageable_contacts_impl(uuid) to authenticated;
