@@ -10,7 +10,7 @@ import {
 
 type Section = "resumen" | "tareas" | "calificaciones" | "boletines" | "avisos" | "perfil" | "hijos";
 
-const initialStudents = [
+const students = [
   {
     id: "sofia",
     name: "Sofía Gómez",
@@ -80,7 +80,7 @@ function Status({ value }: { value: string }) {
 }
 
 export default function TutorDemo() {
-  const [students, setStudents] = useState(initialStudents);
+  const [studentRecords, setStudentRecords] = useState(students);
   const [activeStudent, setActiveStudent] = useState("sofia");
   const [section, setSection] = useState<Section>("resumen");
   const [tutorProfile, setTutorProfile] = useState({ fullName: "", email: "tutor.demo@edunexa.test", phone: "", address: "", relationship: "Madre / Padre / Tutor" });
@@ -91,7 +91,7 @@ export default function TutorDemo() {
   const [notificationFilter, setNotificationFilter] = useState<"Todas" | "Sin leer" | "Leídas">("Todas");
   const [taskSearch, setTaskSearch] = useState("");
   const [taskStatus, setTaskStatus] = useState("Todas");
-  const student = students.find((item) => item.id === activeStudent) ?? students[0];
+  const student = studentRecords.find((item) => item.id === activeStudent) ?? students[0];
   const profileCompletion = [tutorProfile.fullName, tutorProfile.email, tutorProfile.phone, tutorProfile.address].filter((value) => value.trim()).length;
   const unread = notifications.length - readNotifications.length;
   const filteredNotifications = notifications.filter((item) => notificationFilter === "Todas" || (notificationFilter === "Sin leer" ? !readNotifications.includes(item.title) : readNotifications.includes(item.title)));
@@ -130,7 +130,7 @@ export default function TutorDemo() {
       attendance: { present: 0, absent: 0, late: 0, justified: 0 },
       grades: [], tasks: [],
     };
-    setStudents((current) => [...current, newStudent]);
+    setStudentRecords((current) => [...current, newStudent]);
     setActiveStudent(newStudent.id);
     setChildForm({ name: "", level: "Primario", course: "", division: "", institutionCode: "" });
     setChildMessage("Estudiante agregado a esta demostración. La vinculación real requiere validación de la institución.");
@@ -170,7 +170,7 @@ export default function TutorDemo() {
           <div className="mt-6 flex flex-wrap gap-2 text-xs text-indigo-100">
             <span className="rounded-lg border border-white/15 bg-white/10 px-3 py-2">Institución demostrativa</span>
             <span className="rounded-lg border border-white/15 bg-white/10 px-3 py-2">Ciclo lectivo 2026</span>
-            <span className="rounded-lg border border-white/15 bg-white/10 px-3 py-2">{students.length} estudiantes vinculados</span>
+            <span className="rounded-lg border border-white/15 bg-white/10 px-3 py-2">{studentRecords.length} estudiantes vinculados</span>
           </div>
         </div>
       </header>
@@ -180,7 +180,7 @@ export default function TutorDemo() {
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-900"><UserRound size={17} className="text-violet-600" /> Estudiantes vinculados</div>
             <div className="space-y-2">
-              {students.map((item) => (
+              {studentRecords.map((item) => (
                 <button key={item.id} onClick={() => selectStudent(item.id)} aria-pressed={activeStudent === item.id}
                   className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${activeStudent === item.id ? "border-violet-300 bg-violet-50 ring-2 ring-violet-100" : "border-slate-100 hover:bg-slate-50"}`}>
                   <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold ${activeStudent === item.id ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-600"}`}>{item.initials}</span>
