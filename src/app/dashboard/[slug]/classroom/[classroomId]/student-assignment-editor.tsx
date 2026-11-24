@@ -283,6 +283,7 @@ export default function StudentAssignmentEditor({
       return;
     }
     const currentHtml = editorRef.current?.innerHTML ?? html;
+    if (!plainTextFromHtml(currentHtml) && !currentHtml.includes("<img") && !header.trim() && !footer.trim() && draftRevisionRef.current === 0) return;
     const localSnapshot = { html: currentHtml, header, footer };
     try { sessionStorage.setItem(draftKey, JSON.stringify(localSnapshot)); } catch { /* local backup is best effort */ }
     const timer = window.setTimeout(async () => {
