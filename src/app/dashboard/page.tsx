@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { ArrowRight, Building2, LogOut, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Building2, LogOut, ShieldCheck } from "lucide-react";
 import { EdunexaMark } from "@/components/brand/edunexa-mark";
 import { signOut } from "./actions";
 
@@ -17,21 +18,23 @@ export default async function DashboardPage() {
     supabase.from("memberships").select("id,institution_id,status").eq("user_id", user.id).eq("status", "active"),
   ]);
 
-  if (!membershipError && memberships?.length === 1) {
-    const { data: institution } = await supabase
-      .from("institutions")
-      .select("slug")
-      .eq("id", memberships[0].institution_id)
-      .maybeSingle();
+  const institutionIds = [...new Set((memberships ?? []).map((membership) => membership.institution_id))];
+  const { data: institutions, error: institutionsError } = institutionIds.length
+    ? await supabase.from("institutions").select("id,display_name,slug,status")
+        .in("id", institutionIds).eq("status", "active").order("display_name")
+    : { data: [], error: null };
 
-    if (institution?.slug) redirect(`/dashboard/${institution.slug}`);
+  const availableInstitutions = institutions ?? [];
+  if (!membershipError && !institutionsError && availableInstitutions.length === 1) {
+    redirect(`/dashboard/${availableInstitutions[0].slug}`);
   }
 
   const displayName = profile?.display_name ||
     [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
     "Usuario";
 
-  const hasUnexpectedMultipleMemberships = (memberships?.length ?? 0) > 1;
+  const hasAccessLookupError = Boolean(membershipError || institutionsError);
+  const hasNoActiveInstitution = !hasAccessLookupError && availableInstitutions.length === 0;
 
   return (
     <main className="member-shell">
@@ -48,26 +51,54 @@ export default async function DashboardPage() {
         <div className="member-welcome">
           <span className="visual-kicker"><ShieldCheck size={14} /> SESIÓN VERIFICADA</span>
           <h1>¡Hola, {displayName}!</h1>
-          <p>Acceso a la instalación de tu institución educativa.</p>
+          <p>Accedé a tus instituciones educativas desde una sola cuenta.</p>
         </div>
-        <div className="onboarding-card">
-          <div className="simple-icon"><Building2 size={25} /></div>
-          {hasUnexpectedMultipleMemberships ? (
-            <>
-              <h2>Necesitamos revisar tu cuenta</h2>
-              <p>Esta instalación corresponde a un solo colegio. Tu cuenta tiene más de una relación institucional activa, por lo que bloqueamos el acceso hasta corregir esa configuración.</p>
-            </>
-          ) : (
-            <>
-              <h2>Tu cuenta todavía no tiene acceso institucional</h2>
-              <p>La autenticación fue correcta, pero todavía no encontramos una relación activa con este colegio. El administrador institucional deberá habilitar tu cuenta.</p>
-            </>
-          )}
-          <div className="secure-caption">
-            <ShieldCheck size={17} />
-            <span>Esta instalación está dedicada a una sola institución. No se permite seleccionar ni consultar otros colegios desde esta cuenta.</span>
+
+        {hasAccessLookupError ? (
+          <div className="onboarding-card" role="alert">
+            <div className="simple-icon"><ShieldCheck size={25} /></div>
+            <h2>No pudimos verificar tus instituciones</h2>
+            <p>Por seguridad, no habilitamos el acceso hasta poder comprobar tus membresías. Actualizá la página o contactá al administrador.</p>
           </div>
-        </div>
+        ) : hasNoActiveInstitution ? (
+          <div className="onboarding-card">
+            <div className="simple-icon"><Building2 size={25} /></div>
+            <h2>Tu cuenta todavía no tiene acceso institucional</h2>
+            <p>La autenticación fue correcta, pero no encontramos una membresía activa en una institución habilitada. El administrador deberá autorizar tu cuenta.</p>
+            <div className="secure-caption">
+              <ShieldCheck size={17} />
+              <span>Los datos de cada institución permanecen aislados y sólo se muestran después de verificar tu membresía.</span>
+            </div>
+          </div>
+        ) : (
+          <section className="onboarding-card" aria-labelledby="institution-list-title">
+            <div className="simple-icon"><Building2 size={25} /></div>
+            <h2 id="institution-list-title">Seleccioná tu institución</h2>
+            <p>Tu cuenta tiene acceso a más de una institución. Elegí dónde querés trabajar; tus permisos se verificarán nuevamente al ingresar.</p>
+            <div className="mt-6 grid gap-3">
+              {availableInstitutions.map((institution) => (
+                <Link
+                  key={institution.id}
+                  href={`/dashboard/${institution.slug}`}
+                  className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 transition hover:border-violet-300 hover:bg-violet-50/40"
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700"><Building2 size={21} /></span>
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold text-slate-900">{institution.display_name}</span>
+                      <span className="block text-sm text-slate-500">Ingresar al espacio institucional</span>
+                    </span>
+                  </span>
+                  <ArrowRight size={18} className="shrink-0 text-violet-700" />
+                </Link>
+              ))}
+            </div>
+            <div className="secure-caption">
+              <ShieldCheck size={17} />
+              <span>Una sola sesión para EDUNEXA. Cada institución conserva sus propios datos, roles y permisos.</span>
+            </div>
+          </section>
+        )}
         <div className="member-note">EDUNEXA · Aprender. Gestionar. Conectar.</div>
       </section>
     </main>
