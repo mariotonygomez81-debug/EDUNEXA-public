@@ -5,7 +5,8 @@ import TutorDemo from "../../tutor/tutor-demo";
 export const dynamic = "force-dynamic";
 
 export default function TutorModuleDemoPage() {
-  if (process.env.NODE_ENV !== "development") notFound();
+  const previewEnabled = process.env.EDUNEXA_TUTOR_PREVIEW_ENABLED === "true";
+  if (process.env.NODE_ENV !== "development" && !previewEnabled) notFound();
 
   return (
     <>
