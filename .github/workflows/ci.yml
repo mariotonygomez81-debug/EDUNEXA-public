@@ -53,8 +53,6 @@ jobs:
         run: npm run check:guardian-notifications
       - name: Validate Tutor child-scoped academic progress access
         run: npm run check:guardian-progress
-      - name: Validate Tutor academic progress in isolated PostgreSQL
-        run: bash scripts/test-guardian-assignment-progress-postgres.sh
       - name: Build
         run: npm run build
       - name: Smoke test public routes
@@ -63,6 +61,32 @@ jobs:
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
           npm run test:smoke
+
+
+  guardian-progress-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: edunexa_guardian_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d edunexa_guardian_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Validate Tutor academic progress in isolated PostgreSQL
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/edunexa_guardian_test
+        run: bash scripts/test-guardian-assignment-progress-postgres.sh
 
   student-notifications-e2e:
     if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feature/student-module-mobile' && vars.ENABLE_STAGING_NOTIFICATION_E2E == 'true' }}
