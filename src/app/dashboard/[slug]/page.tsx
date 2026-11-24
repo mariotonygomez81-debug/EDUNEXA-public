@@ -14,6 +14,7 @@ const modules: { name: string; detail: string; icon: string; href: string; permi
   { name: "Aula virtual", detail: "Clases, tareas y materiales", icon: "classroom", href: "classroom", permission: "classroom.read", category: "Académico" as const },
   { name: "Comunicaciones", detail: "Anuncios para la comunidad educativa", icon: "announcements", href: "announcements", permission: "institution.read", category: "Comunidad" as const },
   { name: "Mensajes", detail: "Conversaciones privadas por perfil", icon: "messages", href: "messages", permission: "institution.read", category: "Comunidad" as const },
+  { name: "Calendario académico", detail: "Jornadas, ferias, exámenes, actos y reuniones", icon: "calendar", href: "calendar", permission: "institution.read", category: "Comunidad" as const },
   { name: "Notificaciones", detail: "Avisos y preferencias personales", icon: "notifications", href: "notifications", permission: "institution.read", category: "Comunidad" as const },
   { name: "Mi portal", detail: "Seguimiento académico personal y familiar", icon: "portal", href: "portal", permission: "institution.read", roles: ["student", "guardian"], category: "Comunidad" as const },
 ];
@@ -117,6 +118,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
     addQuick("Panel de Dirección", "Indicadores y seguimiento institucional", "direction", "direction", "quick-violet");
   }
   if (roleKeys.includes("prefect")) addQuick("Espacio de preceptoría", "Divisiones, nóminas y asistencia", "prefect", "prefect", "quick-blue");
+  if (permissions.has("academic_calendar.manage")) addQuick("Programar eventos", "Crear jornadas, ferias, exámenes y reuniones", "calendar", "calendar", "quick-orange");
   if (roleKeys.includes("institution_admin")) addQuick("Centro de control", "Administración general y permisos", "admin-center", "users", "quick-indigo");
   if (roleKeys.includes("administrative") || roleKeys.includes("secretary")) addQuick("Panel administrativo", "Comunicados, boletines y gestión institucional", "administrative-office", "administrative", "quick-cyan");
   if (currentAssignmentCount > 0) addQuick("Mis asignaciones", "Funciones, divisiones y materias", "teaching", "classroom", "quick-green");
