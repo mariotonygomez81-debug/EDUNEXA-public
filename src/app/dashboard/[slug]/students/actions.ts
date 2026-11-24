@@ -182,6 +182,7 @@ export async function linkStudentGuardian(formData: FormData) {
   const guardianId = value(formData, "guardian_id");
   const canViewGrades = value(formData, "can_view_grades") === "on";
   const canViewAttendance = value(formData, "can_view_attendance") === "on";
+  const canViewReportCards = value(formData, "can_view_report_cards") === "on";
   if (!slug || !/^[0-9a-f-]{36}$/i.test(studentId) || !/^[0-9a-f-]{36}$/i.test(guardianId)) {
     redirect(`/dashboard/${encodeURIComponent(slug)}/students/${encodeURIComponent(studentId)}?error=guardian_invalid`);
   }
@@ -201,6 +202,16 @@ export async function linkStudentGuardian(formData: FormData) {
     },
   });
   if (error || !data?.ok) {
+    redirect(`/dashboard/${encodeURIComponent(slug)}/students/${encodeURIComponent(studentId)}?error=guardian_save`);
+  }
+  const { data: institution } = await supabase.from("institutions")
+    .select("id").eq("slug", slug).maybeSingle();
+  if (!institution) redirect("/dashboard");
+  const { error: permissionError } = await supabase.from("student_guardians").update({
+    can_view_report_cards: canViewReportCards,
+  }).eq("institution_id", institution.id)
+    .eq("student_id", studentId).eq("guardian_id", guardianId);
+  if (permissionError) {
     redirect(`/dashboard/${encodeURIComponent(slug)}/students/${encodeURIComponent(studentId)}?error=guardian_save`);
   }
   revalidatePath(`/dashboard/${slug}/students/${studentId}`);
