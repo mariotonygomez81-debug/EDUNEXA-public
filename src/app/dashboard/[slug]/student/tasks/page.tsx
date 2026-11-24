@@ -60,7 +60,8 @@ export default async function StudentTasksPage({ params }: { params: Promise<{ s
   const tasks = results.flatMap((result) => result.tasks);
   const hasPartialError = Boolean(classroomsError) || results.some((result) => result.error);
   const knownTasks = tasks.filter((task) => !task.submissionLoadError);
-  const pendingCount = knownTasks.filter((task) => !task.submission).length;
+  const overdueCount = knownTasks.filter((task) => !task.submission && task.assignment.due_at && Date.parse(task.assignment.due_at) < now).length;
+  const pendingCount = knownTasks.filter((task) => !task.submission && (!task.assignment.due_at || Date.parse(task.assignment.due_at) >= now)).length;
   const submittedCount = knownTasks.filter((task) => Boolean(task.submission)).length;
   const unknownStatusCount = tasks.length - knownTasks.length;
   tasks.sort((a, b) => (a.assignment.due_at ? Date.parse(a.assignment.due_at) : Number.MAX_SAFE_INTEGER) -
@@ -75,8 +76,9 @@ export default async function StudentTasksPage({ params }: { params: Promise<{ s
           <h1 className="mt-4 text-3xl font-black tracking-tight">Mis tareas</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50">Revisá las actividades de tus aulas, las fechas de entrega y las devoluciones de tus docentes.</p>
           <p className="mt-2 text-xs text-white/75">{institution.display_name}</p>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:max-w-sm">
-            <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-xs text-emerald-50">Sin entregar</p><p className="mt-1 text-2xl font-black">{pendingCount}</p></div>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:max-w-xl sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-xs text-emerald-50">Por entregar</p><p className="mt-1 text-2xl font-black">{pendingCount}</p></div>
+            <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-xs text-emerald-50">Vencidas</p><p className="mt-1 text-2xl font-black">{overdueCount}</p></div>
             <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-xs text-emerald-50">Entregadas</p><p className="mt-1 text-2xl font-black">{submittedCount}</p></div>
           </div>
           {unknownStatusCount > 0 ? <p className="mt-3 text-xs text-white/80">{unknownStatusCount} actividades con estado pendiente de consulta.</p> : null}
