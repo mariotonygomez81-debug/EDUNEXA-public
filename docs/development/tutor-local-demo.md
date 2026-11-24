@@ -40,7 +40,8 @@ Para detener el servidor, volver a PowerShell y presionar `Ctrl+C`.
 - No importa clientes, acciones ni helpers de Supabase.
 - No llama a Groq ni a ninguna API externa.
 - No usa credenciales, variables de entorno, cookies ni sesiones.
-- Los cambios de selección de estudiante, navegación, búsqueda de tareas y lectura de avisos ocurren sólo en memoria del navegador.
+- Los cambios de selección de estudiante, navegación, búsqueda de tareas, filtros por estado y lectura de avisos ocurren sólo en memoria del navegador.
+- La sección de tareas permite combinar una búsqueda por materia, título o estado con filtros rápidos: todas, sin entregar, entregadas pendientes y aprobadas.
 - El centro de notificaciones permite marcar avisos individualmente o todos a la vez como leídos.
 - El tablero local presenta la tarjeta Tutor y módulos de referencia deshabilitados; no suplanta el tablero institucional conectado.
 - No genera ni descarga boletines PDF reales.
