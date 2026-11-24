@@ -13,6 +13,7 @@ const conversation = read("src/app/dashboard/[slug]/messages/[conversationId]/pa
 const appointments = read("src/app/dashboard/[slug]/appointments/page.tsx");
 const progressDraft = read("docs/database/guardian-assignment-progress.draft.sql");
 const studentScope = read("supabase/migrations/20261120035955_enable_scoped_academic_access.sql");
+const reportCardAudience = read("supabase/migrations/20261124010000_report_card_audience_permissions.sql");
 
 const checks = [
   ["portal: authentication, active membership and student/guardian role are enforced",
@@ -32,11 +33,14 @@ const checks = [
     /publishedReportCards\.filter\(\(card\) => card\.student_id === student\.student_id\)/.test(portal) &&
     /report-cards-\$\{student\.student_id\}/.test(portal) &&
     /portal#report-cards-\$\{student\.student_id\}/.test(portal)],
-  ["calificaciones: per-student can_view_grades gates academic history and assignment grades",
-    /student\.can_view_grades/.test(portal) &&
-    /La institución no habilitó la consulta de calificaciones para esta cuenta\./.test(portal) &&
+  ["calificaciones: task grades use per-child permission and published report cards use their separate audience RLS",
     /when sg\.can_view_grades and v_can_view_grades then sub\.score/.test(progressDraft) &&
-    /p_permission_key = 'grades\.read' and sg\.can_view_grades/.test(studentScope)],
+    /p_permission_key = 'grades\.read' and sg\.can_view_grades/.test(studentScope) &&
+    /can_view_report_cards/.test(reportCardAudience) &&
+    /private\.can_view_report_card/.test(reportCardAudience) &&
+    /Snapshot RLS already filters by the account's report-card audience/.test(portal) &&
+    /const academicHistory = buildPublishedAcademicHistory\(studentReportCards\);/.test(portal) &&
+    !/student\.can_view_grades\s*\?\s*buildPublishedAcademicHistory/.test(portal)],
   ["asistencia: linked student and can_view_attendance are checked before attendance RPC",
     /list_my_portal_students/.test(attendance) &&
     /row\.student_id === studentId && row\.can_view_attendance/.test(attendance) &&
