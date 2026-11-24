@@ -72,6 +72,29 @@ begin
 end
 $test$;
 
+reset role;
+delete from private.fixture_membership_permissions
+where membership_id = '20000000-0000-0000-0000-000000000001'
+  and institution_id = '30000000-0000-0000-0000-000000000001'
+  and permission_key = 'grades.read';
+set role authenticated;
+select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000001',false);
+do $test$
+declare
+  v_row record;
+begin
+  select * into v_row
+  from public.list_my_child_assignment_progress(
+    '30000000-0000-0000-0000-000000000001',
+    '60000000-0000-0000-0000-000000000001'
+  )
+  where assignment_title = 'Ecuaciones';
+  if not found or v_row.score is not null or v_row.max_score is not null or v_row.can_view_grade then
+    raise exception 'Grade data was exposed without the institution grades.read permission';
+  end if;
+end
+$test$;
+
 select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000002',false);
 do $test$
 declare
