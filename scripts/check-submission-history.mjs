@@ -8,6 +8,7 @@ const scope = read("supabase/migrations/20261120042544_scope_classroom_submissio
 const listing = read("supabase/migrations/20261120213440_add_scoped_classroom_file_listing.sql");
 const roster = read("src/app/dashboard/[slug]/classroom/[classroomId]/submission-roster.tsx");
 const editor = read("src/app/dashboard/[slug]/classroom/[classroomId]/student-assignment-editor.tsx");
+const upload = read("src/app/dashboard/[slug]/classroom/[classroomId]/file-upload.tsx");
 
 const checks = [
   ["Audit rows are institution/submission scoped", /create table public\\.submission_file_events[\\s\\S]*institution_id uuid not null[\\s\\S]*submission_id uuid not null[\\s\\S]*file_id uuid not null unique/.test(audit)],
@@ -32,6 +33,7 @@ const checks = [
   ["Teacher history UI renders file events", roster.includes("const fileevents = history?.files ?? []")],
   ["Teacher history UI resolves download by file ID", roster.includes("files.find((item) => item.file_id === event.file_id)")],
   ["Student editor generates a PDF", editor.includes("createtaskpdf") && editor.includes("application/pdf")],
+  ["Student can select multiple attachment files", /type="file"[\\s\\S]*multiple[\\s\\S]*accept=/.test(upload)],
   ["Student editor uploads and finalizes the PDF through scoped RPCs", /create_classroom_file_upload_intent[\\s\\S]*storage\\.from\\("classroom-files"\\)\\.upload[\\s\\S]*finalize_classroom_file_upload/.test(editor)],
 ];
 
