@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-
 const read = (path) => readFileSync(join(process.cwd(), path), "utf8");
 const workspace = read("src/app/dashboard/[slug]/page.tsx");
 const teaching = read("src/app/dashboard/[slug]/teaching/page.tsx");
@@ -18,7 +17,6 @@ const grades = read("src/app/dashboard/[slug]/grades/actions.ts");
 const reportWorkflow = read("src/app/dashboard/[slug]/report-cards/workflow-actions.ts");
 const studentActions = read("src/app/dashboard/[slug]/students/actions.ts");
 const administrativeActions = read("src/app/dashboard/[slug]/administrative/actions.ts");
-
 const pages = [
   ["Docentes", teaching, 'row.roles?.key === "teacher"', 'permissions.has("classroom.read")'],
   ["Preceptor", prefect, 'row.roles?.key === "prefect"', 'permissions.has("attendance.read")'],
@@ -32,16 +30,19 @@ for (const [name, source, roleGuard, permissionGuard] of pages) {
   assert.ok(source.includes(roleGuard), name + ": role guard missing");
   assert.ok(source.includes(permissionGuard), name + ": permission guard missing");
   assert.ok(source.includes("auth.getUser()"), name + ": server authentication missing");
-  assert.ok(source.includes('.eq("status", "active")'), name + ": active membership/institution guard missing");
+  assert.ok(source.includes('.eq("status", "active")'), name + ": active institution/membership guard missing");
 }
-assert.ok(workspace.includes('.eq("status", "active").maybeSingle()'), "institution workspace must reject inactive institutions");
-assert.ok(workspace.includes("module.permissions.every"), "navigation must require all module permissions");
-assert.ok(workspace.includes("roleKeys.includes(module.role)"), "navigation must match the institution role");
+assert.ok(workspace.includes('.eq("status", "active").maybeSingle()'), "inactive institution must not open");
+assert.ok(workspace.includes("module.permissions.every"), "navigation must require every declared permission");
+assert.ok(workspace.includes("roleKeys.includes(module.role)"), "navigation must match institutional role");
 assert.ok(!tutor.includes('role === "student"'), "student access belongs to the separate student workspace");
-
-assert.ok(appointment.includes(String.raw\`!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(scheduledRaw)\`), "appointment datetime regex must use single escapes");
-assert.ok(!appointment.includes(String.raw\`/^\\d{4}\`), "appointment datetime regex must not match literal backslash-d");
+const slash = String.fromCharCode(92);
+const validDatePattern = "!/^" + slash + "d{4}-" + slash + "d{2}-" + slash + "d{2}T" + slash + "d{2}:" + slash + "d{2}$/.test(scheduledRaw)";
+const doubleEscapedDatePattern = "!/^" + slash + slash + "d{4}";
+assert.ok(appointment.includes(validDatePattern), "appointment datetime regex must use single escapes");
+assert.ok(!appointment.includes(doubleEscapedDatePattern), "appointment datetime regex must not match literal backslash-d");
 assert.ok(appointment.includes("create_teacher_guardian_appointment"));
+assert.ok(appointment.includes("auth.getUser()"));
 assert.ok(prefectAttendance.includes('permissions.has("attendance.manage")'));
 assert.ok(prefectAttendance.includes('assignment_type","prefect"'));
 assert.ok(attendance.includes('permissions.has("attendance.manage")'));
@@ -51,5 +52,4 @@ assert.ok(reportWorkflow.includes('"report_cards.approve"'));
 assert.ok(reportWorkflow.includes('"report_cards.publish"'));
 assert.ok(studentActions.includes('permissions.has("students.manage")'));
 assert.ok(administrativeActions.includes('permissions.has("administrative_records.manage")'));
-
 console.log("Passed seven institutional route guards, active institution/membership checks, role-permission navigation and representative write-action authorization checks.");
