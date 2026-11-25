@@ -32,7 +32,7 @@ for (const name of functions) {
 assert.match(login, /LoginForm/, "single login route must render shared login form");
 assert.match(loginForm, /signInWithPassword/, "shared login form must authenticate through Supabase Auth");
 assert.match(dashboard, /roleKeys/, "institutional dashboard must resolve role-based navigation");
-assert.match(dashboard, /Mi espacio de alumno/, "student module must be linked from institutional dashboard");
+assert.match(dashboard, /name: "Alumnos"[\s\S]*?href: "student"/, "student module must be linked from institutional dashboard");
 assert.match(dashboard, /Tutor|tutor|guardian/i, "guardian module must remain represented in shared dashboard");
 
 // The deployed role/permission catalog was inspected read-only. These are the
