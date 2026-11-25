@@ -96,3 +96,5 @@ assert.ok(planExecutionRoute.includes("execution.rollback()"), "External GitHub 
 assert.ok(delegatedWorkspace.includes("MODO DE SOPORTE DELEGADO") && delegatedWorkspace.includes("SOLO LECTURA"));
 assert.ok(institutionWorkspace.includes("platform_resolve_delegated_context_by_slug"));
 assert.ok(institutionWorkspace.includes("platform_resolve_delegated_context"));
+assert.ok(api.includes("platform_request_clone_idempotent") && api.includes("platform_request_delegation_idempotent"));
+assert.ok(api.includes("Idempotency-Key"), "Clone and delegation request routes must require idempotency keys");
