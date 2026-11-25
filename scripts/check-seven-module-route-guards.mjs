@@ -74,8 +74,14 @@ assert.ok(reportWorkflow.includes('"report_cards.approve"'));
 assert.ok(reportWorkflow.includes('"report_cards.publish"'));
 assert.ok(studentActions.includes('permissions.has("students.manage")'));
 assert.ok(administrativeActions.includes('permissions.has("administrative_records.manage")'));
-for (const [name, source] of [["calificaciones", grades], ["alumnos", studentActions], ["asistencia", attendance], ["mensajes", messagesActions], ["boletines", reportActions], ["anuncios", announcementsActions], ["citaciones", appointment]]) {
+for (const [name, source] of [["calificaciones", grades], ["alumnos", studentActions], ["asistencia", attendance], ["boletines", reportActions], ["anuncios", announcementsActions], ["citaciones", appointment]]) {
   assert.match(source, /\.eq\("status",\s*"active"\)/, name + ": active institution/membership guard missing");
   assert.match(source, /permissions\.has\(/, name + ": explicit permission check missing");
 }
+assert.ok(messagesActions.includes("auth.getUser()"), "messages must authenticate on the server");
+assert.ok(messagesActions.includes(\x27.eq("status", "active")\x27), "messages must require an active institution membership");
+for (const rpc of ["create_direct_conversation", "send_conversation_message", "mark_conversation_read"]) {
+  assert.ok(messagesActions.includes(`rpc("${rpc}"`), `messages must use the authorized ${rpc} RPC`);
+}
+assert.ok((messagesActions.match(/if \(error/g) ?? []).length >= 2, "message writes must fail closed on RPC errors");
 console.log("Passed seven institutional route guards, active institution/membership checks, role-permission navigation and representative write-action authorization checks.");
