@@ -51,14 +51,14 @@ create table public.enrollments(
 );
 create or replace function private.can_manage_division(p_division_id uuid,p_institution_id uuid,p_permission_key text)
 returns boolean language sql stable
-as $ select auth.uid()='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
+as $fn$ select auth.uid()='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
  and p_institution_id='11111111-1111-1111-1111-111111111111'::uuid
  and p_division_id='22222222-2222-2222-2222-222222222222'::uuid
- and p_permission_key='attendance.manage' $;
+ and p_permission_key='attendance.manage' $fn$;
 \i supabase/migrations/20261120030658_create_private_permission_helpers.sql
 create or replace function private.can_access_student(p_student_id uuid,p_institution_id uuid,p_permission_key text)
 returns boolean language sql stable
-as $ select exists(select 1 from public.students s where s.id=p_student_id and s.institution_id=p_institution_id) $;
+as $fn$ select exists(select 1 from public.students s where s.id=p_student_id and s.institution_id=p_institution_id) $fn$;
 
 grant usage on schema auth, private to authenticated;
 grant execute on function auth.uid() to authenticated;
