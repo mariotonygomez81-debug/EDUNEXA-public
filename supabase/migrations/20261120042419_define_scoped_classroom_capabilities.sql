@@ -78,9 +78,8 @@ AS $function$
                 sa.division_id = vc.division_id
                 OR (vc.course_subject_id IS NOT NULL
                     AND sa.course_subject_id = vc.course_subject_id)
-                OR (vc.course_subject_id IS NOT NULL
-                    AND sa.course_subject_id IS NOT NULL
-                    AND assigned_cs.id = vc.course_subject_id)
+                -- Exact course-subject assignment is already covered by the predicate above.
+                -- The former assigned_cs reference had no FROM/JOIN alias and broke migration execution.
               )
               AND (sa.starts_on IS NULL OR sa.starts_on <= CURRENT_DATE)
               AND (sa.ends_on IS NULL OR sa.ends_on >= CURRENT_DATE)
