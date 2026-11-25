@@ -139,8 +139,11 @@ set search_path = ''
 as $$
 declare
   v_actor uuid := auth.uid();
-  v_role text := auth.jwt() -> 'app_metadata' ->> 'platform_role';
+  v_role text;
 begin
+  if v_actor is not null then
+    select u.raw_app_meta_data ->> 'platform_role' into v_role from auth.users u where u.id = v_actor;
+  end if;
   if v_actor is null or v_role is distinct from 'superadmin' then
     raise exception using errcode = '42501', message = 'platform_superadmin_required';
   end if;
