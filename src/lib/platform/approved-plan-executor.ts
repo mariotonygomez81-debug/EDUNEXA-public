@@ -158,8 +158,12 @@ export async function executeApprovedPlan(plan: ApprovedPlan): Promise<Execution
       }
     }
   } catch (error) {
+    let rollbackFailures = 0;
     for (const compensate of [...compensations].reverse()) {
-      try { await compensate(); } catch { /* surfaced in reconciliation count below */ }
+      try { await compensate(); } catch { rollbackFailures += 1; }
+    }
+    if (rollbackFailures > 0) {
+      throw new Error(`rollback_incomplete:${rollbackFailures}:${error instanceof Error ? error.message : "external_action_failed"}`);
     }
     throw error;
   }
