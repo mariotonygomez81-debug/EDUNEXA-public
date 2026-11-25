@@ -3,9 +3,8 @@
 import { useMemo, useState } from "react";
 import {
   Activity, AlertTriangle, ArrowUpRight, Bot, Building2, CheckCircle2, CircleHelp,
-  ClipboardCheck, Cloud, Copy, Database, Download, GitBranch, Globe2, KeyRound,
-  Layers3, LockKeyhole, Network, Plus, RefreshCw, Search, Server, Settings2,
-  ShieldAlert, ShieldCheck, Users, Workflow, type LucideIcon,
+  ClipboardCheck, Cloud, Copy, Database, GitBranch, Globe2, KeyRound, Layers3,
+  LockKeyhole, Network, Search, Settings2, ShieldAlert, ShieldCheck, Users, type LucideIcon,
 } from "lucide-react";
 
 export type PlatformInstitution = {
