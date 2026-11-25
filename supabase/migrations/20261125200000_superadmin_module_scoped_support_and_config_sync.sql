@@ -41,7 +41,7 @@ alter table private.platform_institution_clone_config
 alter table private.platform_institution_clone_config
   add constraint platform_institution_clone_config_config_key_check
   check (config_key in (
-    'branding','academic_calendar','grading_scales','academic_structure',
+    'branding','institution_profile','academic_calendar','grading_scales','academic_structure',
     'timetable_templates','notification_templates','module_settings'
   ));
 
@@ -52,11 +52,15 @@ security definer
 set search_path = ''
 as $$
 declare
+  v_profile jsonb;
   v_calendar jsonb;
   v_scales jsonb;
   v_structure jsonb;
 begin
   if p_institution_id is null then return; end if;
+
+  select jsonb_build_object('locale',i.locale,'timezone',i.timezone)
+    into v_profile from public.institutions i where i.id=p_institution_id;
 
   select jsonb_build_object(
     'academic_years', coalesce((
@@ -142,7 +146,8 @@ begin
     ), '[]'::jsonb)
   ) into v_structure;
 
-  if not private.platform_clone_json_is_safe(v_calendar)
+  if not private.platform_clone_json_is_safe(v_profile)
+    or not private.platform_clone_json_is_safe(v_calendar)
     or not private.platform_clone_json_is_safe(v_scales)
     or not private.platform_clone_json_is_safe(v_structure) then
     raise exception using errcode='23514', message='unsafe_institution_configuration_snapshot';
@@ -150,6 +155,7 @@ begin
 
   insert into private.platform_institution_clone_config(institution_id,config_key,config_value)
   values
+    (p_institution_id,'institution_profile',coalesce(v_profile,'{}'::jsonb)),
     (p_institution_id,'academic_calendar',v_calendar),
     (p_institution_id,'grading_scales',v_scales),
     (p_institution_id,'academic_structure',v_structure)
@@ -157,6 +163,23 @@ begin
     set config_value=excluded.config_value,updated_at=pg_catalog.now();
 end;
 $$;
+
+create or replace function private.platform_refresh_institution_profile_clone_config_trigger()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  perform private.platform_refresh_institution_clone_config(new.id);
+  return new;
+end;
+$;
+
+drop trigger if exists platform_clone_snapshot_institution_profile on public.institutions;
+create trigger platform_clone_snapshot_institution_profile
+after insert or update on public.institutions
+for each row execute function private.platform_refresh_institution_profile_clone_config_trigger();
 
 create or replace function private.platform_refresh_institution_clone_config_trigger()
 returns trigger
@@ -380,7 +403,7 @@ using (config_key='academic_structure' and private.has_active_delegated_module_s
 drop policy if exists platform_delegated_config_administrador_select on private.platform_institution_clone_config;
 create policy platform_delegated_config_administrador_select on private.platform_institution_clone_config
 for select to authenticated
-using (config_key in ('academic_calendar','grading_scales','academic_structure','branding','module_settings')
+using (config_key in ('institution_profile','academic_calendar','grading_scales','academic_structure','branding','module_settings')
   and private.has_active_delegated_module_scope(institution_id,'administrador'));
 
 create or replace function private.platform_clone_materialize_academic_configuration(p_job_id uuid)
@@ -410,10 +433,16 @@ begin
     or exists(select 1 from public.memberships m where m.institution_id=v_job.target_institution_id) then
     raise exception using errcode='23514',message='clone_target_must_be_pending_and_have_no_memberships';
   end if;
+  select c.config_value into v_profile
+  from private.platform_institution_clone_config c
+  where c.institution_id=v_job.source_institution_id and c.config_key='institution_profile';
+  if v_profile is null or not private.platform_clone_json_is_safe(v_profile)
+    or coalesce(v_profile->>'locale','')='' or coalesce(v_profile->>'timezone','')='' then
+    raise exception using errcode='23514',message='safe_institution_profile_snapshot_required';
+  end if;
   update public.institutions target
-    set locale=source.locale,timezone=source.timezone
-  from public.institutions source
-  where source.id=v_job.source_institution_id and target.id=v_job.target_institution_id;
+    set locale=v_profile->>'locale',timezone=v_profile->>'timezone'
+  where target.id=v_job.target_institution_id;
   if exists (
     select 1 from private.platform_institution_clone_config c
     where c.institution_id=v_job.source_institution_id
@@ -601,7 +630,7 @@ begin
     when 'tutor' then array['academic_calendar']
     when 'directivos' then array['academic_calendar','grading_scales','academic_structure']
     when 'administrativos' then array['academic_structure']
-    when 'administrador' then array['academic_calendar','grading_scales','academic_structure','branding','module_settings']
+    when 'administrador' then array['institution_profile','academic_calendar','grading_scales','academic_structure','branding','module_settings']
     else null end;
   if v_keys is null then raise exception using errcode='22023',message='invalid_delegated_module'; end if;
   select coalesce(jsonb_object_agg(c.config_key,c.config_value),'{}'::jsonb)
@@ -690,6 +719,7 @@ $$;
 
 revoke all on function private.platform_refresh_institution_clone_config(uuid) from public,anon,authenticated;
 revoke all on function private.platform_refresh_institution_clone_config_trigger() from public,anon,authenticated;
+revoke all on function private.platform_refresh_institution_profile_clone_config_trigger() from public,anon,authenticated;
 revoke all on function private.has_active_delegated_module_scope(uuid,text) from public,anon;
 revoke all on function private.platform_clone_materialize_academic_configuration(uuid) from public,anon,authenticated;
 revoke all on function private.platform_clone_materialize_trigger() from public,anon,authenticated;
