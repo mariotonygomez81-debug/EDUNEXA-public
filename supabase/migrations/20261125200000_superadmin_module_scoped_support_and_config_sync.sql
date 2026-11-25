@@ -169,12 +169,12 @@ returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 begin
   perform private.platform_refresh_institution_clone_config(new.id);
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists platform_clone_snapshot_institution_profile on public.institutions;
 create trigger platform_clone_snapshot_institution_profile
@@ -414,6 +414,7 @@ set search_path = ''
 as $$
 declare
   v_job private.platform_clone_jobs%rowtype;
+  v_profile jsonb;
   v_row record;
   v_target_id uuid;
   v_scale_id uuid;
