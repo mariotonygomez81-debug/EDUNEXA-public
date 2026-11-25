@@ -110,13 +110,21 @@ begin
       join public.education_levels el on el.id=c.level_id and el.institution_id=c.institution_id
       where c.institution_id=p_institution_id
     ), '[]'::jsonb),
+    'campuses', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'name',cp.name,'code',cp.code,'is_main',cp.is_main
+      ) order by cp.is_main desc,cp.name)
+      from public.campuses cp where cp.institution_id=p_institution_id
+    ), '[]'::jsonb),
     'divisions', coalesce((
       select jsonb_agg(jsonb_build_object(
-        'course_name',c.name,'academic_year_name',ay.name,'name',d.name,'capacity',d.capacity
+        'course_name',c.name,'academic_year_name',ay.name,'campus_name',cp.name,
+        'name',d.name,'capacity',d.capacity
       ) order by ay.starts_on,c.name,d.name)
       from public.divisions d
       join public.courses c on c.id=d.course_id and c.institution_id=d.institution_id
       join public.academic_years ay on ay.id=d.academic_year_id and ay.institution_id=d.institution_id
+      left join public.campuses cp on cp.id=d.campus_id and cp.institution_id=d.institution_id
       where d.institution_id=p_institution_id
     ), '[]'::jsonb),
     'subjects', coalesce((
@@ -196,6 +204,10 @@ for each row execute function private.platform_refresh_institution_clone_config_
 drop trigger if exists platform_clone_snapshot_courses on public.courses;
 create trigger platform_clone_snapshot_courses
 after insert or update or delete on public.courses
+for each row execute function private.platform_refresh_institution_clone_config_trigger();
+drop trigger if exists platform_clone_snapshot_campuses on public.campuses;
+create trigger platform_clone_snapshot_campuses
+after insert or update or delete on public.campuses
 for each row execute function private.platform_refresh_institution_clone_config_trigger();
 drop trigger if exists platform_clone_snapshot_divisions on public.divisions;
 create trigger platform_clone_snapshot_divisions
@@ -385,6 +397,7 @@ declare
   v_level_id uuid;
   v_course_id uuid;
   v_subject_id uuid;
+  v_campus_id uuid;
   v_count integer:=0;
   v_rows integer:=0;
 begin
@@ -414,8 +427,10 @@ begin
   create temporary table edunexa_clone_level_map(source_id uuid primary key,target_id uuid not null) on commit drop;
   create temporary table edunexa_clone_course_map(source_id uuid primary key,target_id uuid not null) on commit drop;
   create temporary table edunexa_clone_subject_map(source_id uuid primary key,target_id uuid not null) on commit drop;
+  create temporary table edunexa_clone_campus_map(source_id uuid primary key,target_id uuid not null) on commit drop;
   truncate table pg_temp.edunexa_clone_scale_map,pg_temp.edunexa_clone_year_map,
-    pg_temp.edunexa_clone_level_map,pg_temp.edunexa_clone_course_map,pg_temp.edunexa_clone_subject_map;
+    pg_temp.edunexa_clone_level_map,pg_temp.edunexa_clone_course_map,pg_temp.edunexa_clone_subject_map,
+    pg_temp.edunexa_clone_campus_map;
 
   for v_row in
     select id,name,description,display_mode,minimum_value,maximum_value,passing_value
@@ -486,11 +501,23 @@ begin
     v_count:=v_count+1;
   end loop;
 
+  for v_row in
+    select id,name,code,is_main from public.campuses
+    where institution_id=v_job.source_institution_id order by is_main desc,name
+  loop
+    insert into public.campuses(institution_id,name,code,is_main)
+    values(v_job.target_institution_id,v_row.name,v_row.code,v_row.is_main)
+    returning id into v_campus_id;
+    insert into pg_temp.edunexa_clone_campus_map(source_id,target_id) values(v_row.id,v_campus_id);
+    v_count:=v_count+1;
+  end loop;
+
   insert into public.divisions(institution_id,course_id,campus_id,academic_year_id,name,capacity)
-  select v_job.target_institution_id,cm.target_id,null,ym.target_id,d.name,d.capacity
+  select v_job.target_institution_id,cm.target_id,cp.target_id,ym.target_id,d.name,d.capacity
   from public.divisions d
   join pg_temp.edunexa_clone_course_map cm on cm.source_id=d.course_id
   join pg_temp.edunexa_clone_year_map ym on ym.source_id=d.academic_year_id
+  left join pg_temp.edunexa_clone_campus_map cp on cp.source_id=d.campus_id
   where d.institution_id=v_job.source_institution_id;
   get diagnostics v_rows = row_count;
   v_count:=v_count+v_rows;
