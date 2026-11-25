@@ -46,9 +46,11 @@ export default async function MyTeachingPage({ params }: { params: Promise<{ slu
   if (!membership) redirect("/dashboard");
 
   const permissions = await getMembershipPermissions(supabase, membership.id);
-  const { data: roleRows } = await supabase.from("membership_roles").select("roles(key)")
+  const { data: roleRows, error: roleError } = await supabase.from("membership_roles").select("roles(key)")
     .eq("membership_id", membership.id).eq("institution_id", institution.id);
+  if (roleError) throw new Error("No se pudo verificar tu perfil docente.");
   const isTeacher = (roleRows ?? []).some((row) => row.roles?.key === "teacher");
+  if (!isTeacher || !permissions.has("classroom.read")) redirect(`/dashboard/${slug}`);
   const { data: rows, error } = await supabase.from("staff_assignments")
     .select("id,assignment_type,division_id,course_subject_id,starts_on,ends_on")
     .eq("institution_id", institution.id)

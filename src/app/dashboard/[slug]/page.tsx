@@ -21,7 +21,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   if (!user) redirect("/login");
 
   const { data: institution } = await supabase.from("institutions")
-    .select("id,display_name,slug").eq("slug", slug).maybeSingle();
+    .select("id,display_name,slug").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
 
   const { data: membership } = await supabase.from("memberships")
