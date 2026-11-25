@@ -146,7 +146,7 @@ reset role;
 
 -- Classroom: execute the real content, assignment, submission, revision, and grading RPCs.
 set role authenticated;
-select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',false);
+select set_config('request.jwt.claim.sub','eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef',false);
 select public.create_classroom_material(
  'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee','Material de integración','Contenido publicado',true
 ) as classroom_material_id \gset
@@ -185,7 +185,7 @@ end $$;
 
 -- Authorized institutional staff grades through the real RPC.
 set role authenticated;
-select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',false);
+select set_config('request.jwt.claim.sub','eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef',false);
 select public.grade_classroom_submission(:'classroom_submission_id'::uuid,7,'Buen trabajo');
 reset role;
 do $$ declare v_submission uuid; begin
