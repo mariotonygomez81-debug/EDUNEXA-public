@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  platformRpc, requirePlatformSuperadmin, requestId, rpcErrorResponse, validUuid,
+  platformRpc, requirePlatformSuperadmin, rpcErrorResponse, validUuid,
 } from "@/lib/auth/platform-api";
 import { executeApprovedPlan } from "@/lib/platform/approved-plan-executor";
 
@@ -65,5 +65,5 @@ export async function POST(request: Request, context: Context) {
     return json({ error: "La auditoría final falló; las acciones reversibles fueron revertidas.", rollback }, 503);
   }
 
-  return json({ result: finalized.data, execution: execution.summary, idempotent: true });
+  return json({ result: finalized.data, execution: execution.summary, singleExecution: true });
 }
