@@ -128,7 +128,7 @@ assert.ok(institutionWorkspace.includes("module_scope"), "Workspace must receive
 assert.ok(postgresAssertions.includes("institution settings must synchronize to the clone registry"));
 assert.ok(postgresAssertions.includes("delegated module must return only its allowed safe configuration"));
 assert.ok(postgresAssertions.includes("synchronized academic settings were not copied to the cloned tenant"));
-assert.equal((scopedMigration.split("as $").length - 1), (scopedMigration.split("$;").length - 1), "Scoped support migration dollar quotes must be balanced");
+assert.equal((scopedMigration.split("as " + String.fromCharCode(36,36)).length - 1), (scopedMigration.split(String.fromCharCode(36,36) + ";").length - 1), "Scoped support migration dollar quotes must be balanced");
 const scopedFunctions = [...scopedMigration.matchAll(/create or replace function public\.(platform_[a-z_]+)/g)].map((match) => match[1]);
 for (const name of scopedFunctions) {
   assert.ok(scopedMigration.includes("revoke all on function public." + name + "("), name + " must revoke default PUBLIC execution");
