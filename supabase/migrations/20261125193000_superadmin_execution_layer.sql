@@ -4,8 +4,7 @@
 alter table private.platform_clone_jobs
   add column if not exists attempt_count integer not null default 0,
   add column if not exists lease_expires_at timestamptz,
-  add column if not exists last_error_code text,
-  add column if not exists idempotency_key text;
+  add column if not exists last_error_code text;
 
 create index if not exists platform_clone_jobs_claim_idx
   on private.platform_clone_jobs(status, lease_expires_at, created_at);
