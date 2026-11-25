@@ -217,7 +217,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
   if (!user) redirect("/login");
 
   const { data: institution } = await supabase.from("institutions")
-    .select("id,display_name").eq("slug", slug).maybeSingle();
+    .select("id,display_name").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
 
   const { data: membership } = await supabase.from("memberships")
@@ -228,7 +228,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
   const { data: roleRows } = await supabase.from("membership_roles")
     .select("roles(key)").eq("membership_id", membership.id);
   const roleKeys = (roleRows ?? []).map((row) => row.roles?.key).filter(Boolean) as string[];
-  if (!roleKeys.some((role) => role === "student" || role === "guardian")) {
+  if (!roleKeys.includes("guardian")) {
     redirect(`/dashboard/${slug}`);
   }
 

@@ -13,7 +13,7 @@ export async function createTeacherGuardianAppointment(formData: FormData) {
   const reason=String(formData.get("reason")??"").trim();
   const scheduledAt=new Date(`${scheduledRaw}:00-03:00`);
   const back=`/dashboard/${encodeURIComponent(slug)}/teaching/${divisionId}`;
-  if(!/^[a-z0-9-]{2,80}$/i.test(slug)||!/[0-9a-f-]{36}/i.test(divisionId)||!/[0-9a-f-]{36}/i.test(studentId)||!/[0-9a-f-]{36}/i.test(guardianMembershipId)||!scheduledRaw||!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(scheduledRaw)||Number.isNaN(scheduledAt.getTime())||scheduledAt.getTime()<=Date.now()||reason.length<3||reason.length>1000){
+  if(!/^[a-z0-9-]{2,80}$/i.test(slug)||!/^[0-9a-f-]{36}$/i.test(divisionId)||!/^[0-9a-f-]{36}$/i.test(studentId)||!/^[0-9a-f-]{36}$/i.test(guardianMembershipId)||!scheduledRaw||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(scheduledRaw)||Number.isNaN(scheduledAt.getTime())||scheduledAt.getTime()<=Date.now()||reason.length<3||reason.length>1000){
     redirect(`${back}?error=appointment-invalid`);
   }
   const supabase=await createClient();

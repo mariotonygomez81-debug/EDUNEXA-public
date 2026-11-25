@@ -47,7 +47,7 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
   if (!user) redirect("/login");
 
   const { data: institution } = await supabase.from("institutions")
-    .select("id,display_name").eq("slug", slug).maybeSingle();
+    .select("id,display_name").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
 
   const { data: membership } = await supabase.from("memberships")
