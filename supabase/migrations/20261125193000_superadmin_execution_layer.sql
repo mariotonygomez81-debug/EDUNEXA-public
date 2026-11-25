@@ -18,6 +18,20 @@ alter table private.platform_clone_jobs
   add constraint platform_clone_jobs_status_check
   check (status in ('pending_approval','queued','running','completed','failed','cancelled'));
 
+with transitioned as (
+  update private.platform_clone_jobs
+    set status='pending_approval'
+  where status='queued' and approved_by is null
+  returning id,requested_by,target_institution_id
+)
+insert into private.platform_audit_events(
+  actor_user_id,action,target_type,target_id,institution_id,reason,request_id,outcome,metadata_redacted
+)
+select requested_by,'platform.clone.approval_required.migration','clone_job',id::text,target_institution_id,
+  'Trabajo anterior retenido hasta aprobación independiente','clone-migration-approval-'||id::text,
+  'started',jsonb_build_object('requires_second_approval',true,'copy_mode','configuration_only')
+from transitioned;
+
 create table if not exists private.platform_institution_clone_config (
   institution_id uuid not null references public.institutions(id) on delete cascade,
   config_key text not null check (config_key in (
