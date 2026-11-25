@@ -36,7 +36,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
     });
     const context = delegated.data && typeof delegated.data === "object"
       ? delegated.data as {
-        delegation_id?: string; expires_at?: string; mode?: string;
+        delegation_id?: string; expires_at?: string; mode?: string; module_scope?: string[];
         institution?: { display_name?: string; slug?: string };
       }
       : null;
@@ -48,6 +48,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
         institutionSlug={context.institution.slug}
         delegationId={context.delegation_id}
         expiresAt={context.expires_at}
+        moduleScopes={context.module_scope ?? []}
       />;
     }
     redirect("/dashboard");
@@ -78,6 +79,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
         institutionSlug={slug}
         delegationId={delegatedContext.delegation_id}
         expiresAt={delegatedContext.expires_at}
+        moduleScopes={delegatedContext.module_scope ?? []}
       />;
     }
     redirect("/dashboard");
