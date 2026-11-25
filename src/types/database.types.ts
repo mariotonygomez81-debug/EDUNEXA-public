@@ -1608,6 +1608,7 @@ export type Database = {
       memberships: {
         Row: {
           created_at: string
+          director_subprofile: string | null
           id: string
           institution_id: string
           joined_at: string | null
@@ -1616,6 +1617,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          director_subprofile?: string | null
           id?: string
           institution_id: string
           joined_at?: string | null
@@ -1624,6 +1626,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          director_subprofile?: string | null
           id?: string
           institution_id?: string
           joined_at?: string | null
