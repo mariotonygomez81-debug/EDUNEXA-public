@@ -54,7 +54,27 @@ async function canManageDivision(
     return true;
   }
 
-  return scopedAssignments.some((assignment) => assignment.division_id === divisionId);
+  const subjectIds = [...new Set(scopedAssignments
+    .filter((assignment) => !assignment.division_id && assignment.course_subject_id)
+    .map((assignment) => assignment.course_subject_id as string))];
+  if (!subjectIds.length) return false;
+
+  const { data: courseSubjects, error: courseSubjectError } = await supabase
+    .from("course_subjects")
+    .select("course_id")
+    .eq("institution_id", institutionId)
+    .in("id", subjectIds);
+  if (courseSubjectError || !courseSubjects?.length) return false;
+
+  const courseIds = [...new Set(courseSubjects.map((item) => item.course_id))];
+  const { data: targetDivision, error: targetDivisionError } = await supabase
+    .from("divisions")
+    .select("id")
+    .eq("institution_id", institutionId)
+    .eq("id", divisionId)
+    .in("course_id", courseIds)
+    .maybeSingle();
+  return !targetDivisionError && Boolean(targetDivision);
 }
 
 export type AttendanceActionResult = { ok: boolean; message: string };

@@ -17,6 +17,9 @@ const grades = read("src/app/dashboard/[slug]/grades/actions.ts");
 const reportWorkflow = read("src/app/dashboard/[slug]/report-cards/workflow-actions.ts");
 const studentActions = read("src/app/dashboard/[slug]/students/actions.ts");
 const administrativeActions = read("src/app/dashboard/[slug]/administrative/actions.ts");
+const messagesActions = read("src/app/dashboard/[slug]/messages/actions.ts");
+const reportActions = read("src/app/dashboard/[slug]/report-cards/actions.ts");
+const announcementsActions = read("src/app/dashboard/[slug]/announcements/actions.ts");
 const pages = [
   ["Docentes", teaching, 'row.roles?.key === "teacher"', 'permissions.has("classroom.read")'],
   ["Preceptor", prefect, 'row.roles?.key === "prefect"', 'permissions.has("attendance.read")'],
@@ -47,9 +50,13 @@ assert.ok(prefectAttendance.includes('permissions.has("attendance.manage")'));
 assert.ok(prefectAttendance.includes('assignment_type","prefect"'));
 assert.ok(attendance.includes('permissions.has("attendance.manage")'));
 assert.ok(attendance.includes("canManageDivision"));
+assert.ok(attendance.includes('.from("course_subjects")'), "subject-based staff assignments must grant attendance only within their course");
 assert.ok(grades.includes('permissions.has("grades.manage")'));
 assert.ok(reportWorkflow.includes('"report_cards.approve"'));
 assert.ok(reportWorkflow.includes('"report_cards.publish"'));
 assert.ok(studentActions.includes('permissions.has("students.manage")'));
 assert.ok(administrativeActions.includes('permissions.has("administrative_records.manage")'));
+for (const [name, source] of [["calificaciones", grades], ["alumnos", studentActions], ["asistencia", attendance], ["mensajes", messagesActions], ["boletines", reportActions], ["anuncios", announcementsActions], ["citaciones", appointment]]) {
+  assert.ok(source.includes('.eq("status", "active")'), name + ": writes must reject inactive institutions");
+}
 console.log("Passed seven institutional route guards, active institution/membership checks, role-permission navigation and representative write-action authorization checks.");
