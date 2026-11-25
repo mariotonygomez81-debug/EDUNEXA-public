@@ -42,10 +42,8 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   const visibleModules = modules.filter((module) =>
     permissions.has(module.permission) && (module.roles?.some((role) => roleKeys.includes(role)) ?? true)
   ).map((module) => ({
-    name: module.href === "students" && false ? "Secretaría" :
-      module.href === "students" && roleKeys.includes("administrative") ? "Gestión administrativa" : module.name,
-    detail: module.href === "students" && false ? "Inscripciones, matrículas y legajos académicos" :
-      module.href === "students" && roleKeys.includes("administrative") ? "Consulta de registros y datos autorizados" : module.detail,
+    name: module.href === "students" && roleKeys.includes("administrative") ? "Gestión administrativa" : module.name,
+    detail: module.href === "students" && roleKeys.includes("administrative") ? "Consulta de registros y datos autorizados" : module.detail,
     icon: module.icon, href: `/dashboard/${slug}/${module.href}`, category: module.category,
     unread: undefined,
   }));
@@ -120,7 +118,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   if (roleKeys.includes("prefect")) addQuick("Espacio de preceptoría", "Divisiones, nóminas y asistencia", "prefect", "prefect", "quick-blue");
   if (permissions.has("academic_calendar.manage")) addQuick("Programar eventos", "Crear jornadas, ferias, exámenes y reuniones", "calendar", "calendar", "quick-orange");
   if (roleKeys.includes("institution_admin")) addQuick("Centro de control", "Administración general y permisos", "admin-center", "users", "quick-indigo");
-  if (roleKeys.includes("administrative")) addQuick("Panel administrativo", "Comunicados, boletines y gestión institucional", "administrative-office", "administrative", "quick-cyan");
+  if (roleKeys.some((role) => role === "administrative" || role === "director")) addQuick("Panel administrativo", "Comunicados, boletines y gestión institucional", "administrative-office", "administrative", "quick-cyan");
   if (currentAssignmentCount > 0) addQuick("Mis asignaciones", "Funciones, divisiones y materias", "teaching", "classroom", "quick-green");
   if (permissions.has("admin_documents.read")) addQuick("Documentación", "Archivos institucionales autorizados", "admin-documents", "administrative", "quick-cyan");
   if (permissions.has("memberships.manage")) addQuick("Usuarios y accesos", "Perfiles y permisos institucionales", "users", "users", "quick-indigo");
