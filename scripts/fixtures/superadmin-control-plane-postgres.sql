@@ -4,7 +4,10 @@ DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object T
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE TABLE IF NOT EXISTS auth.users (
   id uuid PRIMARY KEY,
-  raw_app_meta_data jsonb NOT NULL DEFAULT '{}'::jsonb
+  raw_app_meta_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+  email text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_sign_in_at timestamptz
 );
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
 LANGUAGE sql STABLE AS $$
@@ -36,12 +39,14 @@ CREATE TABLE IF NOT EXISTS public.memberships (
   institution_id uuid NOT NULL REFERENCES public.institutions(id),
   user_id uuid NOT NULL,
   status text NOT NULL DEFAULT 'active',
+  created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(institution_id,user_id)
 );
 CREATE TABLE IF NOT EXISTS public.membership_roles (
   membership_id uuid NOT NULL REFERENCES public.memberships(id),
   institution_id uuid NOT NULL REFERENCES public.institutions(id),
   role_id uuid NOT NULL REFERENCES public.roles(id),
+  assigned_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY(membership_id,role_id)
 );
 
@@ -54,3 +59,5 @@ INSERT INTO auth.users(id,raw_app_meta_data) VALUES
 ON CONFLICT(id) DO NOTHING;
 INSERT INTO public.roles(key,name) VALUES('institution_admin','Administrador institucional')
 ON CONFLICT(key) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS public.profiles (id uuid PRIMARY KEY, display_name text);
