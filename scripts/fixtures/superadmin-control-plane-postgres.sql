@@ -155,3 +155,25 @@ CREATE TABLE IF NOT EXISTS public.course_subjects (
   FOREIGN KEY(course_id,institution_id) REFERENCES public.courses(id,institution_id),
   FOREIGN KEY(subject_id,institution_id) REFERENCES public.subjects(id,institution_id)
 );
+
+CREATE TABLE IF NOT EXISTS public.campuses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(id,institution_id)
+);
+CREATE TABLE IF NOT EXISTS public.divisions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
+  course_id uuid NOT NULL,
+  campus_id uuid,
+  academic_year_id uuid NOT NULL,
+  name text NOT NULL,
+  capacity integer,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(id,institution_id),
+  FOREIGN KEY(course_id,institution_id) REFERENCES public.courses(id,institution_id),
+  FOREIGN KEY(campus_id,institution_id) REFERENCES public.campuses(id,institution_id),
+  FOREIGN KEY(academic_year_id,institution_id) REFERENCES public.academic_years(id,institution_id)
+);
