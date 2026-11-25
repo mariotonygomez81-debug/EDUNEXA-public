@@ -59,18 +59,21 @@ export default async function AppointmentsPage({
   const roles = (roleRows ?? []).map((row) => row.roles?.key);
   const isGuardian = roles.includes("guardian");
   const isTeacher = roles.includes("teacher");
-  if (!isGuardian && !isTeacher) redirect(`/dashboard/${slug}`);
+  const isPrefect = roles.includes("prefect");
+  if (!isGuardian && !isTeacher && !isPrefect) redirect(`/dashboard/${slug}`);
 
   const { data, error } = isGuardian
     ? await supabase.rpc("list_guardian_teacher_appointments")
-    : await supabase.rpc("list_teacher_guardian_appointments");
+    : isPrefect
+      ? await supabase.rpc("list_prefect_guardian_appointments")
+      : await supabase.rpc("list_teacher_guardian_appointments");
   if (error) throw new Error("No se pudieron cargar las citaciones.");
   const appointments = (data ?? []) as unknown as Appointment[];
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
-        <Link href={isGuardian ? `/dashboard/${slug}/portal` : `/dashboard/${slug}/teaching`}
+        <Link href={isGuardian ? `/dashboard/${slug}/portal` : isPrefect ? `/dashboard/${slug}/prefect` : `/dashboard/${slug}/teaching`}
           className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-violet-700">
           <ArrowLeft size={16} /> Volver
         </Link>
@@ -79,8 +82,10 @@ export default async function AppointmentsPage({
             <CalendarClock size={14} /> COMUNICACIÓN INSTITUCIONAL
           </span>
           <h1 className="mt-5 text-3xl font-bold tracking-tight">{isGuardian ? "Mis citaciones" : "Seguimiento de citaciones"}</h1>
-          <p className="mt-2 text-sm leading-6 text-indigo-100">{institution.display_name} · Solicitudes de entrevista entre docentes y familias.</p>
+          <p className="mt-2 text-sm leading-6 text-indigo-100">{institution.display_name} · Solicitudes de entrevista entre responsables institucionales y familias.</p>
         </header>
+        {!isGuardian ? <div><Link href={`/dashboard/${slug}/appointments/new`} className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-5 py-3 text-sm font-semibold text-white hover:bg-violet-800">Nueva citación</Link></div> : null}
+ 
 
         {query.created ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">La citación fue enviada al tutor correctamente.</p> : null}
         {query.updated ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">El estado de la citación se actualizó correctamente.</p> : null}
@@ -122,7 +127,7 @@ export default async function AppointmentsPage({
                     </form>
                   </div>
                 ) : null}
-                {isTeacher && (appointment.status === "confirmed" || appointment.status === "requested") ? (
+                {(isTeacher || isPrefect) && (appointment.status === "confirmed" || appointment.status === "requested") ? (
                   <div className="mt-4 flex flex-wrap gap-2">
                     {appointment.status === "confirmed" ? (
                       <form action={updateAppointmentStatus}>
