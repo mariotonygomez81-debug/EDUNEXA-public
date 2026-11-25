@@ -109,7 +109,9 @@ for (const token of [
   "platform_delegations_module_scope_check", "platform_request_delegation_scoped_idempotent",
   "platform_read_delegated_module", "platform_list_delegations", "platform_list_clone_jobs",
   "platform_refresh_institution_clone_config", "platform_refresh_institution_clone_config_trigger",
-  "platform_list_ai_change_plans", "academic_calendar", "grading_scales", "academic_structure",
+  "platform_list_ai_change_plans", "platform_clone_materialize_academic_configuration",
+  "platform_clone_materialize_trigger", "platform_clone_materialize_configuration",
+  "academic_calendar", "grading_scales", "academic_structure",
   "platform.delegation.legacy_scope_revoked", "has_active_delegated_module_scope",
   "platform_delegated_config_docentes_select", "platform_delegated_config_preceptor_select",
   "platform_delegated_config_alumnos_select", "platform_delegated_config_tutor_select",
@@ -137,6 +139,9 @@ assert.ok(institutionWorkspace.includes("module_scope"), "Workspace must receive
 assert.ok(postgresAssertions.includes("institution settings must synchronize to the clone registry"));
 assert.ok(postgresAssertions.includes("delegated module must return only its allowed safe configuration"));
 assert.ok(postgresAssertions.includes("synchronized academic settings were not copied to the cloned tenant"));
+assert.ok(postgresAssertions.includes("configuration-only clone must materialize academic settings"));
+assert.ok(postgresAssertions.includes("transient worker failure must requeue the approved job"));
+assert.ok(postgresAssertions.includes("expected expired delegation denial"));
 assert.equal((scopedMigration.split("as " + String.fromCharCode(36,36)).length - 1) + (scopedMigration.split("do " + String.fromCharCode(36,36)).length - 1), (scopedMigration.split(String.fromCharCode(36,36) + ";").length - 1), "Scoped support migration dollar quotes must be balanced");
 const scopedFunctions = [...scopedMigration.matchAll(/create or replace function public\.(platform_[a-z_]+)/g)].map((match) => match[1]);
 for (const name of scopedFunctions) {
