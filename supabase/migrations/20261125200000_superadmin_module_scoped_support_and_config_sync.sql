@@ -368,6 +368,29 @@ begin
 end;
 $$;
 
+create or replace function public.platform_list_ai_change_plans()
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare v_actor uuid:=private.require_platform_superadmin(); v_result jsonb;
+begin
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id',p.id,'provider',p.provider,'instruction',p.instruction_redacted,'plan',p.plan,
+    'status',p.status,'requested_by',p.requested_by,'approved_by',p.approved_by,
+    'created_at',p.created_at,'approved_at',p.approved_at,'executed_at',p.executed_at
+  ) order by p.created_at desc),'[]'::jsonb)
+  into v_result from (
+    select * from private.platform_ai_change_plans order by created_at desc limit 30
+  ) p;
+  perform private.platform_audit_append('platform.ai_plans.list','ai_change_plans',null,null,
+    'Consulta de planes del Copiloto EDUNEXA','ai-plans-list-'||pg_catalog.txid_current()::text,'success',
+    jsonb_build_object('count',jsonb_array_length(v_result),'provider','groq'));
+  return v_result;
+end;
+$;
+
 create or replace function public.platform_list_clone_jobs()
 returns jsonb
 language plpgsql
@@ -403,12 +426,14 @@ revoke all on function public.platform_resolve_delegated_context_by_slug(text) f
 revoke all on function public.platform_read_delegated_module(uuid,text) from public,anon;
 revoke all on function public.platform_list_delegations() from public,anon;
 revoke all on function public.platform_list_clone_jobs() from public,anon;
+revoke all on function public.platform_list_ai_change_plans() from public,anon;
 grant execute on function public.platform_request_delegation_scoped_idempotent(uuid,text,timestamptz,text[],text,text) to authenticated;
 grant execute on function public.platform_resolve_delegated_context(uuid) to authenticated;
 grant execute on function public.platform_resolve_delegated_context_by_slug(text) to authenticated;
 grant execute on function public.platform_read_delegated_module(uuid,text) to authenticated;
 grant execute on function public.platform_list_delegations() to authenticated;
 grant execute on function public.platform_list_clone_jobs() to authenticated;
+grant execute on function public.platform_list_ai_change_plans() to authenticated;
 
 comment on function public.platform_read_delegated_module(uuid,text) is
 'Returns only allowlisted non-personal configuration for one independently approved module scope; every read is audited.';
