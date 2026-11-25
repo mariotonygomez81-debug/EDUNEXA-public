@@ -64,6 +64,8 @@ jobs:
         run: npm run check:role-scoped-authz
       - name: Validate global Superadmin and eight-module boundary
         run: npm run check:platform-roles
+      - name: Validate seven institutional route guards and action permissions
+        run: npm run check:seven-module-guards
       - name: Build
         run: npm run build
       - name: Smoke test public routes
