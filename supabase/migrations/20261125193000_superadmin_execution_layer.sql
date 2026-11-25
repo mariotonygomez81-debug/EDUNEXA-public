@@ -92,7 +92,7 @@ begin
   perform private.platform_audit_append('platform.clone.approval_required','clone_job',v_result->>'job_id',
     (v_result->>'target_institution_id')::uuid,p_reason,p_request_id,'started',
     jsonb_build_object('source_institution_id',p_source_institution_id,'requires_second_approval',true));
-  v_result := pg_catalog.jsonb_set(v_result,'{status}','\"pending_second_approval\"'::jsonb);
+  v_result := pg_catalog.jsonb_set(v_result,'{status}','"pending_second_approval"'::jsonb);
   perform private.platform_idempotency_complete(v_actor,p_idempotency_key,v_result);
   return v_result;
 end;
