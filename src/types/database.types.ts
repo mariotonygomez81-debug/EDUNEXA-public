@@ -3846,6 +3846,42 @@ export type Database = {
         }
         Returns: string
       }
+      list_prefect_guardian_contacts: {
+        Args: { p_division_id: string }
+        Returns: {
+          student_id: string
+          student_name: string
+          guardian_membership_id: string
+          guardian_name: string
+        }[]
+      }
+      create_prefect_guardian_appointment: {
+        Args: {
+          p_student_id: string
+          p_guardian_membership_id: string
+          p_scheduled_at: string
+          p_reason: string
+        }
+        Returns: string
+      }
+      list_prefect_guardian_appointments: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          appointment_id: string
+          student_id: string
+          student_name: string
+          guardian_name: string
+          scheduled_at: string
+          reason: string
+          status: string
+          created_at: string
+          updated_at: string
+        }[]
+      }
+      update_prefect_guardian_appointment: {
+        Args: { p_appointment_id: string; p_status: string }
+        Returns: boolean
+      }
       get_classroom_submission_history: {
         Args: { p_submission_id: string }
         Returns: Json
