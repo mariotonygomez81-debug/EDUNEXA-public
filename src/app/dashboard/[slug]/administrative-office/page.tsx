@@ -18,7 +18,7 @@ export default async function AdministrativeOffice({ params }: { params: Promise
   const permissions = await getMembershipPermissions(supabase, membership.id);
   const { data: roles } = await supabase.from("membership_roles").select("roles(key)")
     .eq("membership_id", membership.id).eq("institution_id", institution.id);
-  const allowedRole = (roles ?? []).some((row) => ["administrative", "secretary"].includes(row.roles?.key ?? ""));
+  const allowedRole = (roles ?? []).some((row) => ["administrative", "director"].includes(row.roles?.key ?? ""));
   if (!allowedRole) redirect(`/dashboard/${slug}`);
 
   const [announcements, workflows, staff] = await Promise.all([
@@ -38,7 +38,7 @@ export default async function AdministrativeOffice({ params }: { params: Promise
     <div className="mx-auto max-w-6xl space-y-7">
       <Link href={`/dashboard/${slug}`} className="text-sm font-medium text-slate-500 hover:text-violet-700">← Volver al espacio institucional</Link>
       <header className="rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-cyan-900 p-7 text-white shadow-lg sm:p-9">
-        <span className="text-xs font-bold tracking-[.18em] text-cyan-100">SECRETARÍA · ADMINISTRACIÓN</span>
+        <span className="text-xs font-bold tracking-[.18em] text-cyan-100">DIRECTIVOS · ADMINISTRACIÓN</span>
         <h1 className="mt-4 text-3xl font-bold">Panel administrativo</h1>
         <p className="mt-2 text-sm text-blue-100">{institution.display_name} · Comunicaciones, atención institucional y gestión de boletines.</p>
       </header>
