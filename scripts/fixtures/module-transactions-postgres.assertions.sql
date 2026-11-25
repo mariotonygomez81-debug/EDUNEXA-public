@@ -83,25 +83,86 @@ do $$ begin
 end $$;
 reset role;
 
--- Classroom/assignments: score is persisted within the maximum; out-of-range and negative scores fail.
-insert into public.submissions(institution_id,assignment_id,student_id,score,body)
-values('11111111-1111-1111-1111-111111111111','66666666-6666-6666-6666-666666666661',
-'44444444-4444-4444-4444-444444444441',8,'Entrega sintética');
-do $$ begin
- begin
-  insert into public.submissions(institution_id,assignment_id,student_id,score)
-  values('11111111-1111-1111-1111-111111111111','66666666-6666-6666-6666-666666666661',
-  '44444444-4444-4444-4444-444444444442',11);
-  raise exception 'Score above assignment maximum accepted';
- exception when check_violation then null; end;
- begin
-  update public.submissions set score=-1 where score=8;
-  raise exception 'Negative score accepted';
- exception when check_violation then null; end;
- if (select score from public.submissions where student_id='44444444-4444-4444-4444-444444444441')<>8 then
-  raise exception 'Valid submission score did not persist';
+-- Classroom: execute the real content, assignment, submission, revision, and grading RPCs.
+set role authenticated;
+select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',false);
+do $$ declare v_material uuid; v_assignment uuid; begin
+ v_material:=public.create_classroom_material(
+  'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee','Material de integración','Contenido publicado',true
+ );
+ if not exists(select 1 from public.classroom_materials where id=v_material and published_at is not null) then
+  raise exception 'Classroom material RPC did not persist a published material';
+ end if;
+ v_assignment:=public.create_classroom_assignment(
+  'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee','RPC integration assignment',
+  'Complete the synthetic task',now()+interval '2 days',10,true
+ );
+ if not exists(select 1 from public.assignments where id=v_assignment and published_at is not null and max_score=10) then
+  raise exception 'Classroom assignment RPC did not persist a published assignment';
  end if;
 end $$;
+reset role;
+
+-- A student with an active enrollment submits, edits once, and receives an immutable revision trail.
+set role authenticated;
+select set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',false);
+do $$ declare v_assignment uuid; v_submission uuid; begin
+ select id into v_assignment from public.assignments where title='RPC integration assignment';
+ v_submission:=public.submit_classroom_assignment(v_assignment,'Primera entrega');
+ if not exists(select 1 from public.submissions where id=v_submission and body='Primera entrega') then
+  raise exception 'Student submission RPC did not persist first delivery';
+ end if;
+ perform public.submit_classroom_assignment(v_assignment,'Entrega corregida');
+ if (select count(*) from public.submission_revisions where submission_id=v_submission)<>2 then
+  raise exception 'Submission edit did not create the expected revision history';
+ end if;
+ if not exists(select 1 from public.submission_revisions where submission_id=v_submission and body='Primera entrega') then
+  raise exception 'Submission revision did not preserve the previous body';
+ end if;
+end $$;
+reset role;
+
+-- Authorized institutional staff grades; the grade event is recorded and max-score enforcement is active.
+set role authenticated;
+select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',false);
+do $$ declare v_submission uuid; begin
+ select s.id into v_submission from public.submissions s
+ join public.assignments a on a.id=s.assignment_id
+ where a.title='RPC integration assignment';
+ perform public.grade_classroom_submission(v_submission,7,'Buen trabajo');
+ if not exists(select 1 from public.submissions where id=v_submission and score=7 and feedback='Buen trabajo') then
+  raise exception 'Grade RPC did not persist score and feedback';
+ end if;
+ if not exists(select 1 from public.submission_grade_events where submission_id=v_submission and new_score=7) then
+  raise exception 'Grade RPC did not write grade audit event';
+ end if;
+ begin
+  perform public.grade_classroom_submission(v_submission,11,'Fuera de rango');
+  raise exception 'Grade above assignment maximum unexpectedly succeeded';
+ exception when check_violation then null; end;
+end $$;
+reset role;
+
+-- A student cannot edit a graded submission; a non-member cannot create classroom content.
+set role authenticated;
+select set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',false);
+do $$ declare v_assignment uuid; begin
+ select id into v_assignment from public.assignments where title='RPC integration assignment';
+ begin
+  perform public.submit_classroom_assignment(v_assignment,'Intento de edición luego de calificar');
+  raise exception 'Graded submission was unexpectedly editable';
+ exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub','cccccccc-cccc-cccc-cccc-cccccccccccc',false);
+do $$ begin
+ begin
+  perform public.create_classroom_material('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee','Material no autorizado','No',true);
+  raise exception 'Non-member created classroom material';
+ exception when insufficient_privilege then null; end;
+end $$;
+reset role;
 
 -- Report cards: actual snapshot trigger rejects UPDATE and DELETE (immutability).
 insert into public.report_card_workflows(id,institution_id,student_id,grading_period_id,status)
@@ -147,30 +208,59 @@ do $$ begin
  end if;
 end $$;
 
--- Messaging structural contracts: membership from another institution cannot join a conversation.
-insert into public.contract_conversations(id,institution_id)
-values('cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd','11111111-1111-1111-1111-111111111111');
-insert into public.contract_conversation_members(conversation_id,institution_id,membership_id)
-values('cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd','11111111-1111-1111-1111-111111111111',
-'33333333-3333-3333-3333-333333333331');
+-- Messaging: execute real direct-conversation, message, notification, read, and scope RPCs.
+set role authenticated;
+select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',false);
+select public.create_direct_conversation(
+ '11111111-1111-1111-1111-111111111111',
+ '33333333-3333-3333-3333-333333333332',
+ 'Conversación de integración'
+) as integration_conversation_id \\gset
+select public.send_conversation_message(
+ '11111111-1111-1111-1111-111111111111',
+ :'integration_conversation_id'::uuid,
+ 'Mensaje transaccional sintético'
+);
 do $$ begin
- begin
-  insert into public.contract_conversation_members(conversation_id,institution_id,membership_id)
-  values('cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd','22222222-2222-2222-2222-222222222222',
-  '33333333-3333-3333-3333-333333333332');
-  raise exception 'Cross-institution conversation membership accepted';
- exception when foreign_key_violation then null; end;
+ if not exists(select 1 from public.messages where conversation_id=:'integration_conversation_id'::uuid and body='Mensaje transaccional sintético') then
+  raise exception 'Messaging send RPC did not persist the message';
+ end if;
+ if not exists(select 1 from public.notifications where recipient_membership_id='33333333-3333-3333-3333-333333333332'
+   and notification_type='message' and resource_id=:'integration_conversation_id'::uuid) then
+  raise exception 'Messaging notification fanout did not notify the counterpart';
+ end if;
 end $$;
-insert into public.contract_messages(conversation_id,institution_id,sender_membership_id,body)
-values('cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd','11111111-1111-1111-1111-111111111111',
-'33333333-3333-3333-3333-333333333331','Mensaje de prueba');
-do $$ begin
- begin
-  insert into public.contract_messages(conversation_id,institution_id,sender_membership_id,body)
-  values('cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd','11111111-1111-1111-1111-111111111111',
-  '33333333-3333-3333-3333-333333333331','   ');
-  raise exception 'Blank message accepted';
- exception when check_violation then null; end;
-end $$;
+reset role;
 
-select 'PASS: isolated module transaction contracts (attendance, appointments, calendar, classroom grading, report snapshots, support lifecycle, messaging structure).' as result;
+set role authenticated;
+select set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',false);
+do $$ declare v_conversation uuid; v_read integer; begin
+ select id into v_conversation from public.conversations where subject='Conversación de integración';
+ if (select count(*) from public.list_conversation_messages(
+  '11111111-1111-1111-1111-111111111111',v_conversation,50
+ ))<>1 then raise exception 'Conversation member could not read the message'; end if;
+ v_read:=public.mark_conversation_read('11111111-1111-1111-1111-111111111111',v_conversation);
+ if v_read<>1 then raise exception 'Mark-read RPC did not mark exactly one incoming message'; end if;
+ if not exists(select 1 from public.messages where conversation_id=v_conversation and read_at is not null) then
+  raise exception 'Message read timestamp was not persisted';
+ end if;
+end $$;
+reset role;
+
+-- An unrelated active membership is denied access to the conversation.
+set role authenticated;
+select set_config('request.jwt.claim.sub','cccccccc-cccc-cccc-cccc-cccccccccccc',false);
+do $$ declare v_conversation uuid; begin
+ select id into v_conversation from public.conversations where subject='Conversación de integración';
+ begin
+  perform * from public.list_conversation_messages('11111111-1111-1111-1111-111111111111',v_conversation,50);
+  raise exception 'Unrelated membership read a private conversation';
+ exception when insufficient_privilege then null; end;
+ begin
+  perform public.send_conversation_message('11111111-1111-1111-1111-111111111111',v_conversation,'No autorizado');
+  raise exception 'Unrelated membership sent a private message';
+ exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+
+select 'PASS: isolated module transaction contracts (attendance, appointments, calendar, real classroom RPCs and history, real messaging RPCs and notifications, report snapshots, support lifecycle).' as result;
