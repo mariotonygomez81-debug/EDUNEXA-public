@@ -207,19 +207,16 @@ end $$;
 -- Messaging: execute real direct-conversation, message, notification, read, and institution-scope RPCs.
 set role authenticated;
 select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',false);
-do $$ declare v_conversation uuid; v_message uuid; begin
- v_conversation:=public.create_direct_conversation(
-  '11111111-1111-1111-1111-111111111111',
-  '33333333-3333-3333-3333-333333333332',
-  'Conversación de integración'
- );
- v_message:=public.send_conversation_message(
-  '11111111-1111-1111-1111-111111111111',v_conversation,'Mensaje transaccional sintético'
- );
- if v_conversation is null or v_message is null then
-  raise exception 'Messaging RPC returned an empty identifier';
- end if;
-end $$;
+select public.create_direct_conversation(
+ '11111111-1111-1111-1111-111111111111',
+ '33333333-3333-3333-3333-333333333332',
+ 'Conversación de integración'
+) as integration_conversation_id \\gset
+select public.send_conversation_message(
+ '11111111-1111-1111-1111-111111111111',
+ :'integration_conversation_id'::uuid,
+ 'Mensaje transaccional sintético'
+);
 reset role;
 do $$ declare v_conversation uuid; begin
  select id into v_conversation from public.conversations where subject='Conversación de integración';
@@ -235,7 +232,10 @@ end $$;
 set role authenticated;
 select set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',false);
 do $$ declare v_conversation uuid; v_read integer; begin
- select id into v_conversation from public.conversations where subject='Conversación de integración';
+ select conversation_id into v_conversation
+ from public.list_my_conversations('11111111-1111-1111-1111-111111111111')
+ where subject='Conversación de integración';
+ if v_conversation is null then raise exception 'Conversation member cannot list their conversation'; end if;
  if (select count(*) from public.list_conversation_messages(
   '11111111-1111-1111-1111-111111111111',v_conversation,50
  ))<>1 then raise exception 'Conversation member could not read the message'; end if;
@@ -250,20 +250,27 @@ do $$ declare v_conversation uuid; begin
  end if;
 end $$;
 
--- A membership belonging to a different institution cannot read or send into this conversation.
-set role authenticated;
-select set_config('request.jwt.claim.sub','dddddddd-dddd-dddd-dddd-dddddddddddd',false);
-do $$ declare v_conversation uuid; begin
- select id into v_conversation from public.conversations where subject='Conversación de integración';
+-- A membership belonging to another institution cannot read or send into this conversation.
+create function pg_temp.assert_cross_institution_message_denied(p_conversation_id uuid)
+returns void language plpgsql as $$
+begin
  begin
-  perform * from public.list_conversation_messages('11111111-1111-1111-1111-111111111111',v_conversation,50);
+  perform * from public.list_conversation_messages(
+   '11111111-1111-1111-1111-111111111111',p_conversation_id,50
+  );
   raise exception 'Cross-institution membership read a private conversation';
  exception when insufficient_privilege then null; end;
  begin
-  perform public.send_conversation_message('11111111-1111-1111-1111-111111111111',v_conversation,'No autorizado');
+  perform public.send_conversation_message(
+   '11111111-1111-1111-1111-111111111111',p_conversation_id,'No autorizado'
+  );
   raise exception 'Cross-institution membership sent a private message';
  exception when insufficient_privilege then null; end;
 end $$;
+grant execute on function pg_temp.assert_cross_institution_message_denied(uuid) to authenticated;
+set role authenticated;
+select set_config('request.jwt.claim.sub','dddddddd-dddd-dddd-dddd-dddddddddddd',false);
+select pg_temp.assert_cross_institution_message_denied(:'integration_conversation_id'::uuid);
 reset role;
 
 select 'PASS: isolated module transaction contracts (attendance, appointments, calendar, real classroom RPCs and history, real messaging RPCs and notifications, report snapshots, support lifecycle).' as result;
