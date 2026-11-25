@@ -101,8 +101,8 @@ export default async function PrefectWorkspace({ params }: { params: Promise<{ s
                   <Link href={`/dashboard/${slug}/teaching/${division.id}`} className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-800">
                     <Users size={15} /> Ver nómina
                   </Link>
-                  <Link href={`/dashboard/${slug}/attendance`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                    <CalendarCheck size={15} /> Asistencia
+                  <Link href={`/dashboard/${slug}/prefect/attendance`} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    <CalendarCheck size={15} /> Mi asistencia
                   </Link>
                   <Link href={`/dashboard/${slug}/prefect/novelties`} className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-100">
                     <ClipboardList size={15} /> Novedades
