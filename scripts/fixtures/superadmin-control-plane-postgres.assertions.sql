@@ -71,7 +71,7 @@ BEGIN
   UPDATE synthetic_results SET second_institution_id=v_second;
   INSERT INTO public.campuses(institution_id,name,code,address,phone,is_main)
     VALUES(v_second,'Sede Exclusiva Dos','DOS','Dirección de prueba Dos','+54-11-5555-0202',true);
-END $;
+END $$;
 DO $
 DECLARE v_first uuid; v_second uuid;
 BEGIN
@@ -87,7 +87,7 @@ BEGIN
       AND config_value::text LIKE '%Sede Exclusiva Dos%') THEN
     RAISE EXCEPTION 'two institutions must keep independent campus configuration snapshots';
   END IF;
-END $;
+END $$;
 DO $$
 DECLARE v_first uuid; v_second uuid; v_count integer;
 BEGIN
