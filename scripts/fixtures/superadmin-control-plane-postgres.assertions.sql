@@ -111,7 +111,7 @@ SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002'
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","app_metadata":{"platform_role":"superadmin"}}',false);
 SELECT public.platform_approve_delegation(delegation_id,'synthetic-request-delegation-approve-001')
 FROM synthetic_results WHERE delegation_id IS NOT NULL;
-DO $ BEGIN
+DO $$ BEGIN
   IF NOT EXISTS(SELECT 1 FROM private.platform_delegations WHERE status='active' AND approved_by='00000000-0000-4000-8000-000000000002') THEN
     RAISE EXCEPTION 'delegation was not activated by second Superadministrator';
   END IF;
@@ -273,7 +273,7 @@ END $$;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","app_metadata":{"platform_role":"superadmin"}}',false);
 SELECT public.platform_approve_ai_change_plan(ai_plan_id,'synthetic-request-ai-approve-001') FROM synthetic_results;
-DO $ BEGIN
+DO $$ BEGIN
   IF NOT EXISTS(SELECT 1 FROM private.platform_ai_change_plans WHERE status='approved' AND provider='groq') THEN
     RAISE EXCEPTION 'Groq plan was not independently approved';
   END IF;
@@ -307,7 +307,7 @@ BEGIN
     RAISE EXCEPTION 'expected single execution/idempotency guard';
   EXCEPTION WHEN no_data_found THEN NULL; END;
 END $$;
-DO $ BEGIN
+DO $$ BEGIN
   IF NOT EXISTS(SELECT 1 FROM private.platform_ai_change_plans WHERE status='executed' AND approved_by='00000000-0000-4000-8000-000000000002') THEN
     RAISE EXCEPTION 'approved plan execution saga did not finish';
   END IF;
