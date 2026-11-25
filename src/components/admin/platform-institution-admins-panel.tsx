@@ -52,10 +52,7 @@ export default function PlatformInstitutionAdminsPanel({ institutions }: Props) 
   }
 
   useEffect(() => {
-    if (!institutionId) {
-      setAdministrators([]);
-      return;
-    }
+    if (!institutionId) return;
 
     let cancelled = false;
     async function fetchAdministrators() {
