@@ -144,8 +144,48 @@ create table public.messages(
 );
 
 -- Actual scoped direct-messaging RPCs and current-relationship revalidation.
-\\i supabase/migrations/20261120222930_implement_scoped_direct_messaging.sql
-\\i supabase/migrations/20261120223332_revalidate_messaging_scope_on_existing_conversations.sql
+\i supabase/migrations/20261120222930_implement_scoped_direct_messaging.sql
+\i supabase/migrations/20261120223332_revalidate_messaging_scope_on_existing_conversations.sql
+
+
+
+
+-- Preceptoría: apply the versioned migration, not a handwritten substitute.
+\i supabase/migrations/20261125012000_create_prefect_independent_attendance.sql
+
+-- Citations: existing table shape plus the real migration's responsible-party constraint/RPCs.
+create table public.teacher_guardian_appointments(
+ id uuid primary key default gen_random_uuid(),
+ institution_id uuid not null references public.institutions(id),
+ division_id uuid not null references public.divisions(id),
+ student_id uuid not null references public.students(id),
+ teacher_membership_id uuid not null references public.memberships(id),
+ guardian_membership_id uuid not null references public.memberships(id),
+ scheduled_at timestamptz not null,
+ reason text not null,
+ status text not null default 'requested',
+ created_at timestamptz not null default now(),
+ updated_at timestamptz not null default now()
+);
+\i supabase/migrations/20261125015159_add_prefect_guardian_appointments.sql
+
+-- Calendar: real migration against isolated membership/permission fixtures.
+\i supabase/migrations/20261124235500_add_academic_calendar_events_for_directors.sql
+
+-- Classroom delivery: real grading constraint/trigger migration.
+create table public.assignments(
+ id uuid primary key, institution_id uuid not null references public.institutions(id),
+ max_score numeric(7,2), published_at timestamptz
+);
+create table public.submissions(
+ id uuid primary key default gen_random_uuid(), institution_id uuid not null,
+ assignment_id uuid not null references public.assignments(id),
+ student_id uuid not null references public.students(id),
+ score numeric(7,2), body text, submitted_at timestamptz
+);
+insert into public.assignments(id,institution_id,max_score,published_at)
+values ('66666666-6666-6666-6666-666666666661','11111111-1111-1111-1111-111111111111',10,now());
+\i supabase/migrations/20261120045012_validate_submission_scores_against_assignment_maximum.sql
 
 -- Classroom synthetic base tables; RPC implementations and audit triggers come from repository migrations.
 create table public.virtual_classrooms(
@@ -210,49 +250,11 @@ as $classroom_access$
  )
 $classroom_access$;
 
-\\i supabase/migrations/20261120042544_scope_classroom_submissions.sql
-\\i supabase/migrations/20261120044813_add_submission_revision_and_grade_history.sql
-\\i supabase/migrations/20261120212102_add_scoped_classroom_content_creation.sql
-\\i supabase/migrations/20261120212332_add_scoped_classroom_assignment_submission.sql
-\\i supabase/migrations/20261120212822_add_scoped_classroom_submission_review_and_grading.sql
-
-
--- Preceptoría: apply the versioned migration, not a handwritten substitute.
-\i supabase/migrations/20261125012000_create_prefect_independent_attendance.sql
-
--- Citations: existing table shape plus the real migration's responsible-party constraint/RPCs.
-create table public.teacher_guardian_appointments(
- id uuid primary key default gen_random_uuid(),
- institution_id uuid not null references public.institutions(id),
- division_id uuid not null references public.divisions(id),
- student_id uuid not null references public.students(id),
- teacher_membership_id uuid not null references public.memberships(id),
- guardian_membership_id uuid not null references public.memberships(id),
- scheduled_at timestamptz not null,
- reason text not null,
- status text not null default 'requested',
- created_at timestamptz not null default now(),
- updated_at timestamptz not null default now()
-);
-\i supabase/migrations/20261125015159_add_prefect_guardian_appointments.sql
-
--- Calendar: real migration against isolated membership/permission fixtures.
-\i supabase/migrations/20261124235500_add_academic_calendar_events_for_directors.sql
-
--- Classroom delivery: real grading constraint/trigger migration.
-create table public.assignments(
- id uuid primary key, institution_id uuid not null references public.institutions(id),
- max_score numeric(7,2), published_at timestamptz
-);
-create table public.submissions(
- id uuid primary key default gen_random_uuid(), institution_id uuid not null,
- assignment_id uuid not null references public.assignments(id),
- student_id uuid not null references public.students(id),
- score numeric(7,2), body text, submitted_at timestamptz
-);
-insert into public.assignments(id,institution_id,max_score,published_at)
-values ('66666666-6666-6666-6666-666666666661','11111111-1111-1111-1111-111111111111',10,now());
-\i supabase/migrations/20261120045012_validate_submission_scores_against_assignment_maximum.sql
+\i supabase/migrations/20261120042544_scope_classroom_submissions.sql
+\i supabase/migrations/20261120044813_add_submission_revision_and_grade_history.sql
+\i supabase/migrations/20261120212102_add_scoped_classroom_content_creation.sql
+\i supabase/migrations/20261120212332_add_scoped_classroom_assignment_submission.sql
+\i supabase/migrations/20261120212822_add_scoped_classroom_submission_review_and_grading.sql
 
 -- Boletines: exact snapshot immutability migration; supporting FK targets are synthetic.
 create table public.academic_years(id uuid primary key,institution_id uuid not null, name text, starts_on date, ends_on date, grading_scale_id uuid);
