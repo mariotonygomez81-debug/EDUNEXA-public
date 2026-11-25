@@ -171,7 +171,7 @@ BEGIN
     now()+interval '15 minutes',ARRAY['docentes','preceptor','alumnos','tutor','directivos','administrativos','administrador'],
     'synthetic-request-delegation-001','synthetic-delegation-idempotency-01')->>'delegation_id')::uuid;
   IF (public.platform_request_delegation_scoped_idempotent(v_id,'Asistencia técnica sintética solicitada',
-    (SELECT expires_at FROM private.platform_delegations WHERE id=v_delegation),ARRAY['docentes'],
+    (SELECT expires_at FROM private.platform_delegations WHERE id=v_delegation),ARRAY['docentes','preceptor','alumnos','tutor','directivos','administrativos','administrador'],
     'synthetic-request-delegation-retry','synthetic-delegation-idempotency-01')->>'delegation_id')::uuid IS DISTINCT FROM v_delegation THEN
     RAISE EXCEPTION 'delegation idempotency key must return the original request';
   END IF;
@@ -202,7 +202,7 @@ BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
   v_context:=public.platform_resolve_delegated_context(v_id);
   IF v_context->>'mode'<>'delegated_support_read_only'
-    OR jsonb_array_length(to_jsonb(v_context->'module_scope'))<>7
+    OR jsonb_array_length(v_context->'module_scope')<>7
     OR (v_context->>'expires_at')::timestamptz<=now() THEN
     RAISE EXCEPTION 'delegated context must include all seven explicitly approved read-only modules';
   END IF;
@@ -230,7 +230,7 @@ BEGIN
   BEGIN
     PERFORM public.platform_read_delegated_module((SELECT delegation_id FROM synthetic_results),'superadmin');
     RAISE EXCEPTION 'expected unknown module denial';
-  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 
   v_context:=public.platform_resolve_delegated_context_by_slug('colegio-sintetico-uno');
   IF v_context->'institution'->>'slug'<>'colegio-sintetico-uno'
