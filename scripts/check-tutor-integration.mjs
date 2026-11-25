@@ -19,7 +19,8 @@ const checks = [
   ["portal: authentication, active membership and student/guardian role are enforced",
     /supabase\.auth\.getUser\(\)/.test(portal) &&
     /\.eq\("status", "active"\)/.test(portal) &&
-    /role === "student" \|\| role === "guardian"/.test(portal) &&
+    /roleKeys\.includes\("guardian"\)/.test(portal) &&
+    !/roleKeys\.includes\("student"\)/.test(portal) &&
     /list_my_portal_students/.test(portal)],
   ["tareas/progreso: portal calls child-scoped progress RPC for each linked child",
     /students\.filter\(\(student\) => !student\.is_self\)/.test(portal) &&
