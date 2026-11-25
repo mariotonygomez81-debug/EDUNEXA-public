@@ -17,9 +17,10 @@ const allowedRoles = new Set([
   "institution_admin", "director", "administrative", "teacher",
   "prefect", "student", "guardian",
 ]);
-const appUrl = Deno.env.get("EDUNEXA_APP_URL") ?? "https://edunexa.example.edu";
+const appUrl = Deno.env.get("EDUNEXA_APP_URL") ?? "https://edunexa-tutor-preview.onrender.com";
 const allowedOrigins = new Set([
   new URL(appUrl).origin,
+  "https://edunexa-tutor-preview.onrender.com",
   "http://localhost:3000",
 ]);
 
