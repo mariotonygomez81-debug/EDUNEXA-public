@@ -47,10 +47,17 @@ export async function updateAppointmentStatus(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const { data: institution } = await supabase.from("institutions")
+    .select("id").eq("slug", slug).eq("status", "active").maybeSingle();
+  if (!institution) redirect("/dashboard");
+  const { data: membership } = await supabase.from("memberships").select("id")
+    .eq("institution_id", institution.id).eq("user_id", user.id).eq("status", "active").maybeSingle();
+  if (!membership) redirect("/dashboard");
   const { data: roleRows } = await supabase.from("membership_roles")
-    .select("roles(key)").eq("membership_id", (await supabase.from("memberships").select("id")
-      .eq("user_id", user.id).eq("status", "active").maybeSingle()).data?.id ?? "");
-  const isPrefect = (roleRows ?? []).some((row) => row.roles?.key === "prefect");
+    .select("roles(key)").eq("institution_id", institution.id).eq("membership_id", membership.id);
+  const roleKeys = (roleRows ?? []).map((row) => row.roles?.key);
+  const isPrefect = roleKeys.includes("prefect");
+  if (!isPrefect && !roleKeys.includes("teacher")) redirect(`/dashboard/${slug}`);
   const { data, error } = await supabase.rpc(
     isPrefect ? "update_prefect_guardian_appointment" : "update_teacher_guardian_appointment",
     { p_appointment_id: appointmentId, p_status: status },
