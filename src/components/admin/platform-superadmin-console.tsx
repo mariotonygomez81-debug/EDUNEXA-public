@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import PlatformOperationsPanel from "@/components/admin/platform-operations-panel";
 import {
   Activity, AlertTriangle, ArrowUpRight, Bot, Building2, CheckCircle2, CircleHelp,
   ClipboardCheck, Cloud, Copy, Database, GitBranch, Globe2, KeyRound, Layers3,
@@ -124,6 +125,8 @@ export default function PlatformSuperadminConsole({ institutions, loadError }: P
         {loadError ? <div className="p-10 text-center"><Database size={26} className="mx-auto text-slate-600"/><p className="mt-3 font-semibold text-slate-300">No se pudo cargar el inventario</p><p className="mt-1 text-sm text-slate-500">No se muestran datos parciales ni se intenta sortear los permisos del backend.</p></div> : filtered.length === 0 ? <div className="p-10 text-center text-sm text-slate-500">No hay instituciones que coincidan con la búsqueda.</div> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-white/[0.04] text-[10px] uppercase tracking-[0.15em] text-slate-500"><tr><th className="px-5 py-4">Institución</th><th className="px-5 py-4">Identificador</th><th className="px-5 py-4">Estado</th><th className="px-5 py-4">Alta</th><th className="px-5 py-4 text-right">Ficha</th></tr></thead><tbody className="divide-y divide-white/[0.07]">{filtered.map((item) => <tr key={item.id} className="transition hover:bg-white/[0.035]"><td className="px-5 py-4"><strong className="block text-white">{item.display_name}</strong><span className="mt-1 block text-xs text-slate-500">{item.legal_name}</span></td><td className="px-5 py-4"><span className="font-mono text-xs text-slate-300">{item.slug}</span></td><td className="px-5 py-4"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${item.status === "active" ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : item.status === "suspended" ? "border-rose-300/20 bg-rose-300/10 text-rose-200" : "border-amber-300/20 bg-amber-300/10 text-amber-200"}`}>{statusLabel[item.status] ?? item.status}</span></td><td className="px-5 py-4 text-xs text-slate-400">{formatDate(item.created_at)}</td><td className="px-5 py-4 text-right"><button type="button" onClick={() => setSelected(item)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-cyan-100 hover:border-cyan-200/30 hover:bg-cyan-200/10">Ver ficha <ArrowUpRight size={13} className="ml-1 inline"/></button></td></tr>)}</tbody></table></div>}
       </div>
     </section>
+
+    <PlatformOperationsPanel institutions={institutions} />
 
     <section className="space-y-4">
       <div><p className="text-[11px] font-bold tracking-[0.18em] text-violet-200">CENTRO DE HERRAMIENTAS</p><h2 className="mt-1 text-xl font-bold text-white">Administración avanzada</h2><p className="mt-1 text-sm text-slate-400">Áreas previstas para el control integral de EDUNEXA.</p></div>
