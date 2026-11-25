@@ -69,6 +69,8 @@ assert.ok(!executionMigration.includes("user_metadata"), "Delegation and worker 
 assert.ok(executionMigration.includes("grant execute on function public.platform_claim_clone_job(integer) to service_role"));
 assert.ok(executionMigration.includes("grant execute on function public.platform_finish_clone_job(uuid,boolean,text) to service_role"));
 assert.ok(executionMigration.includes("grant execute on function public.platform_resolve_delegated_context_by_slug(text) to authenticated"));
+assert.ok(executionMigration.includes("revoke all on function public.platform_request_clone(uuid,text,text,text,text,text) from public, anon, authenticated"));
+assert.ok(executionMigration.includes("revoke all on function public.platform_request_delegation(uuid,text,timestamptz,text) from public, anon, authenticated"));
 assert.ok(executionMigration.includes("on conflict(institution_id,config_key) do update"), "Clone config copy must be retry-safe");
 assert.ok(executionMigration.includes("for update skip locked"), "Worker must claim jobs without double-processing");
 assert.equal((executionMigration.match(/as \$\$/g) ?? []).length, (executionMigration.match(/\$\$;/g) ?? []).length, "Execution migration dollar quotes must be balanced");
