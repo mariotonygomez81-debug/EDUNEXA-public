@@ -98,7 +98,39 @@ assert.ok(planExecutionRoute.includes("execution.rollback()"), "External GitHub 
 assert.ok(delegatedWorkspace.includes("MODO DE SOPORTE DELEGADO") && delegatedWorkspace.includes("SOLO LECTURA"));
 assert.ok(institutionWorkspace.includes("platform_resolve_delegated_context_by_slug"));
 assert.ok(institutionWorkspace.includes("platform_resolve_delegated_context"));
-assert.ok(api.includes("platform_request_clone_idempotent") && api.includes("platform_request_delegation_idempotent"));
+assert.ok(api.includes("platform_request_clone_idempotent") && api.includes("platform_request_delegation_scoped_idempotent"));
 assert.ok(api.includes("Idempotency-Key"), "Clone and delegation request routes must require idempotency keys");
 assert.ok(!/as \$(?!\$)/.test(executionMigration), "Execution migration cannot contain malformed single-dollar delimiters");
 assert.ok(api.includes("platform_approve_clone_job"), "Clone execution must require independent approval");
+
+const scopedMigration = read("../supabase/migrations/20261125200000_superadmin_module_scoped_support_and_config_sync.sql");
+const operationsPanel = read("../src/components/admin/platform-operations-panel.tsx");
+for (const token of [
+  "platform_delegations_module_scope_check", "platform_request_delegation_scoped_idempotent",
+  "platform_read_delegated_module", "platform_list_delegations", "platform_list_clone_jobs",
+  "platform_refresh_institution_clone_config", "platform_refresh_institution_clone_config_trigger",
+  "academic_calendar", "grading_scales", "academic_structure", "platform.delegation.legacy_scope_revoked",
+]) assert.ok(scopedMigration.includes(token), `Missing scoped support/config-sync control: ${token}`);
+assert.ok(scopedMigration.includes("raw_app_meta_data->>'platform_role'"), "Delegated module reads must revalidate trusted global role");
+assert.ok(scopedMigration.includes("d.expires_at>pg_catalog.now()"), "Delegated module reads must enforce expiry");
+assert.ok(scopedMigration.includes("p_module_key=any(v_grant.module_scope)"), "Each delegated module must enforce its own scope");
+assert.ok(scopedMigration.includes("platform_audit_append('platform.delegation.module.read'"), "Each delegated read must be audited");
+assert.ok(scopedMigration.includes("update public.academic_years") === false, "Snapshot sync must not mutate live academic settings");
+assert.ok(operationsPanel.includes("moduleScopes") && operationsPanel.includes("execute-next"));
+assert.ok(operationsPanel.includes("/approve"), "Console must expose independent approval controls");
+assert.ok(consoleSource.includes("PlatformOperationsPanel"));
+assert.ok(api.includes("platform_request_delegation_scoped_idempotent"));
+assert.ok(api.includes("platform_read_delegated_module"));
+assert.ok(api.includes("platform_claim_clone_job") && api.includes("platform_finish_clone_job"));
+assert.ok(api.includes("SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY"), "Clone worker credentials must remain server-side");
+assert.ok(delegatedWorkspace.includes("moduleScopes") && delegatedWorkspace.includes("Consultar configuración segura"));
+assert.ok(institutionWorkspace.includes("module_scope"), "Workspace must receive approved module scope");
+assert.ok(postgresAssertions.includes("institution settings must synchronize to the clone registry"));
+assert.ok(postgresAssertions.includes("delegated module must return only its allowed safe configuration"));
+assert.ok(postgresAssertions.includes("synchronized academic settings were not copied to the cloned tenant"));
+assert.equal((scopedMigration.match(/as \\$\\$/g) ?? []).length, (scopedMigration.match(/\\$\\$;/g) ?? []).length, "Scoped support migration dollar quotes must be balanced");
+const scopedFunctions = [...scopedMigration.matchAll(/create or replace function public\\.(platform_[a-z_]+)/g)].map((match) => match[1]);
+for (const name of scopedFunctions) {
+  assert.ok(scopedMigration.includes("revoke all on function public." + name + "("), name + " must revoke default PUBLIC execution");
+  assert.ok(scopedMigration.includes("grant execute on function public." + name + "("), name + " must grant explicit authenticated execution");
+}
