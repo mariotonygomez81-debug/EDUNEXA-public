@@ -64,7 +64,7 @@ function ToolCard({ title, description, icon: Icon, status, tone = "cyan", href 
 }
 
 
-function InstitutionLifecyclePanel({ institutions }: { institutions: PlatformInstitution[] }) {
+export function InstitutionLifecyclePanel({ institutions }: { institutions: PlatformInstitution[] }) {
   const router = useRouter();
   const [displayName, setDisplayName] = useState("");
   const [legalName, setLegalName] = useState("");
@@ -253,8 +253,8 @@ export default function PlatformSuperadminConsole({ institutions, loadError }: P
     <section className="space-y-4">
       <div><p className="text-[11px] font-bold tracking-[0.18em] text-violet-200">CENTRO DE HERRAMIENTAS</p><h2 className="mt-1 text-xl font-bold text-white">Administración avanzada</h2><p className="mt-1 text-sm text-slate-400">Áreas previstas para el control integral de EDUNEXA.</p></div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <ToolCard title="ABM de plataformas" description="Crear, editar, activar y suspender instituciones, con historial de cambios." icon={Building2} tone="cyan" href="#institution-lifecycle"/>
-        <ToolCard title="Administradores de colegios" description="Asignar administradores existentes, revocar accesos y revisar responsables por institución." icon={Users} tone="violet" href="#institution-admins"/>
+        <ToolCard title="ABM de plataformas" description="Crear, editar, activar y suspender instituciones, con historial de cambios." icon={Building2} tone="cyan" href="/dashboard/platform/institutions"/>
+        <ToolCard title="Administradores de colegios" description="Asignar administradores existentes, revocar accesos y revisar responsables por institución." icon={Users} tone="violet" href="/dashboard/platform/administrators"/>
         <ToolCard title="Superadministradores" description="Alta, baja, modificación, recuperación de acceso y control de privilegios globales." icon={KeyRound} tone="amber"/>
         <ToolCard title="Acceso delegado a colegios" description="Entrar en modo de asistencia administrativa, con motivo obligatorio, alcance temporal y registro visible." icon={Network} tone="cyan"/>
         <ToolCard title="Clonación de plataformas" description="Crear una nueva institución desde una plantilla, con configuración aislada y datos de prueba opcionales." icon={Layers3} tone="violet"/>
