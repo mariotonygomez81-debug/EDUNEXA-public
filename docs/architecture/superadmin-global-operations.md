@@ -28,7 +28,7 @@ Se incorporó en `feature/EDUNEXA-MODELES` un primer backend de control global c
 Base: `/api/platform`.
 
 - `GET /institutions`, `POST /institutions`
-- `PATCH /institutions/:id/status`
+- `PATCH /institutions/:id`, `PATCH /institutions/:id/status`
 - `POST /institutions/:id/administrators`, `DELETE /institutions/:id/administrators/:membershipId`
 - `POST /delegations`, `POST /delegations/:id/approve`, `POST /delegations/:id/revoke`
 - `POST /clones`
