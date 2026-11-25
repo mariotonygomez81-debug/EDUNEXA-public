@@ -358,6 +358,159 @@ for select to authenticated
 using (config_key in ('academic_calendar','grading_scales','academic_structure','branding','module_settings')
   and private.has_active_delegated_module_scope(institution_id,'administrador'));
 
+create or replace function private.platform_clone_materialize_academic_configuration(p_job_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_job private.platform_clone_jobs%rowtype;
+  v_row record;
+  v_target_id uuid;
+  v_scale_id uuid;
+  v_level_id uuid;
+  v_course_id uuid;
+  v_subject_id uuid;
+  v_count integer:=0;
+begin
+  select * into v_job from private.platform_clone_jobs where id=p_job_id for update;
+  if not found or v_job.status<>'completed' or v_job.approved_by is null
+    or v_job.copy_mode<>'configuration_only' then
+    raise exception using errcode='23514',message='clone_materialization_requires_completed_approved_job';
+  end if;
+  if exists (
+    select 1 from private.platform_institution_clone_config c
+    where c.institution_id=v_job.source_institution_id
+      and not private.platform_clone_json_is_safe(c.config_value)
+  ) then
+    raise exception using errcode='23514',message='unsafe_clone_configuration_rejected';
+  end if;
+
+  create temporary table if not exists edunexa_clone_scale_map(source_id uuid primary key,target_id uuid not null) on commit drop;
+  create temporary table if not exists edunexa_clone_year_map(source_id uuid primary key,target_id uuid not null) on commit drop;
+  create temporary table if not exists edunexa_clone_level_map(source_id uuid primary key,target_id uuid not null) on commit drop;
+  create temporary table if not exists edunexa_clone_course_map(source_id uuid primary key,target_id uuid not null) on commit drop;
+  create temporary table if not exists edunexa_clone_subject_map(source_id uuid primary key,target_id uuid not null) on commit drop;
+  truncate table pg_temp.edunexa_clone_scale_map,pg_temp.edunexa_clone_year_map,
+    pg_temp.edunexa_clone_level_map,pg_temp.edunexa_clone_course_map,pg_temp.edunexa_clone_subject_map;
+
+  for v_row in
+    select id,name,description,display_mode,minimum_value,maximum_value,passing_value
+    from public.grading_scales where institution_id=v_job.source_institution_id order by name
+  loop
+    insert into public.grading_scales(institution_id,name,description,display_mode,minimum_value,maximum_value,passing_value)
+    values(v_job.target_institution_id,v_row.name,v_row.description,v_row.display_mode,
+      v_row.minimum_value,v_row.maximum_value,v_row.passing_value)
+    on conflict(institution_id,name) do nothing;
+    select id into v_scale_id from public.grading_scales
+      where institution_id=v_job.target_institution_id and name=v_row.name;
+    insert into pg_temp.edunexa_clone_scale_map(source_id,target_id) values(v_row.id,v_scale_id);
+    v_count:=v_count+1;
+  end loop;
+
+  insert into public.grading_scale_levels(
+    institution_id,grading_scale_id,minimum_percentage,maximum_percentage,label,grade_value,is_passing,sort_order
+  )
+  select v_job.target_institution_id,m.target_id,l.minimum_percentage,l.maximum_percentage,
+    l.label,l.grade_value,l.is_passing,l.sort_order
+  from public.grading_scale_levels l
+  join pg_temp.edunexa_clone_scale_map m on m.source_id=l.grading_scale_id
+  where l.institution_id=v_job.source_institution_id;
+  get diagnostics v_scale_id = row_count;
+  v_count:=v_count+v_scale_id;
+
+  for v_row in
+    select id,name,starts_on,ends_on,status,grading_scale_id
+    from public.academic_years where institution_id=v_job.source_institution_id order by starts_on,name
+  loop
+    select target_id into v_scale_id from pg_temp.edunexa_clone_scale_map where source_id=v_row.grading_scale_id;
+    insert into public.academic_years(institution_id,name,starts_on,ends_on,status,grading_scale_id)
+    values(v_job.target_institution_id,v_row.name,v_row.starts_on,v_row.ends_on,
+      case when v_row.status='active' then 'planned' else v_row.status end,v_scale_id)
+    returning id into v_target_id;
+    insert into pg_temp.edunexa_clone_year_map(source_id,target_id) values(v_row.id,v_target_id);
+    v_count:=v_count+1;
+  end loop;
+
+  insert into public.grading_periods(institution_id,academic_year_id,name,starts_on,ends_on,sort_order)
+  select v_job.target_institution_id,m.target_id,p.name,p.starts_on,p.ends_on,p.sort_order
+  from public.grading_periods p
+  join pg_temp.edunexa_clone_year_map m on m.source_id=p.academic_year_id
+  where p.institution_id=v_job.source_institution_id;
+  get diagnostics v_year_id = row_count;
+  v_count:=v_count+v_year_id;
+
+  for v_row in
+    select id,name,code,sort_order from public.education_levels
+    where institution_id=v_job.source_institution_id order by sort_order,name
+  loop
+    insert into public.education_levels(institution_id,name,code,sort_order)
+    values(v_job.target_institution_id,v_row.name,v_row.code,v_row.sort_order)
+    returning id into v_level_id;
+    insert into pg_temp.edunexa_clone_level_map(source_id,target_id) values(v_row.id,v_level_id);
+    v_count:=v_count+1;
+  end loop;
+
+  for v_row in
+    select id,level_id,name,grade_number,shift from public.courses
+    where institution_id=v_job.source_institution_id order by name
+  loop
+    select target_id into v_level_id from pg_temp.edunexa_clone_level_map where source_id=v_row.level_id;
+    insert into public.courses(institution_id,level_id,name,grade_number,shift)
+    values(v_job.target_institution_id,v_level_id,v_row.name,v_row.grade_number,v_row.shift)
+    returning id into v_course_id;
+    insert into pg_temp.edunexa_clone_course_map(source_id,target_id) values(v_row.id,v_course_id);
+    v_count:=v_count+1;
+  end loop;
+
+  for v_row in
+    select id,name,code from public.subjects where institution_id=v_job.source_institution_id order by name
+  loop
+    insert into public.subjects(institution_id,name,code)
+    values(v_job.target_institution_id,v_row.name,v_row.code)
+    returning id into v_subject_id;
+    insert into pg_temp.edunexa_clone_subject_map(source_id,target_id) values(v_row.id,v_subject_id);
+    v_count:=v_count+1;
+  end loop;
+
+  insert into public.course_subjects(institution_id,course_id,subject_id,weekly_hours)
+  select v_job.target_institution_id,cm.target_id,sm.target_id,cs.weekly_hours
+  from public.course_subjects cs
+  join pg_temp.edunexa_clone_course_map cm on cm.source_id=cs.course_id
+  join pg_temp.edunexa_clone_subject_map sm on sm.source_id=cs.subject_id
+  where cs.institution_id=v_job.source_institution_id;
+  get diagnostics v_course_id = row_count;
+  v_count:=v_count+v_course_id;
+
+  return v_count;
+end;
+$$;
+
+create or replace function private.platform_clone_materialize_trigger()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare v_count integer;
+begin
+  if old.status is distinct from new.status and new.status='completed' then
+    v_count:=private.platform_clone_materialize_academic_configuration(new.id);
+    perform private.platform_audit_append('platform.clone.configuration.materialize','clone_job',new.id::text,
+      new.target_institution_id,'Materialización transaccional de configuración académica permitida',
+      'clone-materialize-'||new.id::text,'success',
+      jsonb_build_object('configuration_rows_materialized',v_count,'personal_data_copied',false));
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists platform_clone_materialize_configuration on private.platform_clone_jobs;
+create trigger platform_clone_materialize_configuration
+after update of status on private.platform_clone_jobs
+for each row execute function private.platform_clone_materialize_trigger();
+
 create or replace function public.platform_read_delegated_module(p_delegation_id uuid,p_module_key text)
 returns jsonb
 language plpgsql
