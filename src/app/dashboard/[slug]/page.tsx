@@ -8,7 +8,7 @@ const modules: { name: string; detail: string; icon: string; href: string; permi
   { name: "Docentes", detail: "Enseñanza, aulas, actividades y evaluaciones", icon: "classroom", href: "teaching", permissions: ["classroom.read"], role: "teacher", category: "Académico" },
   { name: "Preceptor", detail: "Divisiones, seguimiento y asistencia", icon: "prefect", href: "prefect", permissions: ["students.read", "attendance.read"], role: "prefect", category: "Académico" },
   { name: "Alumnos", detail: "Trayectoria, aulas y actividades personales", icon: "students", href: "student", permissions: ["institution.read"], role: "student", category: "Académico" },
-  { name: "Tutor", detail: "Seguimiento académico y comunicación familiar", icon: "portal", href: "portal", permission: "institution.read", role: "guardian", category: "Comunidad" },
+  { name: "Tutor", detail: "Seguimiento académico y comunicación familiar", icon: "portal", href: "portal", permissions: ["institution.read"], role: "guardian", category: "Comunidad" },
   { name: "Directivos", detail: "Indicadores y supervisión institucional", icon: "direction", href: "direction", permissions: ["reports.read", "students.read", "attendance.read", "grades.read"], role: "director", category: "Gestión" },
   { name: "Administrativos", detail: "Documentación, trámites y registros", icon: "administrative", href: "administrative", permissions: ["administrative_records.read"], role: "administrative", category: "Gestión" },
   { name: "Administrador", detail: "Usuarios, permisos y configuración del colegio", icon: "users", href: "admin-center", permissions: ["institution.manage"], role: "institution_admin", category: "Gestión" },
