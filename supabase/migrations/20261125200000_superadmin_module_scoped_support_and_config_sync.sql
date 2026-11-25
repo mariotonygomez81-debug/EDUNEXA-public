@@ -146,11 +146,16 @@ as $$
 declare
   v_institution_id uuid;
 begin
-  if tg_op='DELETE' then v_institution_id:=old.institution_id;
-  else v_institution_id:=new.institution_id;
+  if tg_op='DELETE' then
+    perform private.platform_refresh_institution_clone_config(old.institution_id);
+    return old;
+  elsif tg_op='UPDATE' and old.institution_id is distinct from new.institution_id then
+    perform private.platform_refresh_institution_clone_config(old.institution_id);
+    perform private.platform_refresh_institution_clone_config(new.institution_id);
+    return new;
   end if;
+  v_institution_id:=new.institution_id;
   perform private.platform_refresh_institution_clone_config(v_institution_id);
-  if tg_op='DELETE' then return old; end if;
   return new;
 end;
 $;
@@ -304,12 +309,16 @@ declare
   v_keys text[];
   v_result jsonb;
 begin
-  if v_actor is null then raise exception using errcode='42501',message='platform_superadmin_required'; end if;
+  if v_actor is null or not exists(
+    select 1 from auth.users u where u.id=v_actor and u.raw_app_meta_data->>'platform_role'='superadmin'
+  ) then raise exception using errcode='42501',message='platform_superadmin_required'; end if;
   select * into v_grant from private.platform_delegations d
   where d.id=p_delegation_id and d.requested_by=v_actor and d.status='active'
     and d.approved_by is not null and d.approved_by<>v_actor and d.expires_at>pg_catalog.now()
   for share;
-  if not found then raise exception using errcode='42501',message='delegation_context_expired_or_revoked'; end if;
+  if not found or not exists(
+    select 1 from public.institutions i where i.id=v_grant.institution_id and i.status='active'
+  ) then raise exception using errcode='42501',message='delegation_context_expired_or_revoked'; end if;
   if not (p_module_key=any(v_grant.module_scope)) then
     raise exception using errcode='42501',message='delegated_module_not_authorized';
   end if;
@@ -388,6 +397,7 @@ revoke all on function private.platform_refresh_institution_clone_config(uuid) f
 revoke all on function private.platform_refresh_institution_clone_config_trigger() from public,anon,authenticated;
 revoke all on function public.platform_request_delegation_scoped_idempotent(uuid,text,timestamptz,text[],text,text) from public,anon;
 revoke all on function public.platform_request_delegation(uuid,text,timestamptz,text) from public,anon,authenticated;
+revoke all on function public.platform_request_delegation_idempotent(uuid,text,timestamptz,text,text) from public,anon,authenticated;
 revoke all on function public.platform_resolve_delegated_context(uuid) from public,anon;
 revoke all on function public.platform_resolve_delegated_context_by_slug(text) from public,anon;
 revoke all on function public.platform_read_delegated_module(uuid,text) from public,anon;
