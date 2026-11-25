@@ -538,6 +538,10 @@ begin
   if v_row.target_user_id=v_actor then
     raise exception using errcode='42501',message='target_cannot_execute_privilege_change';
   end if;
+  if v_row.requested_action='revoke'
+    and (select count(*) from auth.users where raw_app_meta_data->>'platform_role'='superadmin')<=1 then
+    raise exception using errcode='23514',message='cannot_revoke_last_superadmin';
+  end if;
   update private.platform_superadmin_change_requests set status='executing',executed_by=v_actor,claimed_at=pg_catalog.now() where id=p_request_id;
   perform private.platform_audit_append('platform.superadmin.change.execute.start','superadmin_change',p_request_id::text,null,
     'Inicio de ejecución de cambio de privilegio aprobado',p_audit_request_id,'started',
