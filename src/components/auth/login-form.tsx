@@ -53,6 +53,8 @@ export default function LoginForm() {
   const search = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordlessLoading, setPasswordlessLoading] = useState(false);
+  const [passwordlessSent, setPasswordlessSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -60,6 +62,32 @@ export default function LoginForm() {
   const [languageOpen, setLanguageOpen] = useState(false);
   const isEnglish = language === "en";
   const notice = search.get("message");
+
+  async function requestPlatformAccess() {
+    setError("");
+    setPasswordlessSent(false);
+    if (email.trim().toLowerCase() !== "mario.tony.gomez81@gmail.com") {
+      setError("El acceso inicial de Superadministrador está reservado a la cuenta autorizada.");
+      return;
+    }
+    setPasswordlessLoading(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/reset-password&flow=platform-bootstrap`,
+        },
+      });
+      if (error) throw error;
+      setPasswordlessSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No pudimos enviar el enlace de acceso. Intentá nuevamente.");
+    } finally {
+      setPasswordlessLoading(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -123,6 +151,12 @@ export default function LoginForm() {
             <div className="field-wrap"><LockKeyhole size={19}/><input id="password" type={showPassword?"text":"password"} autoComplete="current-password" placeholder={isEnglish ? "Enter your password" : "Ingresá tu contraseña"} value={password} onChange={e=>setPassword(e.target.value)} required minLength={8}/><button type="button" className="reveal-button" aria-label={showPassword?"Ocultar contraseña":"Mostrar contraseña"} onClick={()=>setShowPassword(!showPassword)}>{showPassword?<EyeOff size={19}/>:<Eye size={19}/>}</button></div>
             <button className="login-submit" type="submit" disabled={loading}>{loading ? (isEnglish ? "Signing in..." : "Ingresando...") : (isEnglish ? "Sign in" : "Ingresar")}<ArrowRight size={19}/></button>
           </form>
+          <div className="mt-5 rounded-xl border border-cyan-200/20 bg-cyan-50/5 p-4">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold"><ShieldCheck size={17}/> Acceso inicial de Superadministrador</div>
+            <p className="mb-3 text-xs text-slate-500">Solicitá un enlace de un solo uso en tu correo para crear tu contraseña inicial.</p>
+            {passwordlessSent && <div className="mb-3 text-sm text-emerald-600" role="status">Si la cuenta está habilitada, recibirás un enlace de acceso. Revisá también correo no deseado.</div>}
+            <button type="button" className="login-submit" disabled={passwordlessLoading || !email.trim()} onClick={requestPlatformAccess}>{passwordlessLoading ? "Enviando enlace..." : "Ingresar sin contraseña"}<ArrowRight size={19}/></button>
+          </div>
           <p className="account-policy">{isEnglish ? "Accounts are created and enabled by your institution’s administrator. If you need access, please contact your institution." : "Las cuentas son creadas y habilitadas por el administrador de tu institución. Si necesitás acceso, comunicate con tu institución."}</p>
           <div className="login-divider"><span>{isEnglish ? "SECURE ACCESS" : "ACCESO SEGURO"}</span></div>
           <div className="secure-caption"><ShieldCheck size={19}/><span>{isEnglish ? "Your information is protected. Access depends on the permissions assigned by your institution." : "Tu información está protegida. El acceso depende de los permisos asignados por tu institución."}</span></div>
