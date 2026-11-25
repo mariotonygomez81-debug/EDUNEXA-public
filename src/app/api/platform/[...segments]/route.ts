@@ -94,6 +94,15 @@ export async function POST(request: Request, route: RouteContext) {
     return json({ administrator: result.data }, 201);
   }
 
+  if (segments.length === 3 && segments[0] === "clones" && segments[2] === "approve") {
+    if (!validUuid(segments[1])) return json({ error: "Identificador de clonación inválido." }, 400);
+    result = await platformRpc(auth.supabase, "platform_approve_clone_job", {
+      p_job_id: segments[1], p_request_id: requestIdValue,
+    });
+    if (result.error) return rpcErrorResponse(result.error);
+    return json({ approval: result.data, workerEnabled: true });
+  }
+
   if (segments.length === 1 && segments[0] === "delegations") {
     if (!validUuid(body.institutionId) || !requiredReason(body.reason) || !text(body.expiresAt) || !key) {
       return json({ error: "Institución, motivo, vencimiento e Idempotency-Key son obligatorios." }, 400);
