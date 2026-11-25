@@ -287,7 +287,7 @@ begin
   where u.raw_app_meta_data->>'platform_role'='superadmin'
   order by u.created_at asc,u.id;
 end;
-$;
+$$;
 
 create or replace function public.platform_list_institution_admins(p_institution_id uuid)
 returns table(membership_id uuid,user_id uuid,email text,display_name text,status text,assigned_at timestamptz)
@@ -312,7 +312,7 @@ begin
   where m.institution_id=p_institution_id
   order by m.created_at desc,m.id;
 end;
-$;
+$$;
 
 create or replace function public.platform_create_institution(
   p_display_name text,p_legal_name text,p_slug text,p_reason text,p_request_id text,p_idempotency_key text
@@ -566,7 +566,7 @@ begin
     p_reason,p_request_id,'success',jsonb_build_object('requested_by',v_row.requested_by,'revoked_by',v_actor));
   return jsonb_build_object('id',p_delegation_id,'status','revoked');
 end;
-$;
+$$;
 
 create or replace function public.platform_request_clone(
   p_source_institution_id uuid,p_display_name text,p_legal_name text,p_slug text,p_reason text,p_request_id text
