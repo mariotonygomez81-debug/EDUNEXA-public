@@ -84,6 +84,33 @@ begin
 end;
 $$;
 
+create or replace function public.platform_request_delegation_idempotent(
+  p_institution_id uuid,p_reason text,p_expires_at timestamptz,
+  p_request_id text,p_idempotency_key text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor uuid := private.require_platform_superadmin();
+  v_claim jsonb;
+  v_id uuid;
+  v_result jsonb;
+begin
+  v_claim := private.platform_idempotency_claim(v_actor,p_idempotency_key,'platform.delegation.request',
+    jsonb_build_object('institution_id',p_institution_id,'reason',p_reason,'expires_at',p_expires_at));
+  if coalesce((v_claim->>'claimed')::boolean,false) is false then
+    return v_claim->'result';
+  end if;
+  v_id := public.platform_request_delegation(p_institution_id,p_reason,p_expires_at,p_request_id);
+  v_result := jsonb_build_object('delegation_id',v_id,'status','pending_second_approval');
+  perform private.platform_idempotency_complete(v_actor,p_idempotency_key,v_result);
+  return v_result;
+end;
+$$;
+
 create or replace function private.platform_require_worker()
 returns void
 language plpgsql
@@ -330,6 +357,7 @@ $$;
 revoke all on function private.platform_clone_json_is_safe(jsonb) from public, anon, authenticated;
 revoke all on function private.platform_require_worker() from public, anon, authenticated;
 revoke all on function public.platform_request_clone_idempotent(uuid,text,text,text,text,text,text) from public, anon;
+revoke all on function public.platform_request_delegation_idempotent(uuid,text,timestamptz,text,text) from public, anon;
 revoke all on function public.platform_claim_clone_job(integer) from public, anon, authenticated;
 revoke all on function public.platform_finish_clone_job(uuid,boolean,text) from public, anon, authenticated;
 revoke all on function public.platform_resolve_delegated_context(uuid) from public, anon;
@@ -337,6 +365,7 @@ revoke all on function public.platform_claim_ai_change_plan_execution(uuid) from
 revoke all on function public.platform_finish_ai_change_plan_execution(uuid,boolean,jsonb,text) from public, anon;
 
 grant execute on function public.platform_request_clone_idempotent(uuid,text,text,text,text,text,text) to authenticated;
+grant execute on function public.platform_request_delegation_idempotent(uuid,text,timestamptz,text,text) to authenticated;
 grant usage on schema private to service_role;
 grant execute on function private.platform_require_worker() to service_role;
 grant execute on function public.platform_claim_clone_job(integer) to service_role;
