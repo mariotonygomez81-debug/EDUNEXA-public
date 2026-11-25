@@ -3742,6 +3742,10 @@ export type Database = {
         Args: { p_classroom_id: string; p_held_on: string }
         Returns: Json
       }
+      get_classroom_attendance_sheet_by_session: {
+        Args: { p_session_id: string }
+        Returns: Json
+      }
       save_classroom_attendance_sheet: {
         Args: { p_classroom_id: string; p_session_id: string; p_records: Json }
         Returns: Json
