@@ -86,7 +86,7 @@ reset role;
 -- Classroom authorization: exercise the exact role-scoped function from the versioned migration.
 set role authenticated;
 select set_config('request.jwt.claim.sub','eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef',false);
-do $ begin
+do $classroom_auth$ begin
  if not private.can_access_classroom('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
    '11111111-1111-1111-1111-111111111111','classroom.read') then
   raise exception 'Assigned teacher should read the classroom';
@@ -99,9 +99,9 @@ do $ begin
    '11111111-1111-1111-1111-111111111111','classroom.manage') then
   raise exception 'Classroom owner teacher should manage content';
  end if;
-end $;
+end $classroom_auth$;
 select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',false);
-do $ begin
+do $classroom_auth$ begin
  if not private.can_access_classroom('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
    '11111111-1111-1111-1111-111111111111','classroom.read') then
   raise exception 'Institution admin should read classrooms';
@@ -110,9 +110,9 @@ do $ begin
    '11111111-1111-1111-1111-111111111111','classroom.grade') then
   raise exception 'Institution admin must not grade through classroom scope';
  end if;
-end $;
+end $classroom_auth$;
 select set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',false);
-do $ begin
+do $classroom_auth$ begin
  if not private.can_access_classroom('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
    '11111111-1111-1111-1111-111111111111','classroom.read')
  or not private.can_access_classroom('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
@@ -123,9 +123,9 @@ do $ begin
    '11111111-1111-1111-1111-111111111111','classroom.grade') then
   raise exception 'Student must not grade classroom submissions';
  end if;
-end $;
+end $classroom_auth$;
 select set_config('request.jwt.claim.sub','cccccccc-cccc-cccc-cccc-cccccccccccc',false);
-do $ begin
+do $classroom_auth$ begin
  if not private.can_access_classroom('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
    '11111111-1111-1111-1111-111111111111','classroom.read') then
   raise exception 'Linked guardian should read the classroom';
@@ -134,14 +134,14 @@ do $ begin
    '11111111-1111-1111-1111-111111111111','classroom.submit') then
   raise exception 'Guardian must not submit student work';
  end if;
-end $;
+end $classroom_auth$;
 select set_config('request.jwt.claim.sub','dddddddd-dddd-dddd-dddd-dddddddddddd',false);
-do $ begin
+do $classroom_auth$ begin
  if private.can_access_classroom('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
    '11111111-1111-1111-1111-111111111111','classroom.read') then
   raise exception 'Other-institution user crossed the classroom boundary';
  end if;
-end $;
+end $classroom_auth$;
 reset role;
 
 -- Classroom: execute the real content, assignment, submission, revision, and grading RPCs.
