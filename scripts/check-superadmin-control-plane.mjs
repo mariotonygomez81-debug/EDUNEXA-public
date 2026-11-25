@@ -12,7 +12,7 @@ for (const token of [
   "private.require_platform_superadmin", "auth.jwt() -> 'app_metadata' ->> 'platform_role'",
   "platform_create_institution", "platform_set_institution_status",
   "platform_assign_institution_admin", "platform_revoke_institution_admin",
-  "platform_request_delegation", "platform_approve_delegation",
+  "platform_list_superadmins", "platform_list_institution_admins",\n  "platform_request_delegation", "platform_approve_delegation", "platform_revoke_delegation",
   "platform_request_clone", "platform_create_superadmin_change",
   "platform_approve_superadmin_change", "platform_claim_superadmin_change",
   "platform_finish_superadmin_change", "platform_create_ai_change_plan",
