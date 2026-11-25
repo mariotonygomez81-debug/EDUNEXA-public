@@ -8,7 +8,7 @@ const dashboard = read("../src/app/dashboard/page.tsx");
 const institution = read("../src/app/dashboard/[slug]/page.tsx");
 
 assert.match(auth, /app_metadata\?\.platform_role === "superadmin"/);
-assert.ok(!auth.includes("user.user_metadata"));
+assert.doesNotMatch(auth, /user_metadata/);
 assert.match(globalPage, /isPlatformSuperAdmin\(user\)/);
 assert.match(globalPage, /redirect\("\/login"\)/);
 assert.match(dashboard, /redirect\("\/dashboard\/platform"\)/);
