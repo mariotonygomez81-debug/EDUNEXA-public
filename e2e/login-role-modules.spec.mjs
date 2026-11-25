@@ -6,6 +6,11 @@ const required = [
   "E2E_TEACHER_EMAIL", "E2E_TEACHER_PASSWORD",
   "E2E_STUDENT_EMAIL", "E2E_STUDENT_PASSWORD",
   "E2E_TUTOR_EMAIL", "E2E_TUTOR_PASSWORD",
+  "E2E_ADMIN_EMAIL", "E2E_ADMIN_PASSWORD",
+  "E2E_DIRECTOR_EMAIL", "E2E_DIRECTOR_PASSWORD",
+  "E2E_ADMINISTRATIVE_EMAIL", "E2E_ADMINISTRATIVE_PASSWORD",
+  "E2E_PREFECT_EMAIL", "E2E_PREFECT_PASSWORD",
+  "E2E_SECRETARIA_EMAIL", "E2E_SECRETARIA_PASSWORD",
 ];
 for (const key of required) {
   if (!process.env[key]) throw new Error(`Missing synthetic login E2E setting: ${key}`);
@@ -41,4 +46,36 @@ test("single login opens the linked-family tutor portal", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Mi espacio educativo" })).toBeVisible();
   await expect(page.getByText("PORTAL DEL ESTUDIANTE Y LA FAMILIA")).toBeVisible();
   await expect(page.getByText("Todavía no hay estudiantes vinculados")).toHaveCount(0);
+});
+
+test("institution administrator opens the control center", async ({ page }) => {
+  await login(page, process.env.E2E_ADMIN_EMAIL, process.env.E2E_ADMIN_PASSWORD);
+  await page.goto(`/dashboard/${encodeURIComponent(slug)}/admin-center`);
+  await expect(page.getByRole("heading", { name: "Centro de control institucional" })).toBeVisible();
+});
+
+test("director opens the institutional leadership panel", async ({ page }) => {
+  await login(page, process.env.E2E_DIRECTOR_EMAIL, process.env.E2E_DIRECTOR_PASSWORD);
+  await page.goto(`/dashboard/${encodeURIComponent(slug)}/direction`);
+  await expect(page.getByRole("heading", { name: "Panel directivo" })).toBeVisible();
+});
+
+test("administrative profile opens the administrative workspace", async ({ page }) => {
+  await login(page, process.env.E2E_ADMINISTRATIVE_EMAIL, process.env.E2E_ADMINISTRATIVE_PASSWORD);
+  await page.goto(`/dashboard/${encodeURIComponent(slug)}/administrative-office`);
+  await expect(page.getByRole("heading", { name: "Panel administrativo" })).toBeVisible();
+});
+
+test("prefect profile opens the independent attendance workspace", async ({ page }) => {
+  await login(page, process.env.E2E_PREFECT_EMAIL, process.env.E2E_PREFECT_PASSWORD);
+  await page.goto(`/dashboard/${encodeURIComponent(slug)}/prefect`);
+  await expect(page.getByRole("heading", { name: "Mis divisiones" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Asistencia independiente/ })).toBeVisible();
+});
+
+test("secretary subprofile uses the unified director role", async ({ page }) => {
+  await login(page, process.env.E2E_SECRETARIA_EMAIL, process.env.E2E_SECRETARIA_PASSWORD);
+  await page.goto(`/dashboard/${encodeURIComponent(slug)}/direction`);
+  await expect(page.getByRole("heading", { name: "Panel directivo" })).toBeVisible();
+  await expect(page.getByText(/Secretaría · Indicadores/)).toBeVisible();
 });
