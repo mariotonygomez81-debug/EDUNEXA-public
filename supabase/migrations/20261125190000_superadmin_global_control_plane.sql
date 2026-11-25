@@ -443,7 +443,8 @@ begin
   v_claim:=private.platform_idempotency_claim(v_actor,p_idempotency_key,'institution.admin.assign',
     jsonb_build_object('institution',p_institution_id,'user',p_user_id,'reason',p_reason));
   if v_claim->>'claimed'='false' then return v_claim->'result'; end if;
-  if not exists(select 1 from public.institutions where id=p_institution_id and status='active') then
+  perform 1 from public.institutions where id=p_institution_id and status='active' for update;
+  if not found then
     raise exception using errcode='P0002',message='active_institution_not_found';
   end if;
   if not exists(select 1 from auth.users where id=p_user_id) then
