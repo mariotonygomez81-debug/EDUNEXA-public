@@ -52,8 +52,7 @@ export async function POST(request: Request, route: RouteContext) {
   const auth = await context(request, true);
   if ("response" in auth) return auth.response;
   const { segments } = await route.params;
-  const body = await readJson(request);
-  if (!body) return json({ error: "El cuerpo JSON no es válido." }, 400);
+  const body = await readJson(request) ?? {};
   const requestIdValue = requestId();
   const key = idempotencyKey(request);
   let result;
