@@ -52,6 +52,11 @@ export async function GET(request: Request, route: RouteContext) {
     if (result.error) return rpcErrorResponse(result.error);
     return json({ module: result.data });
   }
+  if (segments.length === 2 && segments[0] === "copilot" && segments[1] === "plans") {
+    const result = await platformRpc(auth.supabase, "platform_list_ai_change_plans");
+    if (result.error) return rpcErrorResponse(result.error);
+    return json({ plans: result.data ?? [] });
+  }
   if (segments.length === 1 && segments[0] === "superadmins") {
     const result = await platformRpc(auth.supabase, "platform_list_superadmins");
     if (result.error) return rpcErrorResponse(result.error);
