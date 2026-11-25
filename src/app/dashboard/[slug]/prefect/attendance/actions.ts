@@ -34,7 +34,7 @@ export async function createPrefectAttendanceSession(data:FormData){
  revalidatePath(base);
  redirect(`${base}?courseId=${courseId}&divisionId=${divisionId}&date=${heldOn}`);
 }
-export async function savePrefectAttendance(data:FormData){
+export async function savePrefectAttendance(data:FormData): Promise<void>{
  const slug=field(data,"slug"),sessionId=field(data,"session_id");
  const ids=[...new Set(data.getAll("student_id").filter((v):v is string=>typeof v==="string"&&/^[0-9a-f-]{36}$/i.test(v)))];
  const allowed=["present","absent","half_absence","late","justified","early_departure"];
