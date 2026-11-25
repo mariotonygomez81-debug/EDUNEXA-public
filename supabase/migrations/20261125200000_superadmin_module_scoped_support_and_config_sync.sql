@@ -373,6 +373,7 @@ declare
   v_course_id uuid;
   v_subject_id uuid;
   v_count integer:=0;
+  v_rows integer:=0;
 begin
   select * into v_job from private.platform_clone_jobs where id=p_job_id for update;
   if not found or v_job.status<>'completed' or v_job.approved_by is null
@@ -417,8 +418,8 @@ begin
   from public.grading_scale_levels l
   join pg_temp.edunexa_clone_scale_map m on m.source_id=l.grading_scale_id
   where l.institution_id=v_job.source_institution_id;
-  get diagnostics v_scale_id = row_count;
-  v_count:=v_count+v_scale_id;
+  get diagnostics v_rows = row_count;
+  v_count:=v_count+v_rows;
 
   for v_row in
     select id,name,starts_on,ends_on,status,grading_scale_id
@@ -438,8 +439,8 @@ begin
   from public.grading_periods p
   join pg_temp.edunexa_clone_year_map m on m.source_id=p.academic_year_id
   where p.institution_id=v_job.source_institution_id;
-  get diagnostics v_year_id = row_count;
-  v_count:=v_count+v_year_id;
+  get diagnostics v_rows = row_count;
+  v_count:=v_count+v_rows;
 
   for v_row in
     select id,name,code,sort_order from public.education_levels
@@ -480,8 +481,8 @@ begin
   join pg_temp.edunexa_clone_course_map cm on cm.source_id=cs.course_id
   join pg_temp.edunexa_clone_subject_map sm on sm.source_id=cs.subject_id
   where cs.institution_id=v_job.source_institution_id;
-  get diagnostics v_course_id = row_count;
-  v_count:=v_count+v_course_id;
+  get diagnostics v_rows = row_count;
+  v_count:=v_count+v_rows;
 
   return v_count;
 end;
@@ -633,6 +634,8 @@ $$;
 revoke all on function private.platform_refresh_institution_clone_config(uuid) from public,anon,authenticated;
 revoke all on function private.platform_refresh_institution_clone_config_trigger() from public,anon,authenticated;
 revoke all on function private.has_active_delegated_module_scope(uuid,text) from public,anon;
+revoke all on function private.platform_clone_materialize_academic_configuration(uuid) from public,anon,authenticated;
+revoke all on function private.platform_clone_materialize_trigger() from public,anon,authenticated;
 grant execute on function private.has_active_delegated_module_scope(uuid,text) to authenticated;
 revoke all on function public.platform_request_delegation_scoped_idempotent(uuid,text,timestamptz,text[],text,text) from public,anon;
 revoke all on function public.platform_request_delegation(uuid,text,timestamptz,text) from public,anon,authenticated;
