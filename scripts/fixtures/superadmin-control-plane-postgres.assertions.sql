@@ -197,15 +197,16 @@ END $$;
 -- RLS defense-in-depth: a docentes grant can SELECT only academic_structure snapshots.
 GRANT USAGE ON SCHEMA private TO authenticated;
 GRANT SELECT ON private.platform_institution_clone_config TO authenticated;
+SELECT set_config('test.institution_id',(SELECT institution_id::text FROM synthetic_results),false);
 BEGIN;
 SET LOCAL ROLE authenticated;
 DO $$
 DECLARE v_structure integer; v_scales integer;
 BEGIN
   SELECT count(*) INTO v_structure FROM private.platform_institution_clone_config
-    WHERE institution_id=(SELECT institution_id FROM synthetic_results) AND config_key='academic_structure';
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_structure';
   SELECT count(*) INTO v_scales FROM private.platform_institution_clone_config
-    WHERE institution_id=(SELECT institution_id FROM synthetic_results) AND config_key='grading_scales';
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='grading_scales';
   IF v_structure<>1 OR v_scales<>0 THEN
     RAISE EXCEPTION 'module RLS must allow only the categories assigned to docentes';
   END IF;
