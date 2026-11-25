@@ -70,7 +70,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
       p_institution_id: institution.id,
     });
     const delegatedContext = delegated.data && typeof delegated.data === "object"
-      ? delegated.data as { delegation_id?: string; expires_at?: string; mode?: string }
+      ? delegated.data as { delegation_id?: string; expires_at?: string; mode?: string; module_scope?: string[] }
       : null;
     if (!delegated.error && delegatedContext?.mode === "delegated_support_read_only"
       && delegatedContext.delegation_id && delegatedContext.expires_at) {
