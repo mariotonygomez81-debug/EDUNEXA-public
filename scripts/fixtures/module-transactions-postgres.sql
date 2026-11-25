@@ -67,7 +67,7 @@ as $$ select exists(select 1 from public.students s where s.id=p_student_id and 
 
 grant usage on schema auth, private to authenticated;
 grant execute on function auth.uid() to authenticated;
-grant select on public.memberships to authenticated;
+grant select on public.memberships, public.enrollments, public.students, public.divisions to authenticated;
 
 insert into public.institutions(id,display_name,legal_name,tax_id) values
  ('11111111-1111-1111-1111-111111111111','Synthetic School','Synthetic School','TEST-ONLY');
