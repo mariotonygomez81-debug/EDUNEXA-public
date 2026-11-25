@@ -37,6 +37,8 @@ export default async function AttendancePage({
     .from("membership_roles").select("roles(key)")
     .eq("membership_id", membership.id);
   const roleKeys = (roleRows ?? []).map((row) => row.roles?.key);
+  // Preceptoría usa su módulo y planillas independientes; evitar mostrar la asistencia institucional genérica.
+  if (roleKeys.includes("prefect")) redirect(`/dashboard/${slug}/prefect/attendance`);
   const permissions = await getMembershipPermissions(supabase, membership.id);
   const isInstitutionAdmin = permissions.has("institution.manage");
   const canManageAttendance = permissions.has("attendance.manage");
