@@ -258,6 +258,7 @@ BEGIN
     RAISE EXCEPTION 'clone worker must never copy institutional memberships';
   END IF;
 END $$;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
 
 -- Global privilege changes require a second approver and a recorded execution saga.
