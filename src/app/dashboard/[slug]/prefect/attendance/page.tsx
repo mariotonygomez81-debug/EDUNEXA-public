@@ -1,4 +1,5 @@
 import Link from "next/link";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { redirect } from "next/navigation";
 import { ArrowLeft, CalendarCheck, ClipboardList } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
