@@ -66,9 +66,13 @@ const checks = [
     portalNotifications.includes('if (item.resource_type === "assignment") return `/dashboard/${slug}/portal`;')],
   ["citaciones: guardian role selects the guardian-specific appointments RPC",
     /roles\.includes\("guardian"\)/.test(appointments) &&
-    /isGuardian\s*\?/.test(appointments) &&
-    /list_guardian_teacher_appointments/.test(appointments) &&
-    /if \(!isGuardian && !isTeacher\)/.test(appointments)],
+    /const isGuardian = roles\.includes\("guardian"\)/.test(appointments) &&
+    /const isTeacher = roles\.includes\("teacher"\)/.test(appointments) &&
+    /const isPrefect = roles\.includes\("prefect"\)/.test(appointments) &&
+    /isGuardian\s*\?\s*await supabase\.rpc\("list_guardian_teacher_appointments"\)/.test(appointments) &&
+    /isPrefect\s*\?\s*await supabase\.rpc\("list_prefect_guardian_appointments"\)/.test(appointments) &&
+    /list_teacher_guardian_appointments/.test(appointments) &&
+    /if \(!isGuardian && !isTeacher && !isPrefect\)/.test(appointments)],
 ];
 
 for (const [name, passed] of checks) {
