@@ -41,7 +41,7 @@ create table public.students(
 create table public.enrollments(
  id uuid primary key default gen_random_uuid(), institution_id uuid not null,
  student_id uuid not null, division_id uuid not null, enrolled_on date not null default current_date,
- ended_on date, status text not null default 'active',
+ ended_on date, status text not null default 'active', created_at timestamptz not null default now(),
  foreign key(student_id,institution_id) references public.students(id,institution_id),
  foreign key(division_id,institution_id) references public.divisions(id,institution_id)
 );
@@ -92,9 +92,130 @@ insert into public.enrollments(institution_id,student_id,division_id,enrolled_on
  ('11111111-1111-1111-1111-111111111111','44444444-4444-4444-4444-444444444443','22222222-2222-2222-2222-222222222222',current_date-10,'active');
 insert into public.roles(id,key) values
  ('55555555-5555-5555-5555-555555555551','institution_admin'),
- ('55555555-5555-5555-5555-555555555552','director');
+ ('55555555-5555-5555-5555-555555555552','director'),
+ ('55555555-5555-5555-5555-555555555553','student');
 insert into public.membership_roles values
- ('33333333-3333-3333-3333-333333333331','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555551');
+ ('33333333-3333-3333-3333-333333333331','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555551'),
+ ('33333333-3333-3333-3333-333333333332','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555553');
+
+-- Synthetic identity/profile links used by the real messaging and classroom RPCs.
+create table public.profiles(id uuid primary key references auth.users(id),display_name text,first_name text,last_name text);
+insert into public.profiles(id,display_name,first_name,last_name) values
+ ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Admin sintético','Admin','Test'),
+ ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','Alumno sintético','Alumno','Test'),
+ ('cccccccc-cccc-cccc-cccc-cccccccccccc','Usuario externo','Usuario','Test');
+create table public.student_memberships(
+ student_id uuid not null,institution_id uuid not null,membership_id uuid not null,
+ primary key(student_id,membership_id)
+);
+insert into public.student_memberships values
+ ('44444444-4444-4444-4444-444444444441','11111111-1111-1111-1111-111111111111','33333333-3333-3333-3333-333333333332');
+create table public.staff_assignments(
+ id uuid primary key default gen_random_uuid(),membership_id uuid,institution_id uuid,
+ starts_on date,ends_on date,division_id uuid,course_subject_id uuid,assignment_type text
+);
+create table public.guardians(
+ id uuid primary key default gen_random_uuid(),institution_id uuid,membership_id uuid,receives_notifications boolean not null default true
+);
+create table public.student_guardians(
+ guardian_id uuid,institution_id uuid,student_id uuid,can_view_grades boolean not null default false
+);
+create table public.notification_preferences(
+ institution_id uuid,membership_id uuid,notification_type text,in_app_enabled boolean,
+ primary key(institution_id,membership_id,notification_type)
+);
+create table public.notifications(
+ id uuid primary key default gen_random_uuid(),institution_id uuid not null,recipient_membership_id uuid not null,
+ notification_type text not null,title text not null,body text,resource_type text,resource_id uuid,
+ created_at timestamptz not null default now(),read_at timestamptz,
+ unique(institution_id,recipient_membership_id,notification_type,resource_type,resource_id)
+);
+create table public.conversations(
+ id uuid primary key default gen_random_uuid(),institution_id uuid not null,subject text,created_by uuid,
+ created_at timestamptz not null default now()
+);
+create table public.conversation_members(
+ conversation_id uuid not null,institution_id uuid not null,membership_id uuid not null,
+ joined_at timestamptz not null default now(),primary key(conversation_id,membership_id)
+);
+create table public.messages(
+ id uuid primary key default gen_random_uuid(),institution_id uuid not null,conversation_id uuid not null,
+ sender_membership_id uuid not null,body text not null,sent_at timestamptz not null default now(),read_at timestamptz
+);
+
+-- Actual scoped direct-messaging RPCs and current-relationship revalidation.
+\\i supabase/migrations/20261120222930_implement_scoped_direct_messaging.sql
+\\i supabase/migrations/20261120223332_revalidate_messaging_scope_on_existing_conversations.sql
+
+-- Classroom synthetic base tables; RPC implementations and audit triggers come from repository migrations.
+create table public.virtual_classrooms(
+ id uuid primary key,institution_id uuid not null,division_id uuid not null,title text not null,description text,
+ created_at timestamptz not null default now()
+);
+create table public.classroom_materials(
+ id uuid primary key default gen_random_uuid(),institution_id uuid not null,classroom_id uuid not null,
+ title text not null,body text,published_at timestamptz,created_by uuid not null
+);
+alter table public.assignments add column classroom_id uuid;
+alter table public.assignments add column title text;
+alter table public.assignments add column instructions text;
+alter table public.assignments add column due_at timestamptz;
+alter table public.assignments add column created_by uuid;
+alter table public.assignments add constraint assignments_classroom_scope_unique unique(id,institution_id);
+alter table public.submissions add column feedback text;
+alter table public.submissions add column graded_by uuid;
+alter table public.submissions add column file_path text;
+alter table public.submissions add constraint submissions_scope_unique unique(id,institution_id);
+insert into public.virtual_classrooms(id,institution_id,division_id,title,description)
+values('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee','11111111-1111-1111-1111-111111111111',
+'22222222-2222-2222-2222-222222222222','Aula sintética','Fixture de integración');
+update public.assignments set classroom_id='eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+ title='Tarea de puntaje',instructions='Tarea de fixture',created_by='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+ where id='66666666-6666-6666-6666-666666666661';
+
+insert into public.permissions(key,description) values
+ ('classroom.manage','Manage synthetic classroom'),
+ ('classroom.read','Read synthetic classroom'),
+ ('classroom.submit','Submit synthetic classroom assignment'),
+ ('classroom.grade','Grade synthetic classroom submission')
+on conflict(key) do nothing;
+insert into public.role_permissions(role_id,permission_id)
+select '55555555-5555-5555-5555-555555555551',id from public.permissions
+where key in ('classroom.manage','classroom.read','classroom.grade')
+on conflict do nothing;
+insert into public.role_permissions(role_id,permission_id)
+select '55555555-5555-5555-5555-555555555553',id from public.permissions
+where key in ('classroom.read','classroom.submit')
+on conflict do nothing;
+
+create or replace function private.can_access_classroom(p_classroom_id uuid,p_institution_id uuid,p_permission_key text)
+returns boolean language sql stable security definer set search_path=''
+as $classroom_access$
+ select exists(
+  select 1 from public.virtual_classrooms vc
+  join public.memberships m on m.institution_id=vc.institution_id and m.user_id=auth.uid() and m.status='active'
+  join public.membership_roles mr on mr.membership_id=m.id and mr.institution_id=m.institution_id
+  join public.roles r on r.id=mr.role_id
+  where vc.id=p_classroom_id and vc.institution_id=p_institution_id
+  and private.has_institution_permission(p_institution_id,p_permission_key)
+  and (
+   (r.key='institution_admin' and p_permission_key in ('classroom.manage','classroom.read','classroom.grade'))
+   or (r.key='student' and p_permission_key in ('classroom.read','classroom.submit')
+    and exists(select 1 from public.student_memberships sm join public.enrollments e
+     on e.student_id=sm.student_id and e.institution_id=sm.institution_id
+     where sm.membership_id=m.id and sm.institution_id=m.institution_id
+     and e.division_id=vc.division_id and e.status='active'
+     and e.enrolled_on<=current_date and (e.ended_on is null or e.ended_on>=current_date)))
+  )
+ )
+$classroom_access$;
+
+\\i supabase/migrations/20261120042544_scope_classroom_submissions.sql
+\\i supabase/migrations/20261120044813_add_submission_revision_and_grade_history.sql
+\\i supabase/migrations/20261120212102_add_scoped_classroom_content_creation.sql
+\\i supabase/migrations/20261120212332_add_scoped_classroom_assignment_submission.sql
+\\i supabase/migrations/20261120212822_add_scoped_classroom_submission_review_and_grading.sql
+
 
 -- Preceptoría: apply the versioned migration, not a handwritten substitute.
 \i supabase/migrations/20261125012000_create_prefect_independent_attendance.sql
@@ -155,20 +276,4 @@ create table public.support_tickets(
 );
 \i supabase/migrations/20261120210046_manage_support_ticket_lifecycle_timestamps.sql
 
--- Mensajería: structural cross-institution and participant membership contracts.
-create table public.contract_conversations(
- id uuid primary key,institution_id uuid not null references public.institutions(id),
- unique(id,institution_id)
-);
-create table public.contract_conversation_members(
- conversation_id uuid not null,institution_id uuid not null,membership_id uuid not null,
- primary key(conversation_id,membership_id),
- foreign key(conversation_id,institution_id) references public.contract_conversations(id,institution_id),
- foreign key(membership_id,institution_id) references public.memberships(id,institution_id)
-);
-create table public.contract_messages(
- id uuid primary key default gen_random_uuid(),conversation_id uuid not null,institution_id uuid not null,
- sender_membership_id uuid not null,body text not null check(length(btrim(body)) between 1 and 5000),
- foreign key(conversation_id,institution_id) references public.contract_conversations(id,institution_id),
- foreign key(sender_membership_id,institution_id) references public.memberships(id,institution_id)
-);
+-- Removed the previous structural-only messaging stand-in; tests now execute the repository RPC migrations.
