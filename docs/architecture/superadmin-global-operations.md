@@ -50,3 +50,45 @@ Estas dependencias requieren diseño y autorización explícita para cambios de 
 ## Restricciones de alcance vigentes
 
 No modificar Supabase ni Render, no provisionar usuarios, no aplicar migraciones, no habilitar privilegios ni contratar servicios. Mantener todo el trabajo de código en `feature/EDUNEXA-MODELES`.
+
+## Matriz de operaciones globales para la siguiente etapa (diseño solamente)
+
+| Operación | Actor permitido | Alcance | Evidencia obligatoria |
+|---|---|---|---|
+| Listar instituciones | Superadministrador global | Todas, con paginación y filtros | Evento de consulta administrativa y correlación |
+| Crear institución | Superadministrador global | Nuevo tenant, estado inicial pendiente | Solicitud, actor, motivo, identificador idempotente |
+| Activar / suspender | Superadministrador global | Una institución identificada por ID | Estado anterior/nuevo, motivo, aprobación y resultado |
+| Asignar administrador | Superadministrador global | Una institución específica | Usuario objetivo, institución, rol limitado y motivo |
+| Revocar administrador | Superadministrador global | Una institución específica | Rol retirado, efectos derivados y motivo |
+| Consultar auditoría | Superadministrador global / auditor autorizado | Solo lectura, filtros acotados | Registro de acceso y exportación |
+
+### Contratos de servidor propuestos (sin endpoints activos)
+
+- GET /api/platform/institutions: paginación por cursor; filtros status y búsqueda normalizada; nunca devolver secretos, credenciales ni datos de alumnos.
+- POST /api/platform/institutions: valida nombre, slug normalizado y unicidad; crea en estado pending; no activa automáticamente una institución.
+- POST /api/platform/institutions/:id/status: acepta solo transiciones declaradas (pending a active, active a suspended, suspended a active), motivo obligatorio, Idempotency-Key y versión esperada del registro.
+- POST /api/platform/institutions/:id/administrators: acepta identidad verificada y rol institution_admin únicamente; no acepta platform_role ni atributos de autorización del cliente.
+- DELETE /api/platform/institutions/:id/administrators/:membershipId: revoca solo la membresía de esa institución; bloquea autorrevocación y requiere motivo.
+- GET /api/platform/audit: lectura paginada de eventos inmutables; filtros por actor, acción, institución y ventana temporal; no expone secretos ni payloads sensibles.
+
+### Modelo lógico de auditoría (no es una migración)
+
+Campos mínimos a diseñar: id, occurred_at, actor_user_id, actor_platform_role, action, target_type, target_id, institution_id, reason, request_id, idempotency_key, before_state_hash, after_state_hash, outcome, failure_code y metadata_redacted.
+
+Reglas: append-only; sin UPDATE/DELETE para roles de aplicación; timestamps generados por servidor; integridad referencial cuando corresponda; retención y exportación controladas; acceso de lectura separado del permiso para operar. La escritura de auditoría y el cambio deben compartir transacción o ejecutarse mediante una única función de servidor transaccional. No alcanza con registrar el evento después de confirmar el cambio.
+
+### Matriz de pruebas negativas y aislamiento
+
+- No autenticado: 401.
+- Usuario normal, tutor, docente o alumno con claim ausente: 403.
+- user_metadata.platform_role=superadmin sin app_metadata.platform_role: 403.
+- Administrador institucional intentando listar otra institución o asignar un rol global: 403.
+- Institución inexistente o suspendida para una operación no permitida: 404/409 sin revelar información adicional.
+- Motivo ausente, transición inválida, versión obsoleta o idempotencia reutilizada con otro cuerpo: 400/409.
+- Auditoría inaccesible o transacción fallida: rollback completo; ninguna mutación parcial.
+- Reintento válido con la misma clave idempotente: mismo resultado, sin duplicar operaciones ni eventos.
+- Exportación de auditoría: nunca incluye tokens, contraseñas, secretos, emails de alumnos ni datos académicos personales.
+
+### Criterio de habilitación
+
+Cada operación se habilitará por separado únicamente después de revisar el modelo de auditoría, probar transacciones y rollback, verificar aislamiento entre dos instituciones sintéticas y obtener aprobación explícita. Hasta entonces, estos contratos son especificación y no deben convertirse en rutas mutadoras.
