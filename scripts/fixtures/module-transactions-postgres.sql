@@ -55,16 +55,7 @@ as $$ select auth.uid()='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
  and p_institution_id='11111111-1111-1111-1111-111111111111'::uuid
  and p_division_id='22222222-2222-2222-2222-222222222222'::uuid
  and p_permission='attendance.manage' $$;
-create or replace function private.has_institution_permission(p_institution_id uuid,p_permission_key text)
-returns boolean language sql stable security definer set search_path=''
-as $permission$ select exists (
- select 1 from public.memberships m join public.membership_roles mr
- on mr.membership_id=m.id and mr.institution_id=m.institution_id
- join public.role_permissions rp on rp.role_id=mr.role_id
- join public.permissions p on p.id=rp.permission_id
- where m.user_id=auth.uid() and m.institution_id=p_institution_id
- and m.status='active' and p.key=p_permission_key
-) $permission$;
+\i supabase/migrations/20261120030658_create_private_permission_helpers.sql
 create or replace function private.can_access_student(p_institution_id uuid,p_student_id uuid,p_permission text)
 returns boolean language sql stable
 as $$ select exists(select 1 from public.students s where s.id=p_student_id and s.institution_id=p_institution_id) $$;
@@ -85,7 +76,8 @@ insert into public.memberships(id,institution_id,user_id,status) values
  ('33333333-3333-3333-3333-333333333331','11111111-1111-1111-1111-111111111111','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','active'),
  ('33333333-3333-3333-3333-333333333332','11111111-1111-1111-1111-111111111111','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','active'),
  ('33333333-3333-3333-3333-333333333333','11111111-1111-1111-1111-111111111111','cccccccc-cccc-cccc-cccc-cccccccccccc','active'),
- ('33333333-3333-3333-3333-333333333334','11111111-1111-1111-1111-111111111112','dddddddd-dddd-dddd-dddd-dddddddddddd','active');
+ ('33333333-3333-3333-3333-333333333334','11111111-1111-1111-1111-111111111112','dddddddd-dddd-dddd-dddd-dddddddddddd','active'),
+ ('33333333-3333-3333-3333-333333333335','11111111-1111-1111-1111-111111111111','eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef','active');
 insert into public.divisions(id,institution_id) values
  ('22222222-2222-2222-2222-222222222222','11111111-1111-1111-1111-111111111111'),
  ('22222222-2222-2222-2222-222222222223','11111111-1111-1111-1111-111111111111');
@@ -100,10 +92,15 @@ insert into public.enrollments(institution_id,student_id,division_id,enrolled_on
 insert into public.roles(id,key) values
  ('55555555-5555-5555-5555-555555555551','institution_admin'),
  ('55555555-5555-5555-5555-555555555552','director'),
- ('55555555-5555-5555-5555-555555555553','student');
+ ('55555555-5555-5555-5555-555555555553','student'),
+ ('55555555-5555-5555-5555-555555555554','teacher'),
+ ('55555555-5555-5555-5555-555555555555','guardian');
 insert into public.membership_roles values
  ('33333333-3333-3333-3333-333333333331','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555551'),
- ('33333333-3333-3333-3333-333333333332','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555553');
+ ('33333333-3333-3333-3333-333333333332','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555553'),
+ ('33333333-3333-3333-3333-333333333333','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555555'),
+ ('33333333-3333-3333-3333-333333333335','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555554'),
+ ('33333333-3333-3333-3333-333333333334','11111111-1111-1111-1111-111111111112','55555555-5555-5555-5555-555555555551');
 
 -- Synthetic identity/profile links used by the real messaging and classroom RPCs.
 create table public.profiles(id uuid primary key references auth.users(id),display_name text,first_name text,last_name text);
@@ -111,7 +108,8 @@ insert into public.profiles(id,display_name,first_name,last_name) values
  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Admin sintético','Admin','Test'),
  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','Alumno sintético','Alumno','Test'),
  ('cccccccc-cccc-cccc-cccc-cccccccccccc','Usuario externo','Usuario','Test'),
- ('dddddddd-dddd-dddd-dddd-dddddddddddd','Usuario de otra institución','Usuario','Externo');
+ ('dddddddd-dddd-dddd-dddd-dddddddddddd','Usuario de otra institución','Usuario','Externo'),
+ ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef','Docente sintético','Docente','Test');
 create table public.student_memberships(
  student_id uuid not null,institution_id uuid not null,membership_id uuid not null,
  primary key(student_id,membership_id)
@@ -126,7 +124,8 @@ create table public.guardians(
  id uuid primary key default gen_random_uuid(),institution_id uuid,membership_id uuid,receives_notifications boolean not null default true
 );
 create table public.student_guardians(
- guardian_id uuid,institution_id uuid,student_id uuid,can_view_grades boolean not null default false
+ guardian_id uuid,institution_id uuid,student_id uuid,can_view_grades boolean not null default false,
+ can_view_attendance boolean not null default false
 );
 create table public.notification_preferences(
  institution_id uuid,membership_id uuid,notification_type text,in_app_enabled boolean,
@@ -199,7 +198,18 @@ values ('66666666-6666-6666-6666-666666666661','11111111-1111-1111-1111-11111111
 -- Classroom synthetic base tables; RPC implementations and audit triggers come from repository migrations.
 create table public.virtual_classrooms(
  id uuid primary key,institution_id uuid not null,division_id uuid not null,title text not null,description text,
+ course_subject_id uuid, owner_membership_id uuid, created_by uuid,
  created_at timestamptz not null default now()
+);
+create table public.classroom_members(
+ classroom_id uuid not null,institution_id uuid not null,membership_id uuid not null,
+ member_role text not null, primary key(classroom_id,membership_id)
+);
+create table public.classroom_teacher_permissions(
+ classroom_id uuid not null,institution_id uuid not null,teacher_membership_id uuid not null,
+ is_active boolean not null default true,can_grade boolean not null default false,
+ can_edit_materials boolean not null default false,can_edit_assignments boolean not null default false,
+ can_attendance boolean not null default false, primary key(classroom_id,teacher_membership_id)
 );
 create table public.classroom_materials(
  id uuid primary key default gen_random_uuid(),institution_id uuid not null,classroom_id uuid not null,
@@ -218,6 +228,20 @@ alter table public.submissions add constraint submissions_scope_unique unique(id
 insert into public.virtual_classrooms(id,institution_id,division_id,title,description)
 values('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee','11111111-1111-1111-1111-111111111111',
 '22222222-2222-2222-2222-222222222222','Aula sintética','Fixture de integración');
+update public.virtual_classrooms set owner_membership_id='33333333-3333-3333-3333-333333333335',
+ created_by='eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef'
+ where id='eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+insert into public.staff_assignments(membership_id,institution_id,division_id,assignment_type,starts_on,ends_on)
+values('33333333-3333-3333-3333-333333333335','11111111-1111-1111-1111-111111111111',
+ '22222222-2222-2222-2222-222222222222','teacher',current_date-10,current_date+10);
+insert into public.classroom_members(classroom_id,institution_id,membership_id,member_role)
+values('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee','11111111-1111-1111-1111-111111111111',
+ '33333333-3333-3333-3333-333333333332','student');
+insert into public.guardians(institution_id,membership_id)
+values('11111111-1111-1111-1111-111111111111','33333333-3333-3333-3333-333333333333');
+insert into public.student_guardians(guardian_id,institution_id,student_id,can_view_grades,can_view_attendance)
+select g.id,g.institution_id,'44444444-4444-4444-4444-444444444441',true,true
+from public.guardians g where g.membership_id='33333333-3333-3333-3333-333333333333';
 update public.assignments set classroom_id='eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
  title='Tarea de puntaje',instructions='Tarea de fixture',created_by='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
  where id='66666666-6666-6666-6666-666666666661';
@@ -236,28 +260,15 @@ insert into public.role_permissions(role_id,permission_id)
 select '55555555-5555-5555-5555-555555555553',id from public.permissions
 where key in ('classroom.read','classroom.submit')
 on conflict do nothing;
+insert into public.role_permissions(role_id,permission_id)
+select '55555555-5555-5555-5555-555555555554',id from public.permissions
+where key in ('classroom.manage','classroom.read','classroom.grade')
+on conflict do nothing;
+insert into public.role_permissions(role_id,permission_id)
+select '55555555-5555-5555-5555-555555555555',id from public.permissions
+where key='classroom.read'
+on conflict do nothing;
 
-create or replace function private.can_access_classroom(p_classroom_id uuid,p_institution_id uuid,p_permission_key text)
-returns boolean language sql stable security definer set search_path=''
-as $classroom_access$
- select exists(
-  select 1 from public.virtual_classrooms vc
-  join public.memberships m on m.institution_id=vc.institution_id and m.user_id=auth.uid() and m.status='active'
-  join public.membership_roles mr on mr.membership_id=m.id and mr.institution_id=m.institution_id
-  join public.roles r on r.id=mr.role_id
-  where vc.id=p_classroom_id and vc.institution_id=p_institution_id
-  and private.has_institution_permission(p_institution_id,p_permission_key)
-  and (
-   (r.key='institution_admin' and p_permission_key in ('classroom.manage','classroom.read','classroom.grade'))
-   or (r.key='student' and p_permission_key in ('classroom.read','classroom.submit')
-    and exists(select 1 from public.student_memberships sm join public.enrollments e
-     on e.student_id=sm.student_id and e.institution_id=sm.institution_id
-     where sm.membership_id=m.id and sm.institution_id=m.institution_id
-     and e.division_id=vc.division_id and e.status='active'
-     and e.enrolled_on<=current_date and (e.ended_on is null or e.ended_on>=current_date)))
-  )
- )
-$classroom_access$;
 
 \i supabase/migrations/20261120042544_scope_classroom_submissions.sql
 \i supabase/migrations/20261120044813_add_submission_revision_and_grade_history.sql
@@ -286,5 +297,8 @@ create table public.support_tickets(
  resolved_at timestamptz,closed_at timestamptz,updated_at timestamptz not null default now()
 );
 \i supabase/migrations/20261120210046_manage_support_ticket_lifecycle_timestamps.sql
+
+-- Apply the exact versioned role-scoped authorization implementation after all classroom prerequisites exist.
+\i supabase/migrations/20261124224714_enforce_role_scoped_academic_permissions.sql
 
 -- Removed the previous structural-only messaging stand-in; tests now execute the repository RPC migrations.
