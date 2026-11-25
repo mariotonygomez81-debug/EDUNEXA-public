@@ -5,8 +5,19 @@ import { createClient } from "@/lib/supabase/server";
 const SUPERADMIN_EMAIL = "mario.tony.gomez81@gmail.com";
 
 export async function POST(request: NextRequest) {
+  // Render may expose an internal URL through request.nextUrl behind its proxy.
+  // Validate the browser Origin against the externally forwarded host instead.
   const requestOrigin = request.headers.get("origin");
-  if (requestOrigin !== request.nextUrl.origin) {
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const requestHost = (forwardedHost || request.headers.get("host") || "").toLowerCase();
+  let originHost = "";
+  try {
+    originHost = requestOrigin ? new URL(requestOrigin).host.toLowerCase() : "";
+  } catch {
+    originHost = "";
+  }
+
+  if (!requestHost || !originHost || originHost !== requestHost) {
     return NextResponse.json({ error: "Origen de solicitud no válido." }, { status: 403 });
   }
 
