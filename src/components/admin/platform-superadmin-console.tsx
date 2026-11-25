@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import PlatformOperationsPanel from "@/components/admin/platform-operations-panel";
 import {
   Activity, AlertTriangle, ArrowUpRight, Bot, Building2, CheckCircle2, CircleHelp,
@@ -55,6 +56,84 @@ function ToolCard({ title, description, icon: Icon, status = "Preparado para sig
     <h3 className="mt-4 font-bold text-white">{title}</h3>
     <p className="mt-1 text-sm leading-6 text-slate-400">{description}</p>
   </article>;
+}
+
+
+function InstitutionLifecyclePanel({ institutions }: { institutions: PlatformInstitution[] }) {
+  const router = useRouter();
+  const [displayName, setDisplayName] = useState("");
+  const [legalName, setLegalName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function createInstitution(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy("create"); setMessage("");
+    try {
+      const response = await fetch("/api/platform/institutions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+        body: JSON.stringify({ displayName, legalName, slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, "-"), reason }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "No se pudo crear la institución.");
+      setDisplayName(""); setLegalName(""); setSlug(""); setReason("");
+      setMessage("Solicitud de alta registrada. La institución queda pendiente según la política del backend.");
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error al crear la institución.");
+    } finally { setBusy(""); }
+  }
+
+  async function changeStatus(institution: PlatformInstitution, nextStatus: "active" | "suspended") {
+    const reasonText = window.prompt(nextStatus === "suspended" ? "Motivo de suspensión (mínimo 12 caracteres):" : "Motivo de activación (mínimo 12 caracteres):");
+    if (!reasonText || reasonText.trim().length < 12) {
+      setMessage("La operación requiere un motivo de al menos 12 caracteres.");
+      return;
+    }
+    setBusy(institution.id); setMessage("");
+    try {
+      const response = await fetch(`/api/platform/institutions/${institution.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+        body: JSON.stringify({ status: nextStatus, expectedUpdatedAt: institution.updated_at, reason: reasonText.trim() }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "No se pudo cambiar el estado.");
+      setMessage(nextStatus === "active" ? "Institución activada." : "Institución suspendida.");
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error al cambiar el estado.");
+    } finally { setBusy(""); }
+  }
+
+  return (
+    <section className="space-y-4 rounded-2xl border border-cyan-200/15 bg-cyan-950/20 p-5">
+      <div>
+        <p className="text-[11px] font-bold tracking-[0.16em] text-cyan-200">ABM DE PLATAFORMAS · PRIMERA ETAPA</p>
+        <h3 className="mt-1 text-lg font-bold text-white">Altas, activación y suspensión</h3>
+        <p className="mt-1 text-xs leading-5 text-slate-400">Cada cambio requiere motivo, control de versión e idempotencia. Las altas quedan pendientes; no se habilita borrado físico.</p>
+      </div>
+      {message && <p role="status" className="rounded-lg border border-cyan-200/20 bg-cyan-200/[0.06] px-3 py-2 text-sm text-cyan-100">{message}</p>}
+      <form onSubmit={createInstitution} className="grid gap-2 md:grid-cols-2">
+        <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} minLength={2} maxLength={160} required placeholder="Nombre institucional" aria-label="Nombre institucional" className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white"/>
+        <input value={legalName} onChange={(e) => setLegalName(e.target.value)} minLength={2} maxLength={200} required placeholder="Razón social" aria-label="Razón social" className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white"/>
+        <input value={slug} onChange={(e) => setSlug(e.target.value)} minLength={2} maxLength={80} required placeholder="identificador-institucion" aria-label="Identificador de institución" className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white"/>
+        <input value={reason} onChange={(e) => setReason(e.target.value)} minLength={12} maxLength={1000} required placeholder="Motivo del alta (mínimo 12 caracteres)" aria-label="Motivo del alta" className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white"/>
+        <div className="md:col-span-2"><button disabled={!!busy} className="rounded-lg bg-cyan-500 px-4 py-2.5 text-sm font-bold text-slate-950 disabled:opacity-50">{busy === "create" ? "Registrando…" : "Registrar institución"}</button></div>
+      </form>
+      <div className="space-y-2">
+        {institutions.map((institution) => <div key={institution.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/50 p-3">
+          <div><p className="text-sm font-semibold text-white">{institution.display_name}</p><p className="text-xs text-slate-500">{institution.slug} · {statusLabel[institution.status] ?? institution.status}</p></div>
+          <div className="flex gap-2">
+            {institution.status === "active" ? <button type="button" disabled={!!busy} onClick={() => void changeStatus(institution, "suspended")} className="rounded-lg border border-rose-300/20 px-3 py-2 text-xs font-semibold text-rose-200 disabled:opacity-50">Suspender</button> : institution.status === "suspended" ? <button type="button" disabled={!!busy} onClick={() => void changeStatus(institution, "active")} className="rounded-lg border border-emerald-300/20 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50">Activar</button> : <span className="text-xs text-slate-500">Pendiente de activación</span>}
+          </div>
+        </div>)}
+      </div>
+    </section>
+  );
 }
 
 export default function PlatformSuperadminConsole({ institutions, loadError }: Props) {
@@ -125,6 +204,8 @@ export default function PlatformSuperadminConsole({ institutions, loadError }: P
         {loadError ? <div className="p-10 text-center"><Database size={26} className="mx-auto text-slate-600"/><p className="mt-3 font-semibold text-slate-300">No se pudo cargar el inventario</p><p className="mt-1 text-sm text-slate-500">No se muestran datos parciales ni se intenta sortear los permisos del backend.</p></div> : filtered.length === 0 ? <div className="p-10 text-center text-sm text-slate-500">No hay instituciones que coincidan con la búsqueda.</div> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-white/[0.04] text-[10px] uppercase tracking-[0.15em] text-slate-500"><tr><th className="px-5 py-4">Institución</th><th className="px-5 py-4">Identificador</th><th className="px-5 py-4">Estado</th><th className="px-5 py-4">Alta</th><th className="px-5 py-4 text-right">Ficha</th></tr></thead><tbody className="divide-y divide-white/[0.07]">{filtered.map((item) => <tr key={item.id} className="transition hover:bg-white/[0.035]"><td className="px-5 py-4"><strong className="block text-white">{item.display_name}</strong><span className="mt-1 block text-xs text-slate-500">{item.legal_name}</span></td><td className="px-5 py-4"><span className="font-mono text-xs text-slate-300">{item.slug}</span></td><td className="px-5 py-4"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${item.status === "active" ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : item.status === "suspended" ? "border-rose-300/20 bg-rose-300/10 text-rose-200" : "border-amber-300/20 bg-amber-300/10 text-amber-200"}`}>{statusLabel[item.status] ?? item.status}</span></td><td className="px-5 py-4 text-xs text-slate-400">{formatDate(item.created_at)}</td><td className="px-5 py-4 text-right"><button type="button" onClick={() => setSelected(item)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-cyan-100 hover:border-cyan-200/30 hover:bg-cyan-200/10">Ver ficha <ArrowUpRight size={13} className="ml-1 inline"/></button></td></tr>)}</tbody></table></div>}
       </div>
     </section>
+
+    <InstitutionLifecyclePanel institutions={institutions} />
 
     <PlatformOperationsPanel institutions={institutions} />
 
