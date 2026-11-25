@@ -60,44 +60,44 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
     (!assignment.starts_on || assignment.starts_on <= today) && (!assignment.ends_on || assignment.ends_on >= today)
   ).length;
 
-  const teacherCard = roleKeys.includes("teacher") ? await (async () => {
-    const [{ data: teacherProfile }, { data: teacherAssignments }] = await Promise.all([
-      supabase.from("profiles").select("first_name,last_name,display_name,avatar_path,avatar_style").eq("id", user.id).maybeSingle(),
-      supabase.from("staff_assignments").select("division_id,course_subject_id").eq("institution_id", institution.id)
-        .eq("membership_id", membership.id).eq("assignment_type", "teacher")
-        .or(`starts_on.is.null,starts_on.lte.${today}`).or(`ends_on.is.null,ends_on.gte.${today}`),
-    ]);
-    const assignments = teacherAssignments ?? [];
-    const divisionIds = [...new Set(assignments.map((item) => item.division_id).filter((id): id is string => Boolean(id)))];
-    const { data: assignedDivisions } = divisionIds.length
-      ? await supabase.from("divisions").select("id,course_id").eq("institution_id", institution.id).in("id", divisionIds)
-      : { data: [] as { id: string; course_id: string }[] };
-    const divisionCourse = new Map((assignedDivisions ?? []).map((item) => [item.id, item.course_id]));
-    const subjectAssignmentIds = new Set(assignments.map((item) => item.course_subject_id).filter((id): id is string => Boolean(id)));
-    const allSubjectCourseIds = [...new Set(assignments.filter((item) => !item.course_subject_id && item.division_id)
-      .map((item) => divisionCourse.get(item.division_id!)).filter((id): id is string => Boolean(id)))];
-    const [{ data: specificSubjects }, { data: divisionSubjects }] = await Promise.all([
-      subjectAssignmentIds.size
-        ? supabase.from("course_subjects").select("subject_id").eq("institution_id", institution.id).in("id", [...subjectAssignmentIds])
-        : Promise.resolve({ data: [] as { subject_id: string }[] }),
-      allSubjectCourseIds.length
-        ? supabase.from("course_subjects").select("subject_id").eq("institution_id", institution.id).in("course_id", allSubjectCourseIds)
-        : Promise.resolve({ data: [] as { subject_id: string }[] }),
-    ]);
-    const ids = [...new Set([...(specificSubjects ?? []), ...(divisionSubjects ?? [])].map((item) => item.subject_id))];
-    const { data: subjects } = ids.length
-      ? await supabase.from("subjects").select("name").eq("institution_id", institution.id).in("id", ids).order("name")
-      : { data: [] as { name: string }[] };
+  const profileCard = await (async () => {
+    const eligibleRoles = ["teacher", "institution_admin", "administrative", "director", "prefect", "student"];
+    if (!roleKeys.some((role) => eligibleRoles.includes(role))) return null;
+    const { data: personalProfile } = await supabase.from("profiles")
+      .select("first_name,last_name,display_name,avatar_path,avatar_style")
+      .eq("id", user.id).maybeSingle();
     let avatarUrl: string | null = null;
-    if (teacherProfile?.avatar_path) {
-      const { data } = await supabase.storage.from("teacher-profile-photos").createSignedUrl(teacherProfile.avatar_path, 600);
+    if (personalProfile?.avatar_path) {
+      const { data } = await supabase.storage.from("teacher-profile-photos").createSignedUrl(personalProfile.avatar_path, 600);
       avatarUrl = data?.signedUrl ?? null;
     }
-    const name = [teacherProfile?.first_name, teacherProfile?.last_name].filter(Boolean).join(" ").trim()
-      || teacherProfile?.display_name || "Docente";
-    return { name, avatarUrl, avatarStyle: teacherProfile?.avatar_style ?? "neutral",
-      subjects: [...new Set((subjects ?? []).map((item) => item.name))] };
-  })() : null;
+    const name = [personalProfile?.first_name, personalProfile?.last_name].filter(Boolean).join(" ").trim()
+      || personalProfile?.display_name || "Usuario";
+    const roleLabel = roleKeys.includes("teacher") ? "Docente"
+      : roleKeys.includes("prefect") ? "Preceptor"
+      : roleKeys.includes("director") ? "Directivo"
+      : roleKeys.includes("administrative") ? "Administrativo"
+      : roleKeys.includes("institution_admin") ? "Administrador" : "Alumno";
+    const profileHref = roleKeys.includes("teacher") ? "teaching/profile"
+      : roleKeys.includes("student") ? "student/profile" : "profile";
+    let subjects: string[] = [];
+    if (roleKeys.includes("teacher")) {
+      const { data: assignments } = await supabase.from("staff_assignments").select("course_subject_id")
+        .eq("institution_id", institution.id).eq("membership_id", membership.id).eq("assignment_type", "teacher")
+        .or(`starts_on.is.null,starts_on.lte.${today}`).or(`ends_on.is.null,ends_on.gte.${today}`);
+      const subjectIds = [...new Set((assignments ?? []).map((item) => item.course_subject_id).filter((id): id is string => Boolean(id)))];
+      if (subjectIds.length) {
+        const { data: subjectRows } = await supabase.from("course_subjects").select("subject_id")
+          .eq("institution_id", institution.id).in("id", subjectIds);
+        const ids = [...new Set((subjectRows ?? []).map((item) => item.subject_id))];
+        if (ids.length) {
+          const { data: names } = await supabase.from("subjects").select("name").eq("institution_id", institution.id).in("id", ids).order("name");
+          subjects = [...new Set((names ?? []).map((item) => item.name))];
+        }
+      }
+    }
+    return { name, avatarUrl, avatarStyle: personalProfile?.avatar_style ?? "neutral", subjects, roleLabel, profileHref };
+  })();
 
   const quickLinks: { title: string; detail: string; href: string; icon: string; tone: string }[] = [];
   const addQuick = (title: string, detail: string, href: string, icon: string, tone: string) =>
@@ -140,8 +140,9 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
 
   return <WorkspaceExperience
     institutionName={institution.display_name}
+    institutionSlug={slug}
     roleNames={roleNames}
-    teacherCard={teacherCard}
+    profileCard={profileCard}
     modules={modulesWithUnread}
     quickLinks={quickLinks}
     unreadCount={unreadNotificationCount ?? 0}
