@@ -27,7 +27,7 @@ SELECT (public.platform_create_institution(
 )->>'id')::uuid;
 
 -- Seed real, synthetic institution settings; triggers must mirror only safe configuration.
-DO $
+DO $$
 DECLARE v_institution uuid; v_level uuid; v_year uuid; v_scale uuid; v_course uuid; v_subject uuid;
 BEGIN
   SELECT institution_id INTO v_institution FROM synthetic_results;
@@ -51,8 +51,8 @@ BEGIN
     WHERE institution_id=v_institution AND config_key='academic_structure'
       AND jsonb_array_length(config_value->'education_levels')=1
   ) THEN RAISE EXCEPTION 'institution settings must synchronize to the clone registry'; END IF;
-END $;
-DO $
+END $$;
+DO $$
 DECLARE v_first uuid; v_second uuid; v_count integer;
 BEGIN
   SELECT institution_id INTO v_first FROM synthetic_results;
