@@ -271,6 +271,9 @@ where key='classroom.read'
 on conflict do nothing;
 
 
+-- Apply the exact versioned role-scoped authorization implementation after all classroom prerequisites exist.
+\i supabase/migrations/20261124224714_enforce_role_scoped_academic_permissions.sql
+
 \i supabase/migrations/20261120042544_scope_classroom_submissions.sql
 \i supabase/migrations/20261120044813_add_submission_revision_and_grade_history.sql
 \i supabase/migrations/20261120212102_add_scoped_classroom_content_creation.sql
@@ -298,8 +301,5 @@ create table public.support_tickets(
  resolved_at timestamptz,closed_at timestamptz,updated_at timestamptz not null default now()
 );
 \i supabase/migrations/20261120210046_manage_support_ticket_lifecycle_timestamps.sql
-
--- Apply the exact versioned role-scoped authorization implementation after all classroom prerequisites exist.
-\i supabase/migrations/20261124224714_enforce_role_scoped_academic_permissions.sql
 
 -- Removed the previous structural-only messaging stand-in; tests now execute the repository RPC migrations.
