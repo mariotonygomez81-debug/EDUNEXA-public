@@ -25,6 +25,33 @@ SELECT (public.platform_create_institution(
   'Colegio Sintético Uno','Colegio Sintético Uno S.A.','colegio-sintetico-uno',
   'Alta de institución ficticia para prueba automatizada','synthetic-request-0001','synthetic-idempotency-0001'
 )->>'id')::uuid;
+
+-- Seed real, synthetic institution settings; triggers must mirror only safe configuration.
+DO $
+DECLARE v_institution uuid; v_level uuid; v_year uuid; v_scale uuid; v_course uuid; v_subject uuid;
+BEGIN
+  SELECT institution_id INTO v_institution FROM synthetic_results;
+  INSERT INTO public.grading_scales(institution_id,name,description,display_mode,minimum_value,maximum_value,passing_value)
+    VALUES(v_institution,'Escala sintética','Configuración académica de prueba','numeric',1,10,6) RETURNING id INTO v_scale;
+  INSERT INTO public.grading_scale_levels(institution_id,grading_scale_id,minimum_percentage,maximum_percentage,label,grade_value,is_passing,sort_order)
+    VALUES(v_institution,v_scale,0,100,'Aprobado',6,true,1);
+  INSERT INTO public.academic_years(institution_id,name,starts_on,ends_on,status,grading_scale_id)
+    VALUES(v_institution,'2027','2027-03-01','2027-12-15','planned',v_scale) RETURNING id INTO v_year;
+  INSERT INTO public.grading_periods(institution_id,academic_year_id,name,starts_on,ends_on,sort_order)
+    VALUES(v_institution,v_year,'Primer período','2027-03-01','2027-07-01',1);
+  INSERT INTO public.education_levels(institution_id,name,code,sort_order)
+    VALUES(v_institution,'Secundario','SEC',1) RETURNING id INTO v_level;
+  INSERT INTO public.courses(institution_id,level_id,name,grade_number,shift)
+    VALUES(v_institution,v_level,'Primer año',1,'morning') RETURNING id INTO v_course;
+  INSERT INTO public.subjects(institution_id,name,code) VALUES(v_institution,'Matemática','MAT') RETURNING id INTO v_subject;
+  INSERT INTO public.course_subjects(institution_id,course_id,subject_id,weekly_hours)
+    VALUES(v_institution,v_course,v_subject,4);
+  IF NOT EXISTS (
+    SELECT 1 FROM private.platform_institution_clone_config
+    WHERE institution_id=v_institution AND config_key='academic_structure'
+      AND jsonb_array_length(config_value->'education_levels')=1
+  ) THEN RAISE EXCEPTION 'institution settings must synchronize to the clone registry'; END IF;
+END $;
 DO $$
 DECLARE v_first uuid; v_second uuid; v_count integer;
 BEGIN
@@ -97,17 +124,18 @@ DO $$
 DECLARE v_id uuid; v_delegation uuid;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
-  v_delegation:=(public.platform_request_delegation_idempotent(v_id,'Asistencia técnica sintética solicitada',
-    now()+interval '15 minutes','synthetic-request-delegation-001','synthetic-delegation-idempotency-01')->>'delegation_id')::uuid;
-  IF (public.platform_request_delegation_idempotent(v_id,'Asistencia técnica sintética solicitada',
-    (SELECT expires_at FROM private.platform_delegations WHERE id=v_delegation),
+  v_delegation:=(public.platform_request_delegation_scoped_idempotent(v_id,'Asistencia técnica sintética solicitada',
+    now()+interval '15 minutes',ARRAY['docentes','administrador'],
+    'synthetic-request-delegation-001','synthetic-delegation-idempotency-01')->>'delegation_id')::uuid;
+  IF (public.platform_request_delegation_scoped_idempotent(v_id,'Asistencia técnica sintética solicitada',
+    (SELECT expires_at FROM private.platform_delegations WHERE id=v_delegation),ARRAY['administrador','docentes'],
     'synthetic-request-delegation-retry','synthetic-delegation-idempotency-01')->>'delegation_id')::uuid IS DISTINCT FROM v_delegation THEN
     RAISE EXCEPTION 'delegation idempotency key must return the original request';
   END IF;
   UPDATE synthetic_results SET delegation_id=v_delegation;
   BEGIN
-    PERFORM public.platform_request_delegation(v_id,'Prueba de vencimiento fuera del máximo',
-      now()+interval '1 hour','synthetic-request-delegation-003');
+    PERFORM public.platform_request_delegation_scoped_idempotent(v_id,'Prueba de vencimiento fuera del máximo',
+      now()+interval '1 hour',ARRAY['administrador'],'synthetic-request-delegation-003','synthetic-delegation-invalid-expiry');
     RAISE EXCEPTION 'expected delegation maximum lifetime protection';
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
 END $$;
@@ -131,10 +159,21 @@ BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
   v_context:=public.platform_resolve_delegated_context(v_id);
   IF v_context->>'mode'<>'delegated_support_read_only'
-    OR NOT (v_context->'capabilities' ? 'institution.read')
+    OR NOT (v_context->'module_scope' ? 'docentes')
+    OR NOT (v_context->'module_scope' ? 'administrador')
     OR (v_context->>'expires_at')::timestamptz<=now() THEN
     RAISE EXCEPTION 'delegated context must be scoped, read-only and unexpired';
   END IF;
+  v_context:=public.platform_read_delegated_module(
+    (SELECT delegation_id FROM synthetic_results),'docentes');
+  IF v_context->>'read_only'<>'true'
+    OR NOT (v_context->'configuration' ? 'academic_structure') THEN
+    RAISE EXCEPTION 'delegated module must return only its allowed safe configuration';
+  END IF;
+  BEGIN
+    PERFORM public.platform_read_delegated_module((SELECT delegation_id FROM synthetic_results),'tutor');
+    RAISE EXCEPTION 'expected module scope denial';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   v_context:=public.platform_resolve_delegated_context_by_slug('colegio-sintetico-uno');
   IF v_context->'institution'->>'slug'<>'colegio-sintetico-uno'
     OR v_context->>'mode'<>'delegated_support_read_only' THEN
@@ -160,8 +199,9 @@ DO $$
 DECLARE v_id uuid; v_self uuid;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
-  v_self:=public.platform_request_delegation(v_id,'Solicitud propia de soporte sintético para validar doble aprobación',
-    now()+interval '10 minutes','synthetic-request-delegation-self-001');
+  v_self:=(public.platform_request_delegation_scoped_idempotent(v_id,'Solicitud propia de soporte sintético para validar doble aprobación',
+    now()+interval '10 minutes',ARRAY['directivos'],
+    'synthetic-request-delegation-self-001','synthetic-delegation-self-key-001')->>'delegation_id')::uuid;
   UPDATE synthetic_results SET self_delegation_id=v_self;
   BEGIN
     PERFORM public.platform_approve_delegation(v_self,'synthetic-request-delegation-self-approve');
@@ -253,6 +293,11 @@ BEGIN
   END IF;
   IF NOT EXISTS(SELECT 1 FROM private.platform_institution_clone_config WHERE institution_id=v_target AND config_key='branding') THEN
     RAISE EXCEPTION 'allowlisted branding configuration was not copied';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM private.platform_institution_clone_config
+    WHERE institution_id=v_target AND config_key='academic_structure'
+      AND jsonb_array_length(config_value->'education_levels')=1) THEN
+    RAISE EXCEPTION 'synchronized academic settings were not copied to the cloned tenant';
   END IF;
   IF EXISTS(SELECT 1 FROM public.memberships WHERE institution_id=v_target) THEN
     RAISE EXCEPTION 'clone worker must never copy institutional memberships';
