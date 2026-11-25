@@ -38,6 +38,17 @@ BEGIN
   IF v_count<>1 THEN RAISE EXCEPTION 'idempotency created duplicate institutions'; END IF;
 END $$;
 
+-- Verify Superadministrator and institution-administrator registries are restricted and scoped.
+DO $
+DECLARE v_id uuid; v_super_count integer; v_admin_count integer;
+BEGIN
+  SELECT institution_id INTO v_id FROM synthetic_results;
+  SELECT count(*) INTO v_super_count FROM public.platform_list_superadmins();
+  IF v_super_count<>3 THEN RAISE EXCEPTION 'global Superadministrator registry must show only trusted superadmins'; END IF;
+  SELECT count(*) INTO v_admin_count FROM public.platform_list_institution_admins(v_id);
+  IF v_admin_count<>0 THEN RAISE EXCEPTION 'new institution must not have administrators'; END IF;
+END $;
+
 -- Activate with optimistic concurrency and assign two administrators.
 DO $$
 DECLARE v_id uuid; v_version timestamptz;
@@ -51,6 +62,15 @@ BEGIN
   PERFORM public.platform_assign_institution_admin(v_id,'00000000-0000-4000-8000-000000000005',
     'Asignación sintética de segundo administrador','synthetic-request-admin-002','synthetic-admin-key-00002');
 END $$;
+
+-- Administrator list is scoped to one institution and reflects active and inactive memberships.
+DO $
+DECLARE v_id uuid; v_count integer;
+BEGIN
+  SELECT institution_id INTO v_id FROM synthetic_results;
+  SELECT count(*) INTO v_count FROM public.platform_list_institution_admins(v_id);
+  IF v_count<>2 THEN RAISE EXCEPTION 'institution administrator registry must return both assigned administrators'; END IF;
+END $;
 
 -- Revoking one administrator is allowed; revoking the last one is rejected.
 DO $$
@@ -95,6 +115,17 @@ DO $$ BEGIN
     RAISE EXCEPTION 'delegation was not activated by second Superadministrator';
   END IF;
 END $$;
+
+-- An active support delegation can be revoked and the action is audited.
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
+SELECT public.platform_revoke_delegation(delegation_id,'Cierre de asistencia sintética completada','synthetic-request-delegation-revoke')
+FROM synthetic_results WHERE delegation_id IS NOT NULL;
+DO $ BEGIN
+  IF NOT EXISTS(SELECT 1 FROM private.platform_delegations WHERE status='revoked') THEN
+    RAISE EXCEPTION 'delegation was not revoked';
+  END IF;
+END $;
 
 -- The requester cannot approve their own delegation.
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',false);
