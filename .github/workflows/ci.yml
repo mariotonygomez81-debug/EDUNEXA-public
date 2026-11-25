@@ -75,6 +75,17 @@ jobs:
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
           npm run test:smoke
 
+      - name: Install pinned Playwright browser test runner
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @playwright/test@1.58.2
+      - name: Install Chromium for local synthetic E2E
+        run: npx playwright install --with-deps chromium
+      - name: Verify login UI and anonymous access boundaries for all eight modules
+        env:
+          CI: "true"
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder_for_build_only
+        run: npx playwright test --config=e2e/local-playwright.config.mjs
+
 
   guardian-progress-postgres:
     runs-on: ubuntu-latest
