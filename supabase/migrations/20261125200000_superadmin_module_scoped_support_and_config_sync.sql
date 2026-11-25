@@ -409,16 +409,11 @@ begin
     raise exception using errcode='23514',message='unsafe_clone_configuration_rejected';
   end if;
 
-  drop table if exists pg_temp.edunexa_clone_scale_map;
-  drop table if exists pg_temp.edunexa_clone_year_map;
-  drop table if exists pg_temp.edunexa_clone_level_map;
-  drop table if exists pg_temp.edunexa_clone_course_map;
-  drop table if exists pg_temp.edunexa_clone_subject_map;
-  create temporary table if not exists edunexa_clone_scale_map(source_id uuid primary key,target_id uuid not null) on commit drop;
-  create temporary table if not exists edunexa_clone_year_map(source_id uuid primary key,target_id uuid not null) on commit drop;
-  create temporary table if not exists edunexa_clone_level_map(source_id uuid primary key,target_id uuid not null) on commit drop;
-  create temporary table if not exists edunexa_clone_course_map(source_id uuid primary key,target_id uuid not null) on commit drop;
-  create temporary table if not exists edunexa_clone_subject_map(source_id uuid primary key,target_id uuid not null) on commit drop;
+  create temporary table edunexa_clone_scale_map(source_id uuid primary key,target_id uuid not null) on commit drop;
+  create temporary table edunexa_clone_year_map(source_id uuid primary key,target_id uuid not null) on commit drop;
+  create temporary table edunexa_clone_level_map(source_id uuid primary key,target_id uuid not null) on commit drop;
+  create temporary table edunexa_clone_course_map(source_id uuid primary key,target_id uuid not null) on commit drop;
+  create temporary table edunexa_clone_subject_map(source_id uuid primary key,target_id uuid not null) on commit drop;
   truncate table pg_temp.edunexa_clone_scale_map,pg_temp.edunexa_clone_year_map,
     pg_temp.edunexa_clone_level_map,pg_temp.edunexa_clone_course_map,pg_temp.edunexa_clone_subject_map;
 
