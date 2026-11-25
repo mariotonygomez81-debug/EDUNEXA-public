@@ -379,7 +379,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare
   v_actor uuid := auth.uid();
   v_role text;
@@ -414,7 +414,7 @@ begin
     'capabilities',jsonb_build_array('institution.read','audit.read')
   );
 end;
-$;
+$$;
 
 revoke all on function public.platform_resolve_delegated_context_by_slug(text) from public, anon;
 grant execute on function public.platform_resolve_delegated_context_by_slug(text) to authenticated;
