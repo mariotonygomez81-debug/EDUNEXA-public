@@ -5,12 +5,28 @@
 alter table private.platform_delegations
   add column if not exists module_scope text[] not null default '{}';
 
+-- Existing unscoped grants are revoked rather than silently widened to every module.
+with revoked as (
+  update private.platform_delegations
+    set status='revoked',revoked_at=coalesce(revoked_at,pg_catalog.now())
+  where status in ('pending','active') and cardinality(module_scope)=0
+  returning id,institution_id,requested_by
+)
+insert into private.platform_audit_events(
+  actor_user_id,action,target_type,target_id,institution_id,reason,request_id,outcome,metadata_redacted
+)
+select requested_by,'platform.delegation.legacy_scope_revoked','delegation',id::text,institution_id,
+  'Acceso anterior revocado al exigir alcance explícito por módulo',
+  'delegation-legacy-scope-revoked-'||id::text,'success',
+  jsonb_build_object('reason','legacy_grant_had_no_module_scope')
+from revoked;
+
 alter table private.platform_delegations
   drop constraint if exists platform_delegations_module_scope_check;
 alter table private.platform_delegations
   add constraint platform_delegations_module_scope_check
   check (
-    cardinality(module_scope) between 1 and 7
+    (status not in ('pending','active') or cardinality(module_scope) between 1 and 7)
     and module_scope <@ array[
       'docentes','preceptor','alumnos','tutor','directivos','administrativos','administrador'
     ]::text[]
@@ -134,9 +150,10 @@ begin
   else v_institution_id:=new.institution_id;
   end if;
   perform private.platform_refresh_institution_clone_config(v_institution_id);
-  return coalesce(new,old);
+  if tg_op='DELETE' then return old; end if;
+  return new;
 end;
-$$;
+$;
 
 drop trigger if exists platform_clone_snapshot_academic_years on public.academic_years;
 create trigger platform_clone_snapshot_academic_years
@@ -370,6 +387,7 @@ $$;
 revoke all on function private.platform_refresh_institution_clone_config(uuid) from public,anon,authenticated;
 revoke all on function private.platform_refresh_institution_clone_config_trigger() from public,anon,authenticated;
 revoke all on function public.platform_request_delegation_scoped_idempotent(uuid,text,timestamptz,text[],text,text) from public,anon;
+revoke all on function public.platform_request_delegation(uuid,text,timestamptz,text) from public,anon,authenticated;
 revoke all on function public.platform_resolve_delegated_context(uuid) from public,anon;
 revoke all on function public.platform_resolve_delegated_context_by_slug(text) from public,anon;
 revoke all on function public.platform_read_delegated_module(uuid,text) from public,anon;
