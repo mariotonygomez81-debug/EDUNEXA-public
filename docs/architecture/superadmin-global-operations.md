@@ -63,3 +63,42 @@ Las escrituras requieren `Origin` same-origin. Las operaciones idempotentes de i
 ## Criterio para habilitación productiva
 
 Cada función se habilitará por separado después de que la migración supere CI y revisión, se valide contra una copia aislada del esquema real, se pruebe rollback, se complete la integración del trabajador de clonación y del acceso delegado, y se configure el secreto de Auth Admin de forma segura. Las operaciones de GitHub, Supabase y Render requerirán conectores con acciones allowlisted y aprobación explícita antes de cada ejecución.
+
+
+## Segunda etapa: trabajador, contexto delegado y ejecución de planes aprobados
+
+La migración adicional `20261125193000_superadmin_execution_layer.sql` agrega la segunda etapa. Está versionada en GitHub y **no fue aplicada** a Supabase alojado.
+
+### Trabajador de clonación configuration-only
+
+- Endpoint interno: `POST /api/platform/worker/clones`.
+- Requiere `Authorization: Bearer <EDUNEXA_PLATFORM_WORKER_SECRET>` y una clave administrativa de Supabase configurada únicamente en el servidor (`SUPABASE_SECRET_KEY` o `SUPABASE_SERVICE_ROLE_KEY`).
+- La reclamación usa `FOR UPDATE SKIP LOCKED`, lease de 30–600 segundos, contador de intentos y máximo de tres intentos. Un lease agotado se marca fallido y queda auditado.
+- La copia está limitada a `private.platform_institution_clone_config` y a las categorías `branding`, `academic_calendar`, `grading_scales`, `timetable_templates`, `notification_templates` y `module_settings`.
+- Un validador recursivo rechaza claves o valores que parezcan datos de alumnos, tutores, personas, contactos, credenciales o datos académicos personales. La copia de configuración y el cierre del trabajo ocurren en una transacción SQL.
+- **Límite pendiente:** los ajustes institucionales existentes todavía no están sincronizados automáticamente con el registro privado de configuración clonable. El trabajador ya procesa ese registro seguro; falta conectar cada pantalla/API de configuración institucional a su escritura validada. Si no hay categorías registradas, el trabajo termina sin copiar configuración y no copia datos personales.
+- El endpoint está implementado, pero no se configuró un cron ni un servicio trabajador en Render. Su ejecución requiere invocación autenticada desde un programador autorizado.
+
+### Contexto de acceso delegado
+
+- El espacio institucional resuelve una delegación vigente tanto por ID como por slug, consultando el claim confiable de `app_metadata` en PostgreSQL.
+- Solo el Superadministrador solicitante puede abrir el contexto aprobado por un segundo Superadministrador; se comprueba vencimiento, institución activa y revocación.
+- La interfaz presenta un espacio de soporte de solo lectura, sin crear membresías, suplantar usuarios ni exponer datos de alumnos, tutores o expedientes.
+- **Límite de seguridad deliberado:** esta etapa integra el contexto en la entrada del espacio institucional, pero no concede acceso delegado a los datos ni a las operaciones de los siete módulos. Los endpoints y políticas RLS de cada módulo siguen aplicando sus permisos normales. No se usa una clave de servicio para eludir esas políticas.
+
+### Adaptadores de planes Groq
+
+- Endpoint: `POST /api/platform/copilot/plans/:id/execute`.
+- La base de datos reclama el plan una sola vez y exige que ejecute el Superadministrador que lo aprobó, distinto del solicitante. La aprobación independiente funciona como segunda autorización para todas las acciones.
+- GitHub queda fijado al repositorio EDUNEXA. Permite inspección, dispatch del workflow CI en `feature/EDUNEXA-MODELES` y creación de PR en borrador únicamente desde ramas `feature/EDUNEXA-*` hacia `feature/EDUNEXA-MODELES`; no puede apuntar a `main`. Si falla la finalización de auditoría, intenta cerrar los PR en borrador creados.
+- Supabase utiliza exclusivamente el endpoint Management API `database/query/read-only` con consultas SQL fijas de catálogo para inspeccionar esquema/RLS. No aplica migraciones ni ejecuta SQL arbitrario.
+- Render inspecciona servicios permitidos por `EDUNEXA_RENDER_SERVICE_IDS`, consulta logs y genera un plan de despliegue; no inicia ni modifica despliegues.
+- Variables opcionales/de servidor: `GITHUB_TOKEN`, `EDUNEXA_CI_WORKFLOW_ID`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `RENDER_API_KEY`, `RENDER_OWNER_ID`, `EDUNEXA_RENDER_SERVICE_IDS`. Ninguna se configura ni se modifica desde este cambio.
+- Las acciones externas se ejecutan en una saga: claim y auditoría inicial en PostgreSQL, operación externa, cierre auditado y compensación de PR cuando corresponde. Un plan que incluya una operación no habilitada se rechaza completo.
+
+### Validación y límites operativos
+
+- La suite sintética ahora aplica ambas migraciones a PostgreSQL efímero y prueba idempotencia de clonación, reclamación de trabajo, copia de configuración permitida, no copia de membresías, contexto delegado, ejecución por el segundo aprobador y bloqueo de reejecución.
+- Los adaptadores de Supabase y Render son de solo lectura. No se aplicaron migraciones alojadas, no se cambió ningún servicio de Render, no se añadieron secretos y no se desplegó el worker.
+- El runtime de esta sesión no tiene Supabase CLI instalado; por eso la nueva migración se añadió directamente al repositorio siguiendo el formato de migraciones y queda pendiente de validación con CLI/local Supabase antes de cualquier aplicación.
+- El acceso delegado a los módulos y la sincronización de configuración real para clonación continúan siendo tareas separadas antes de considerar esta función productiva.
