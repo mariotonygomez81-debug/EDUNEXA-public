@@ -9,7 +9,11 @@ if (!serviceKey) throw new Error("Missing Supabase server secret.");
 const admin = createClient(supabaseUrl, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-const directorSubprofiles = new Set([\n  "rector", "vicerrector", "secretaria", "director_proyectos",\n  "director_deportes", "representante_legal", "pedagoga",\n]);\nconst allowedRoles = new Set([
+const directorSubprofiles = new Set([
+  "rector", "vicerrector", "secretaria", "director_proyectos",
+  "director_deportes", "representante_legal", "pedagoga",
+]);
+const allowedRoles = new Set([
   "institution_admin", "director", "administrative", "teacher",
   "prefect", "student", "guardian",
 ]);
@@ -241,7 +245,7 @@ Deno.serve(async (req: Request) => {
           const userRoles = (m.membership_roles ?? []).map((mr) => firstRelation(mr.roles)).filter((role): role is NonNullable<typeof role> => Boolean(role));
           return {
             membership_id: m.id, user_id: m.user_id, status: m.status,
-            joined_at: m.joined_at, email: usersById.get(m.user_id)?.email ?? "",
+            joined_at: m.joined_at, director_subprofile: m.director_subprofile, email: usersById.get(m.user_id)?.email ?? "",
             display_name: p?.display_name || [p?.first_name, p?.last_name].filter(Boolean).join(" ") || "Usuario",
             role_key: userRoles[0]?.key ?? "", role_name: userRoles[0]?.name ?? "Sin perfil",
             role_keys: userRoles.map((role) => role.key),
@@ -260,6 +264,10 @@ Deno.serve(async (req: Request) => {
         ? body.role_keys.map((key: unknown) => clean(key, 40))
         : [clean(body.role_key, 40)];
       const roleKeys: string[] = [...new Set<string>(requestedRoleKeys)];
+      const directorSubprofile = clean(body.director_subprofile, 40);
+      if (roleKeys.includes("director") && !directorSubprofiles.has(directorSubprofile)) {
+        return response({ error: "Select a Directivos subprofile." }, 400, origin);
+      }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
           firstName.length < 2 || lastName.length < 2 || !roleKeys.length ||
           roleKeys.some((key) => !allowedRoles.has(key) || !roles.has(key))) {
@@ -288,6 +296,7 @@ Deno.serve(async (req: Request) => {
 
       const { data: membership, error: membershipError } = await admin.from("memberships").insert({
         institution_id: institution.id, user_id: data.user.id, status: "invited",
+        director_subprofile: roleKeys.includes("director") ? directorSubprofile : null,
       }).select("id").single();
       if (membershipError || !membership) {
         await admin.auth.admin.deleteUser(data.user.id);
@@ -360,6 +369,10 @@ Deno.serve(async (req: Request) => {
         ? body.role_keys.map((key: unknown) => clean(key, 40))
         : [clean(body.role_key, 40)];
       const nextRoleKeys: string[] = [...new Set<string>(requestedRoleKeys)];
+      const directorSubprofile = clean(body.director_subprofile, 40);
+      if (nextRoleKeys.includes("director") && !directorSubprofiles.has(directorSubprofile)) {
+        return response({ error: "Select a Directivos subprofile." }, 400, origin);
+      }
       if (!nextRoleKeys.length || nextRoleKeys.some((key) => !allowedRoles.has(key) || !roles.has(key))) {
         return response({ error: "Select at least one valid profile." }, 400, origin);
       }
@@ -383,6 +396,10 @@ Deno.serve(async (req: Request) => {
         }
         throw insertError;
       }
+      const { error: subprofileError } = await admin.from("memberships").update({
+        director_subprofile: nextRoleKeys.includes("director") ? directorSubprofile : null,
+      }).eq("id", membershipId).eq("institution_id", institution.id);
+      if (subprofileError) throw subprofileError;
       await audit(institution.id, actor.id, "membership.roles_changed", membershipId, {
         from: currentRoleKeys, to: nextRoleKeys,
       });
