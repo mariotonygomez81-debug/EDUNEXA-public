@@ -39,7 +39,7 @@ BEGIN
 END $$;
 
 -- Verify Superadministrator and institution-administrator registries are restricted and scoped.
-DO $
+DO $$
 DECLARE v_id uuid; v_super_count integer; v_admin_count integer;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
@@ -47,7 +47,7 @@ BEGIN
   IF v_super_count<>3 THEN RAISE EXCEPTION 'global Superadministrator registry must show only trusted superadmins'; END IF;
   SELECT count(*) INTO v_admin_count FROM public.platform_list_institution_admins(v_id);
   IF v_admin_count<>0 THEN RAISE EXCEPTION 'new institution must not have administrators'; END IF;
-END $;
+END $$;
 
 -- Activate with optimistic concurrency and assign two administrators.
 DO $$
@@ -68,13 +68,13 @@ BEGIN
 END $$;
 
 -- Administrator list is scoped to one institution and reflects active and inactive memberships.
-DO $
+DO $$
 DECLARE v_id uuid; v_count integer;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
   SELECT count(*) INTO v_count FROM public.platform_list_institution_admins(v_id);
   IF v_count<>2 THEN RAISE EXCEPTION 'institution administrator registry must return both assigned administrators'; END IF;
-END $;
+END $$;
 
 -- Revoking one administrator is allowed; revoking the last one is rejected.
 DO $$
@@ -129,7 +129,7 @@ DO $ BEGIN
   IF NOT EXISTS(SELECT 1 FROM private.platform_delegations WHERE status='revoked') THEN
     RAISE EXCEPTION 'delegation was not revoked';
   END IF;
-END $;
+END $$;
 
 -- The requester cannot approve their own delegation.
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',false);
