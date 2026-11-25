@@ -183,6 +183,17 @@ BEGIN
   END IF;
 END $$;
 
+UPDATE private.platform_delegations
+SET expires_at=now()-interval '1 second'
+WHERE id=(SELECT delegation_id FROM synthetic_results);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.platform_read_delegated_module((SELECT delegation_id FROM synthetic_results),'docentes');
+    RAISE EXCEPTION 'expected expired delegation denial';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+
 -- RLS defense-in-depth: a docentes grant can SELECT only academic_structure snapshots.
 GRANT USAGE ON SCHEMA private TO authenticated;
 GRANT SELECT ON private.platform_institution_clone_config TO authenticated;
@@ -308,6 +319,12 @@ BEGIN
   END IF;
   v_job:=(v_claim->>'id')::uuid;
   v_target:=(v_claim->>'target_institution_id')::uuid;
+  v_result:=public.platform_finish_clone_job(v_job,false,'synthetic_transient_failure');
+  IF v_result->>'status'<>'queued' THEN RAISE EXCEPTION 'transient worker failure must requeue the approved job'; END IF;
+  v_claim:=public.platform_claim_clone_job(180);
+  IF v_claim IS NULL OR (v_claim->>'id')::uuid IS DISTINCT FROM v_job THEN
+    RAISE EXCEPTION 'requeued clone job must be recoverable by the worker';
+  END IF;
   v_result:=public.platform_finish_clone_job(v_job,true,null);
   IF v_result->>'status'<>'completed' OR v_result->>'personal_data_copied'<>'false' THEN
     RAISE EXCEPTION 'clone worker completion must confirm no personal data';
