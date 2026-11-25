@@ -52,7 +52,7 @@ BEGIN
       AND jsonb_array_length(config_value->'education_levels')=1
   ) THEN RAISE EXCEPTION 'institution settings must synchronize to the clone registry'; END IF;
 END $;
-DO $$
+DO $
 DECLARE v_first uuid; v_second uuid; v_count integer;
 BEGIN
   SELECT institution_id INTO v_first FROM synthetic_results;
