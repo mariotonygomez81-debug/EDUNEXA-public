@@ -332,7 +332,7 @@ export async function POST(request: Request, route: RouteContext) {
       return json({ error: "El plan generado contiene un patrón de secreto o dato personal y fue descartado." }, 502);
     }
     if (!allowed[category] || text(parsed.summary).length < 10 || steps.length < 1 || steps.length > 10
-      || steps.some((step) => !allowed[text(step.system)]?.includes(text(step.action)))) {
+      || steps.some((step) => text(step.system) !== category || !allowed[text(step.system)]?.includes(text(step.action)))) {
       return json({ error: "El plan de Groq contiene acciones fuera de la lista permitida." }, 502);
     }
     const plan = {
