@@ -111,6 +111,21 @@ begin
   if p_lease_seconds < 30 or p_lease_seconds > 600 then
     raise exception using errcode='22023', message='invalid_worker_lease';
   end if;
+  with exhausted as (
+    update private.platform_clone_jobs
+      set status='failed',completed_at=pg_catalog.now(),lease_expires_at=null,
+          last_error_code='lease_expired_max_attempts'
+    where status='running' and lease_expires_at < pg_catalog.now() and attempt_count >= 3
+    returning id,requested_by,target_institution_id,attempt_count
+  )
+  insert into private.platform_audit_events(
+    actor_user_id,action,target_type,target_id,institution_id,reason,request_id,outcome,metadata_redacted
+  )
+  select requested_by,'platform.clone.worker.exhausted','clone_job',id::text,target_institution_id,
+    'Trabajo agotado luego de vencer sus leases','clone-worker-exhausted-'||id::text||'-'||attempt_count,
+    'failed',jsonb_build_object('attempt_count',attempt_count)
+  from exhausted;
+
   select * into v_job
   from private.platform_clone_jobs
   where (status='queued' or (status='running' and lease_expires_at < pg_catalog.now()))
@@ -329,6 +344,51 @@ grant execute on function public.platform_finish_clone_job(uuid,boolean,text) to
 grant execute on function public.platform_resolve_delegated_context(uuid) to authenticated;
 grant execute on function public.platform_claim_ai_change_plan_execution(uuid) to authenticated;
 grant execute on function public.platform_finish_ai_change_plan_execution(uuid,boolean,jsonb,text) to authenticated;
+
+create or replace function public.platform_resolve_delegated_context_by_slug(p_slug text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  v_actor uuid := auth.uid();
+  v_role text;
+  v_row record;
+begin
+  if v_actor is null then raise exception using errcode='42501', message='platform_superadmin_required'; end if;
+  select u.raw_app_meta_data->>'platform_role' into v_role from auth.users u where u.id=v_actor;
+  if v_role is distinct from 'superadmin' then
+    raise exception using errcode='42501', message='platform_superadmin_required';
+  end if;
+  select d.id as delegation_id,d.institution_id,d.expires_at,
+         i.display_name,i.slug
+    into v_row
+  from private.platform_delegations d
+  join public.institutions i on i.id=d.institution_id
+  where i.slug=p_slug and i.status='active'
+    and d.requested_by=v_actor and d.status='active'
+    and d.approved_by is not null and d.approved_by<>v_actor
+    and d.expires_at>pg_catalog.now()
+  order by d.approved_at desc
+  limit 1;
+  if not found then return null; end if;
+
+  perform private.platform_audit_append('platform.delegation.context.resolve','delegation',v_row.delegation_id::text,
+    v_row.institution_id,'Acceso de soporte delegado de solo lectura',
+    'delegation-slug-context-'||v_row.delegation_id::text,'success',
+    jsonb_build_object('expires_at',v_row.expires_at,'capabilities',jsonb_build_array('institution.read','audit.read')));
+  return jsonb_build_object(
+    'delegation_id',v_row.delegation_id,'institution_id',v_row.institution_id,
+    'mode','delegated_support_read_only','expires_at',v_row.expires_at,
+    'institution',jsonb_build_object('id',v_row.institution_id,'display_name',v_row.display_name,'slug',v_row.slug),
+    'capabilities',jsonb_build_array('institution.read','audit.read')
+  );
+end;
+$;
+
+revoke all on function public.platform_resolve_delegated_context_by_slug(text) from public, anon;
+grant execute on function public.platform_resolve_delegated_context_by_slug(text) to authenticated;
 
 comment on table private.platform_institution_clone_config is 'Strict allowlist of non-personal institutional configuration copied by the configuration-only clone worker.';
 comment on function public.platform_resolve_delegated_context(uuid) is 'Resolves an approved, unexpired, requester-bound read-only support context. It never creates an institutional membership or impersonates a user.';
