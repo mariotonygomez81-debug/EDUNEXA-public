@@ -4,11 +4,15 @@
 
 alter table private.platform_delegations
   add column if not exists module_scope text[] not null default '{}';
+-- The legacy request function runs inside the scoped wrapper; its temporary default is least-privilege.
+alter table private.platform_delegations
+  alter column module_scope set default array['administrador']::text[];
 
 -- Existing unscoped grants are revoked rather than silently widened to every module.
 with revoked as (
   update private.platform_delegations
-    set status='revoked',revoked_at=coalesce(revoked_at,pg_catalog.now())
+    set status='revoked',revoked_at=coalesce(revoked_at,pg_catalog.now()),
+        module_scope=array['administrador']::text[]
   where status in ('pending','active') and cardinality(module_scope)=0
   returning id,institution_id,requested_by
 )
@@ -26,7 +30,7 @@ alter table private.platform_delegations
 alter table private.platform_delegations
   add constraint platform_delegations_module_scope_check
   check (
-    (status not in ('pending','active') or cardinality(module_scope) between 1 and 7)
+    cardinality(module_scope) between 1 and 7
     and module_scope <@ array[
       'docentes','preceptor','alumnos','tutor','directivos','administrativos','administrador'
     ]::text[]
