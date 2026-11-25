@@ -95,17 +95,18 @@ export async function POST(request: Request, route: RouteContext) {
   }
 
   if (segments.length === 1 && segments[0] === "delegations") {
-    if (!validUuid(body.institutionId) || !requiredReason(body.reason) || !text(body.expiresAt)) {
-      return json({ error: "Institución, motivo y vencimiento son obligatorios." }, 400);
+    if (!validUuid(body.institutionId) || !requiredReason(body.reason) || !text(body.expiresAt) || !key) {
+      return json({ error: "Institución, motivo, vencimiento e Idempotency-Key son obligatorios." }, 400);
     }
     const expiresAt = new Date(text(body.expiresAt));
     if (Number.isNaN(expiresAt.getTime())) return json({ error: "Vencimiento inválido." }, 400);
-    result = await platformRpc(auth.supabase, "platform_request_delegation", {
+    result = await platformRpc(auth.supabase, "platform_request_delegation_idempotent", {
       p_institution_id: body.institutionId, p_reason: text(body.reason),
-      p_expires_at: expiresAt.toISOString(), p_request_id: requestIdValue,
+      p_expires_at: expiresAt.toISOString(), p_request_id: requestIdValue, p_idempotency_key: key,
     });
     if (result.error) return rpcErrorResponse(result.error);
-    return json({ delegationId: result.data, status: "pending_second_approval" }, 201);
+    const delegation = result.data as { delegation_id?: string; status?: string } | null;
+    return json({ delegationId: delegation?.delegation_id, status: delegation?.status ?? "pending_second_approval" }, 201);
   }
 
   if (segments.length === 3 && segments[0] === "delegations" && segments[2] === "approve") {
