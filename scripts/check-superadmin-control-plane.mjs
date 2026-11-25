@@ -110,12 +110,18 @@ for (const token of [
   "platform_read_delegated_module", "platform_list_delegations", "platform_list_clone_jobs",
   "platform_refresh_institution_clone_config", "platform_refresh_institution_clone_config_trigger",
   "platform_list_ai_change_plans", "academic_calendar", "grading_scales", "academic_structure",
-  "platform.delegation.legacy_scope_revoked",
+  "platform.delegation.legacy_scope_revoked", "has_active_delegated_module_scope",
+  "platform_delegated_config_docentes_select", "platform_delegated_config_preceptor_select",
+  "platform_delegated_config_alumnos_select", "platform_delegated_config_tutor_select",
+  "platform_delegated_config_directivos_select", "platform_delegated_config_administrativos_select",
+  "platform_delegated_config_administrador_select",
 ]) assert.ok(scopedMigration.includes(token), `Missing scoped support/config-sync control: ${token}`);
 assert.ok(scopedMigration.includes("raw_app_meta_data->>'platform_role'"), "Delegated module reads must revalidate trusted global role");
 assert.ok(scopedMigration.includes("d.expires_at>pg_catalog.now()"), "Delegated module reads must enforce expiry");
 assert.ok(scopedMigration.includes("p_module_key=any(v_grant.module_scope)"), "Each delegated module must enforce its own scope");
 assert.ok(scopedMigration.includes("platform_audit_append('platform.delegation.module.read'"), "Each delegated read must be audited");
+assert.ok(scopedMigration.includes("grant execute on function private.has_active_delegated_module_scope(uuid,text) to authenticated"));
+assert.ok(!scopedMigration.includes("grant select on private.platform_institution_clone_config"), "Private config registry must not be directly selectable by application roles");
 assert.ok(scopedMigration.includes("update public.academic_years") === false, "Snapshot sync must not mutate live academic settings");
 assert.ok(operationsPanel.includes("moduleScopes") && operationsPanel.includes("execute-next"));
 assert.ok(operationsPanel.includes("/api/platform/copilot/plans") && operationsPanel.includes("Ejecutar plan aprobado"));
@@ -131,7 +137,7 @@ assert.ok(institutionWorkspace.includes("module_scope"), "Workspace must receive
 assert.ok(postgresAssertions.includes("institution settings must synchronize to the clone registry"));
 assert.ok(postgresAssertions.includes("delegated module must return only its allowed safe configuration"));
 assert.ok(postgresAssertions.includes("synchronized academic settings were not copied to the cloned tenant"));
-assert.equal((scopedMigration.split("as " + String.fromCharCode(36,36)).length - 1), (scopedMigration.split(String.fromCharCode(36,36) + ";").length - 1), "Scoped support migration dollar quotes must be balanced");
+assert.equal((scopedMigration.split("as " + String.fromCharCode(36,36)).length - 1) + (scopedMigration.split("do " + String.fromCharCode(36,36)).length - 1), (scopedMigration.split(String.fromCharCode(36,36) + ";").length - 1), "Scoped support migration dollar quotes must be balanced");
 const scopedFunctions = [...scopedMigration.matchAll(/create or replace function public\.(platform_[a-z_]+)/g)].map((match) => match[1]);
 for (const name of scopedFunctions) {
   assert.ok(scopedMigration.includes("revoke all on function public." + name + "("), name + " must revoke default PUBLIC execution");
