@@ -70,7 +70,7 @@ test("prefect profile opens the independent attendance workspace", async ({ page
   await login(page, process.env.E2E_PREFECT_EMAIL, process.env.E2E_PREFECT_PASSWORD);
   await page.goto(`/dashboard/${encodeURIComponent(slug)}/prefect`);
   await expect(page.getByRole("heading", { name: "Mis divisiones" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Asistencia independiente/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Mi asistencia/ })).toBeVisible();
 });
 
 test("secretary subprofile uses the unified director role", async ({ page }) => {
