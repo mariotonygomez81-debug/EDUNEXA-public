@@ -400,6 +400,10 @@ Deno.serve(async (req: Request) => {
         director_subprofile: nextRoleKeys.includes("director") ? directorSubprofile : null,
       }).eq("id", membershipId).eq("institution_id", institution.id);
       if (subprofileError) throw subprofileError;
+      const { error: subprofileError } = await admin.from("memberships").update({
+        director_subprofile: nextRoleKeys.includes("director") ? directorSubprofile : null,
+      }).eq("id", membershipId).eq("institution_id", institution.id);
+      if (subprofileError) throw subprofileError;
       await audit(institution.id, actor.id, "membership.roles_changed", membershipId, {
         from: currentRoleKeys, to: nextRoleKeys,
       });
