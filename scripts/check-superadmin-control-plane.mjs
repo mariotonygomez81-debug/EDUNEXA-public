@@ -59,7 +59,7 @@ const institutionWorkspace = read("../src/app/dashboard/[slug]/page.tsx");
 
 for (const token of [
   "private.platform_institution_clone_config", "platform_clone_json_is_safe",
-  "platform_request_clone_idempotent", "for update skip locked",
+  "platform_request_clone_idempotent", "platform_request_delegation_idempotent", "for update skip locked",
   "platform_claim_clone_job", "platform_finish_clone_job",
   "platform_resolve_delegated_context", "platform_resolve_delegated_context_by_slug",
   "platform_claim_ai_change_plan_execution", "platform_finish_ai_change_plan_execution",
@@ -71,6 +71,14 @@ assert.ok(executionMigration.includes("grant execute on function public.platform
 assert.ok(executionMigration.includes("grant execute on function public.platform_resolve_delegated_context_by_slug(text) to authenticated"));
 assert.ok(executionMigration.includes("on conflict(institution_id,config_key) do update"), "Clone config copy must be retry-safe");
 assert.ok(executionMigration.includes("for update skip locked"), "Worker must claim jobs without double-processing");
+assert.equal((executionMigration.match(/as \\$\\$/g) ?? []).length, (executionMigration.match(/\\$\\$;/g) ?? []).length, "Execution migration dollar quotes must be balanced");
+const executionFunctions = [...executionMigration.matchAll(/create or replace function public\\.(platform_[a-z_]+)/g)].map((match) => match[1]);
+assert.equal(new Set(executionFunctions).size, executionFunctions.length, "Execution-layer public RPCs must not be duplicated");
+for (const name of executionFunctions) {
+  assert.ok(executionMigration.includes("revoke all on function public." + name + "("), name + " must revoke default PUBLIC execution");
+  assert.ok(executionMigration.includes("grant execute on function public." + name + "("), name + " must grant only an explicit execution role");
+}
+
 
 assert.ok(cloneWorker.includes("EDUNEXA_PLATFORM_WORKER_SECRET"));
 assert.ok(cloneWorker.includes("timingSafeEqual"));
