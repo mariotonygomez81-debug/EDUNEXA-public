@@ -185,6 +185,7 @@ create table public.assignments(
  id uuid primary key, institution_id uuid not null references public.institutions(id),
  max_score numeric(7,2), published_at timestamptz
 );
+alter table public.assignments alter column id set default gen_random_uuid();
 create table public.submissions(
  id uuid primary key default gen_random_uuid(), institution_id uuid not null,
  assignment_id uuid not null references public.assignments(id),
