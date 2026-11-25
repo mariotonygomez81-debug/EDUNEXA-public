@@ -17,6 +17,12 @@ const grades = read("src/app/dashboard/[slug]/grades/actions.ts");
 const reportWorkflow = read("src/app/dashboard/[slug]/report-cards/workflow-actions.ts");
 const studentActions = read("src/app/dashboard/[slug]/students/actions.ts");
 const administrativeActions = read("src/app/dashboard/[slug]/administrative/actions.ts");
+const studentProfile = read("src/app/dashboard/[slug]/student/profile/page.tsx");
+const studentTasks = read("src/app/dashboard/[slug]/student/tasks/page.tsx");
+const guardianAttendance = read("src/app/dashboard/[slug]/portal/attendance/[studentId]/page.tsx");
+const gradesPage = read("src/app/dashboard/[slug]/grades/page.tsx");
+const attendancePage = read("src/app/dashboard/[slug]/attendance/page.tsx");
+const reportCardsPage = read("src/app/dashboard/[slug]/report-cards/page.tsx");
 const messagesActions = read("src/app/dashboard/[slug]/messages/actions.ts");
 const reportActions = read("src/app/dashboard/[slug]/report-cards/actions.ts");
 const announcementsActions = read("src/app/dashboard/[slug]/announcements/actions.ts");
@@ -39,6 +45,9 @@ assert.ok(workspace.includes('.eq("status", "active").maybeSingle()'), "inactive
 assert.ok(workspace.includes("module.permissions.every"), "navigation must require every declared permission");
 assert.ok(workspace.includes("roleKeys.includes(module.role)"), "navigation must match institutional role");
 assert.ok(!tutor.includes('role === "student"'), "student access belongs to the separate student workspace");
+for (const [name, source] of [["perfil de alumno", studentProfile], ["tareas de alumno", studentTasks], ["asistencia de tutor", guardianAttendance], ["calificaciones", gradesPage], ["asistencia", attendancePage], ["boletines", reportCardsPage]]) {
+  assert.ok(source.includes('.eq("status", "active")'), name + ": route must reject inactive institutions");
+}
 assert.ok(student.includes('.eq("recipient_membership_id", membership.id)'), "student notification count must be membership-scoped");
 const slash = String.fromCharCode(92);
 const validDatePattern = "!/^" + slash + "d{4}-" + slash + "d{2}-" + slash + "d{2}T" + slash + "d{2}:" + slash + "d{2}$/.test(scheduledRaw)";
