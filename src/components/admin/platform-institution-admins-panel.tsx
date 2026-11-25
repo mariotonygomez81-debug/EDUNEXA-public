@@ -52,9 +52,35 @@ export default function PlatformInstitutionAdminsPanel({ institutions }: Props) 
   }
 
   useEffect(() => {
-    void loadAdministrators();
-    // The selected institution is the only fetch dependency.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!institutionId) {
+      setAdministrators([]);
+      return;
+    }
+
+    let cancelled = false;
+    async function fetchAdministrators() {
+      try {
+        const response = await fetch(`/api/platform/institutions/${institutionId}/administrators`, { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(typeof data.error === "string" ? data.error : "No se pudo cargar el registro de administradores.");
+        }
+        if (!cancelled) {
+          setAdministrators(Array.isArray(data.administrators) ? data.administrators : []);
+          setMessage("");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setAdministrators([]);
+          setMessage(error instanceof Error ? error.message : "Error al consultar administradores.");
+        }
+      }
+    }
+
+    void fetchAdministrators();
+    return () => {
+      cancelled = true;
+    };
   }, [institutionId]);
 
   async function assignAdministrator(event: React.FormEvent<HTMLFormElement>) {
