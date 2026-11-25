@@ -14,6 +14,10 @@ type Delegation = {
   module_scope: string[]; requested_by: string; approved_by: string | null;
   reason: string; expires_at: string; created_at: string;
 };
+type CopilotPlan = {
+  id: string; provider: "groq"; instruction: string; status: string; created_at: string;
+  plan: { summary?: string; category?: string; risk?: string; steps?: { system: string; action: string; description: string }[] };
+};
 
 const moduleOptions = [
   ["docentes", "Docentes"], ["preceptor", "Preceptor"], ["alumnos", "Alumnos"],
@@ -29,6 +33,8 @@ const label = (status: string) => ({
 export default function PlatformOperationsPanel({ institutions }: { institutions: Institution[] }) {
   const [clones, setClones] = useState<CloneJob[]>([]);
   const [delegations, setDelegations] = useState<Delegation[]>([]);
+  const [plans, setPlans] = useState<CopilotPlan[]>([]);
+  const [instruction, setInstruction] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
@@ -45,14 +51,16 @@ export default function PlatformOperationsPanel({ institutions }: { institutions
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [cloneResponse, delegationResponse] = await Promise.all([
+      const [cloneResponse, delegationResponse, planResponse] = await Promise.all([
         fetch("/api/platform/clones", { cache: "no-store" }),
         fetch("/api/platform/delegations", { cache: "no-store" }),
+        fetch("/api/platform/copilot/plans", { cache: "no-store" }),
       ]);
-      if (!cloneResponse.ok || !delegationResponse.ok) throw new Error("No se pudo actualizar el registro de operaciones.");
-      const [cloneData, delegationData] = await Promise.all([cloneResponse.json(), delegationResponse.json()]);
+      if (!cloneResponse.ok || !delegationResponse.ok || !planResponse.ok) throw new Error("No se pudo actualizar el registro de operaciones.");
+      const [cloneData, delegationData, planData] = await Promise.all([cloneResponse.json(), delegationResponse.json(), planResponse.json()]);
       setClones(Array.isArray(cloneData.clones) ? cloneData.clones : []);
       setDelegations(Array.isArray(delegationData.delegations) ? delegationData.delegations : []);
+      setPlans(Array.isArray(planData.plans) ? planData.plans : []);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Error de consulta.");
     } finally { setLoading(false); }
@@ -100,6 +108,13 @@ export default function PlatformOperationsPanel({ institutions }: { institutions
     if (ok) setDelegationReason("");
   }
 
+  async function createCopilotPlan(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (instruction.trim().length < 12) return;
+    const ok = await send("/api/platform/copilot/plans", { instruction });
+    if (ok) setInstruction("");
+  }
+
   function toggleScope(key: string) {
     setScope((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
   }
@@ -115,6 +130,31 @@ export default function PlatformOperationsPanel({ institutions }: { institutions
         </button>
       </header>
       {message && <p role="status" className="rounded-xl border border-cyan-200/20 bg-cyan-200/[0.06] px-4 py-3 text-sm text-cyan-100">{message}</p>}
+
+      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <form onSubmit={createCopilotPlan} className="space-y-3 rounded-2xl border border-cyan-200/15 bg-cyan-950/30 p-5">
+          <div className="flex items-center gap-2 text-white"><ShieldCheck size={18} className="text-cyan-200"/><h3 className="font-semibold">Copiloto EDUNEXA · Groq</h3></div>
+          <p className="text-xs leading-5 text-slate-400">Genera planes revisables. No se envían claves ni datos personales. GitHub se limita a acciones allowlisted; Supabase y Render permanecen en lectura/planificación.</p>
+          <textarea value={instruction} onChange={(event) => setInstruction(event.target.value)} minLength={12} maxLength={4000} rows={3} required placeholder="Describí qué cambio querés planificar…" className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white"/>
+          <button disabled={!!busy || instruction.trim().length < 12} className="rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-bold text-slate-950 disabled:opacity-50">
+            {busy === "/api/platform/copilot/plans" ? "Generando con Groq…" : "Generar plan revisable"}
+          </button>
+        </form>
+        <article className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
+          <h3 className="font-semibold text-white">Planes y aprobaciones del Copiloto</h3>
+          <div className="mt-3 max-h-[360px] space-y-2 overflow-auto">
+            {plans.length ? plans.map((item) => <div key={item.id} className="rounded-xl border border-white/10 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-semibold uppercase tracking-wide text-cyan-200">{item.plan.category ?? "Plan"} · {item.status}</p><span className="font-mono text-[10px] text-slate-500">{item.id.slice(0, 8)}</span></div>
+              <p className="mt-2 text-sm text-white">{item.plan.summary ?? item.instruction}</p>
+              <p className="mt-1 text-xs text-slate-400">Proveedor: Groq · Riesgo: {item.plan.risk ?? "alto"} · Acciones: {item.plan.steps?.length ?? 0}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {item.status === "pending" && <button type="button" disabled={!!busy} onClick={() => void send(`/api/platform/copilot/plans/${item.id}/approve`)} className="rounded-lg border border-emerald-300/20 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50">Aprobar plan</button>}
+                {item.status === "approved" && <button type="button" disabled={!!busy} onClick={() => void send(`/api/platform/copilot/plans/${item.id}/execute`)} className="rounded-lg border border-cyan-300/20 px-3 py-2 text-xs font-semibold text-cyan-100 disabled:opacity-50">Ejecutar plan aprobado</button>}
+              </div>
+            </div>) : <p className="text-sm text-slate-500">Todavía no hay planes de Groq.</p>}
+          </div>
+        </article>
+      </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <form onSubmit={requestClone} className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.04] p-5">
