@@ -28,7 +28,7 @@ SELECT (public.platform_create_institution(
 
 -- Seed real, synthetic institution settings; triggers must mirror only safe configuration.
 DO $$
-DECLARE v_institution uuid; v_level uuid; v_year uuid; v_scale uuid; v_course uuid; v_subject uuid;
+DECLARE v_institution uuid; v_level uuid; v_year uuid; v_scale uuid; v_course uuid; v_subject uuid; v_division uuid;
 BEGIN
   SELECT institution_id INTO v_institution FROM synthetic_results;
   INSERT INTO public.grading_scales(institution_id,name,description,display_mode,minimum_value,maximum_value,passing_value)
@@ -43,6 +43,8 @@ BEGIN
     VALUES(v_institution,'Secundario','SEC',1) RETURNING id INTO v_level;
   INSERT INTO public.courses(institution_id,level_id,name,grade_number,shift)
     VALUES(v_institution,v_level,'Primer año',1,'morning') RETURNING id INTO v_course;
+  INSERT INTO public.divisions(institution_id,course_id,academic_year_id,name,capacity)
+    VALUES(v_institution,v_course,v_year,'A',30) RETURNING id INTO v_division;
   INSERT INTO public.subjects(institution_id,name,code) VALUES(v_institution,'Matemática','MAT') RETURNING id INTO v_subject;
   INSERT INTO public.course_subjects(institution_id,course_id,subject_id,weekly_hours)
     VALUES(v_institution,v_course,v_subject,4);
@@ -321,6 +323,7 @@ BEGIN
     OR NOT EXISTS(SELECT 1 FROM public.academic_years WHERE institution_id=v_target AND name='2027' AND status='planned')
     OR NOT EXISTS(SELECT 1 FROM public.grading_scales WHERE institution_id=v_target AND name='Escala sintética')
     OR NOT EXISTS(SELECT 1 FROM public.courses WHERE institution_id=v_target AND name='Primer año')
+    OR NOT EXISTS(SELECT 1 FROM public.divisions WHERE institution_id=v_target AND name='A' AND capacity=30)
     OR NOT EXISTS(SELECT 1 FROM public.subjects WHERE institution_id=v_target AND name='Matemática')
     OR NOT EXISTS(SELECT 1 FROM public.course_subjects cs WHERE cs.institution_id=v_target) THEN
     RAISE EXCEPTION 'configuration-only clone must materialize academic settings in the target institution';
