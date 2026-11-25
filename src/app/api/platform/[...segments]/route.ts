@@ -98,7 +98,7 @@ export async function POST(request: Request, route: RouteContext) {
     return json({ delegationId: result.data, status: "pending_second_approval" }, 201);
   }
 
-  if (segments.length === 2 && segments[0] === "delegations" && segments[1] && request.headers.get("x-action") === "approve") {
+  if (segments.length === 3 && segments[0] === "delegations" && segments[2] === "approve") {
     if (!validUuid(segments[1])) return json({ error: "Identificador inválido." }, 400);
     result = await platformRpc(auth.supabase, "platform_approve_delegation", {
       p_delegation_id: segments[1], p_request_id: requestIdValue,
@@ -133,8 +133,8 @@ export async function POST(request: Request, route: RouteContext) {
     return json({ requestId: result.data, status: "pending_second_approval" }, 201);
   }
 
-  if (segments.length === 3 && segments[0] === "superadmins" && segments[1] === "requests" && segments[2]) {
-    if (!validUuid(segments[2]) || request.headers.get("x-action") !== "approve") return json({ error: "Acción no válida." }, 400);
+  if (segments.length === 4 && segments[0] === "superadmins" && segments[1] === "requests" && segments[3] === "approve") {
+    if (!validUuid(segments[2])) return json({ error: "Identificador inválido." }, 400);
     result = await platformRpc(auth.supabase, "platform_approve_superadmin_change", {
       p_request_id: segments[2], p_audit_request_id: requestIdValue,
     });
@@ -142,8 +142,62 @@ export async function POST(request: Request, route: RouteContext) {
     return json({ approval: result.data });
   }
 
-  if (segments.length === 3 && segments[0] === "copilot" && segments[1] === "plans" && segments[2]) {
-    if (!validUuid(segments[2]) || request.headers.get("x-action") !== "approve") return json({ error: "Acción no válida." }, 400);
+  if (segments.length === 4 && segments[0] === "superadmins" && segments[1] === "requests" && segments[3] === "execute") {
+    if (!validUuid(segments[2])) return json({ error: "Identificador inválido." }, 400);
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const adminSecret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !adminSecret) return json({ error: "La ejecución de cambios de privilegio requiere una clave administrativa configurada solo en el servidor." }, 503);
+    const claim = await platformRpc(auth.supabase, "platform_claim_superadmin_change", {
+      p_request_id: segments[2], p_audit_request_id: requestIdValue,
+    });
+    if (claim.error) return rpcErrorResponse(claim.error);
+    const change = claim.data as { target_user_id?: string; action?: string } | null;
+    if (!change?.target_user_id || !["grant", "revoke"].includes(change.action ?? "")) {
+      return json({ error: "La solicitud aprobada no contiene una instrucción válida." }, 409);
+    }
+    const admin = createSupabaseAdminClient(supabaseUrl, adminSecret, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const targetResult = await admin.auth.admin.getUserById(change.target_user_id);
+    if (targetResult.error || !targetResult.data.user) {
+      const finished = await platformRpc(auth.supabase, "platform_finish_superadmin_change", {
+        p_request_id: segments[2], p_success: false, p_failure_code: "target_user_unavailable",
+        p_audit_request_id: requestId(),
+      });
+      if (finished.error) return json({ error: "No se pudo registrar el resultado; requiere reconciliación manual." }, 500);
+      return json({ error: "No se encontró el usuario de destino." }, 404);
+    }
+    const previousMetadata = targetResult.data.user.app_metadata ?? {};
+    const nextMetadata: Record<string, unknown> = { ...previousMetadata };
+    if (change.action === "grant") nextMetadata.platform_role = "superadmin";
+    else delete nextMetadata.platform_role;
+    const updated = await admin.auth.admin.updateUserById(change.target_user_id, { app_metadata: nextMetadata });
+    if (updated.error) {
+      const finished = await platformRpc(auth.supabase, "platform_finish_superadmin_change", {
+        p_request_id: segments[2], p_success: false, p_failure_code: "auth_admin_update_failed",
+        p_audit_request_id: requestId(),
+      });
+      if (finished.error) return json({ error: "Falló Auth y no se pudo cerrar la auditoría; requiere reconciliación manual." }, 500);
+      return json({ error: "Supabase Auth rechazó el cambio de privilegio." }, 502);
+    }
+    const finished = await platformRpc(auth.supabase, "platform_finish_superadmin_change", {
+      p_request_id: segments[2], p_success: true, p_failure_code: null, p_audit_request_id: requestId(),
+    });
+    if (finished.error) {
+      const rollback = await admin.auth.admin.updateUserById(change.target_user_id, { app_metadata: previousMetadata });
+      if (rollback.error) return json({ error: "Fallaron la auditoría final y la reversión. Bloqueá nuevas operaciones y reconciliá manualmente." }, 500);
+      const failedFinish = await platformRpc(auth.supabase, "platform_finish_superadmin_change", {
+        p_request_id: segments[2], p_success: false, p_failure_code: "audit_finalize_failed_rolled_back",
+        p_audit_request_id: requestId(),
+      });
+      if (failedFinish.error) return json({ error: "El cambio se revirtió, pero la solicitud requiere reconciliación de auditoría." }, 500);
+      return json({ error: "La auditoría no pudo finalizar; el cambio de privilegio fue revertido." }, 503);
+    }
+    return json({ result: finished.data, targetUserId: change.target_user_id, action: change.action });
+  }
+
+  if (segments.length === 4 && segments[0] === "copilot" && segments[1] === "plans" && segments[3] === "approve") {
+    if (!validUuid(segments[2])) return json({ error: "Identificador inválido." }, 400);
     result = await platformRpc(auth.supabase, "platform_approve_ai_change_plan", {
       p_plan_id: segments[2], p_request_id: requestIdValue,
     });
