@@ -39,7 +39,7 @@ export default async function StudentProfilePage({ params, searchParams }: { par
   if (!membership) redirect("/dashboard");
   const [{ data: roleRows }, { data: profile }, { data: studentRows, error }] = await Promise.all([
     supabase.from("membership_roles").select("roles(key)").eq("membership_id", membership.id),
-    supabase.from("profiles").select("first_name,last_name,display_name,avatar_path,avatar_style").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("first_name,last_name,display_name,phone,address,avatar_path,avatar_style").eq("id", user.id).maybeSingle(),
     supabase.rpc("list_my_portal_students", { p_institution_id: institution.id }),
   ]);
   if (!(roleRows ?? []).some((row) => row.roles?.key === "student")) redirect(`/dashboard/${slug}`);
@@ -110,6 +110,12 @@ export default async function StudentProfilePage({ params, searchParams }: { par
       </section>
       <form action={saveStudentProfile} encType="multipart/form-data" className="student-panel student-interactive-form space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <input type="hidden" name="slug" value={slug}/>
+        <h2 className="flex items-center gap-2 font-bold text-slate-900"><UserRound size={18} className="text-violet-700"/> Datos de contacto</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-sm font-semibold text-slate-700">Teléfono de contacto<input name="phone" defaultValue={profile?.phone??""} maxLength={40} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="+54..."/></label>
+          <label className="block text-sm font-semibold text-slate-700">Dirección<input name="address" defaultValue={profile?.address??""} maxLength={240} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal"/></label>
+        </div>
+        <p className="text-xs text-slate-500">El nombre, apellido y legajo oficiales se mantienen protegidos y solo pueden modificarse desde la administración institucional.</p>
         <h2 className="flex items-center gap-2 font-bold text-slate-900"><Camera size={18} className="text-violet-700"/> Fotografía y avatar</h2>
         <label className="block text-sm font-semibold text-slate-700">Subir fotografía
           <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" className="mt-2 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-100 file:px-3 file:py-2 file:font-semibold file:text-violet-900"/>
