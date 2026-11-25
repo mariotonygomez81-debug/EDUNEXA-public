@@ -766,6 +766,7 @@ revoke all on function public.platform_list_institution_admins(uuid) from public
 revoke all on function public.platform_revoke_delegation(uuid,text,text) from public,anon;
 revoke all on function public.platform_list_institutions(integer,timestamptz,text,text) from public,anon;
 revoke all on function public.platform_create_institution(text,text,text,text,text,text) from public,anon;
+revoke all on function public.platform_update_institution(uuid,text,text,text,text,timestamptz,text,text,text) from public,anon;
 revoke all on function public.platform_set_institution_status(uuid,text,timestamptz,text,text,text) from public,anon;
 revoke all on function public.platform_assign_institution_admin(uuid,uuid,text,text,text) from public,anon;
 revoke all on function public.platform_revoke_institution_admin(uuid,uuid,text,text,text) from public,anon;
@@ -785,6 +786,7 @@ grant execute on function public.platform_list_institution_admins(uuid) to authe
 grant execute on function public.platform_revoke_delegation(uuid,text,text) to authenticated;
 grant execute on function public.platform_list_institutions(integer,timestamptz,text,text) to authenticated;
 grant execute on function public.platform_create_institution(text,text,text,text,text,text) to authenticated;
+grant execute on function public.platform_update_institution(uuid,text,text,text,text,timestamptz,text,text,text) to authenticated;
 grant execute on function public.platform_set_institution_status(uuid,text,timestamptz,text,text,text) to authenticated;
 grant execute on function public.platform_assign_institution_admin(uuid,uuid,text,text,text) to authenticated;
 grant execute on function public.platform_revoke_institution_admin(uuid,uuid,text,text,text) to authenticated;
