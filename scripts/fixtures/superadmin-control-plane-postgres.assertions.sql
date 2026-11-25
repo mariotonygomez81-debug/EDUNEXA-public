@@ -125,7 +125,7 @@ SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001'
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
 SELECT public.platform_revoke_delegation(delegation_id,'Cierre de asistencia sintética completada','synthetic-request-delegation-revoke')
 FROM synthetic_results WHERE delegation_id IS NOT NULL;
-DO $ BEGIN
+DO $$ BEGIN
   IF NOT EXISTS(SELECT 1 FROM private.platform_delegations WHERE status='revoked') THEN
     RAISE EXCEPTION 'delegation was not revoked';
   END IF;
