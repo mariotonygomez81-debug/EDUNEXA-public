@@ -33,6 +33,16 @@ export async function GET(request: Request, route: RouteContext) {
     if (result.error) return rpcErrorResponse(result.error);
     return json({ institutions: result.data ?? [] });
   }
+  if (segments.length === 1 && segments[0] === "superadmins") {
+    const result = await platformRpc(auth.supabase, "platform_list_superadmins");
+    if (result.error) return rpcErrorResponse(result.error);
+    return json({ superadmins: result.data ?? [] });
+  }
+  if (segments.length === 3 && segments[0] === "institutions" && segments[2] === "administrators" && validUuid(segments[1])) {
+    const result = await platformRpc(auth.supabase, "platform_list_institution_admins", { p_institution_id: segments[1] });
+    if (result.error) return rpcErrorResponse(result.error);
+    return json({ administrators: result.data ?? [] });
+  }
   if (segments.length === 1 && segments[0] === "audit") {
     const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? "50") || 50));
     const institutionId = url.searchParams.get("institutionId");
@@ -101,6 +111,15 @@ export async function POST(request: Request, route: RouteContext) {
     if (!validUuid(segments[1])) return json({ error: "Identificador inválido." }, 400);
     result = await platformRpc(auth.supabase, "platform_approve_delegation", {
       p_delegation_id: segments[1], p_request_id: requestIdValue,
+    });
+    if (result.error) return rpcErrorResponse(result.error);
+    return json({ delegation: result.data });
+  }
+
+  if (segments.length === 3 && segments[0] === "delegations" && segments[2] === "revoke") {
+    if (!validUuid(segments[1]) || !requiredReason(body.reason)) return json({ error: "Identificador y motivo son obligatorios." }, 400);
+    result = await platformRpc(auth.supabase, "platform_revoke_delegation", {
+      p_delegation_id: segments[1], p_reason: text(body.reason), p_request_id: requestIdValue,
     });
     if (result.error) return rpcErrorResponse(result.error);
     return json({ delegation: result.data });
