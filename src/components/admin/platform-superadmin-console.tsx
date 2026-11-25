@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PlatformOperationsPanel from "@/components/admin/platform-operations-panel";
+import PlatformInstitutionAdminsPanel from "@/components/admin/platform-institution-admins-panel";
 import {
   Activity, AlertTriangle, ArrowUpRight, Bot, Building2, CheckCircle2, CircleHelp,
   ClipboardCheck, Cloud, Copy, Database, GitBranch, Globe2, KeyRound, Layers3,
@@ -240,6 +241,8 @@ export default function PlatformSuperadminConsole({ institutions, loadError }: P
     </section>
 
     <InstitutionLifecyclePanel institutions={institutions} />
+
+    <PlatformInstitutionAdminsPanel institutions={institutions} />
 
     <PlatformOperationsPanel institutions={institutions} />
 
