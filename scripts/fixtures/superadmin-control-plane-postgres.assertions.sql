@@ -174,6 +174,25 @@ BEGIN
     PERFORM public.platform_read_delegated_module((SELECT delegation_id FROM synthetic_results),'tutor');
     RAISE EXCEPTION 'expected module scope denial';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+
+-- RLS defense-in-depth: a docentes grant can SELECT only academic_structure snapshots.
+GRANT USAGE ON SCHEMA private TO authenticated;
+GRANT SELECT ON private.platform_institution_clone_config TO authenticated;
+BEGIN;
+SET LOCAL ROLE authenticated;
+DO $
+DECLARE v_structure integer; v_scales integer;
+BEGIN
+  SELECT count(*) INTO v_structure FROM private.platform_institution_clone_config
+    WHERE institution_id=(SELECT institution_id FROM synthetic_results) AND config_key='academic_structure';
+  SELECT count(*) INTO v_scales FROM private.platform_institution_clone_config
+    WHERE institution_id=(SELECT institution_id FROM synthetic_results) AND config_key='grading_scales';
+  IF v_structure<>1 OR v_scales<>0 THEN
+    RAISE EXCEPTION 'module RLS must allow only the categories assigned to docentes';
+  END IF;
+END $;
+RESET ROLE;
+COMMIT;
   v_context:=public.platform_resolve_delegated_context_by_slug('colegio-sintetico-uno');
   IF v_context->'institution'->>'slug'<>'colegio-sintetico-uno'
     OR v_context->>'mode'<>'delegated_support_read_only' THEN
