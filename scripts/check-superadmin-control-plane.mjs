@@ -109,7 +109,8 @@ for (const token of [
   "platform_delegations_module_scope_check", "platform_request_delegation_scoped_idempotent",
   "platform_read_delegated_module", "platform_list_delegations", "platform_list_clone_jobs",
   "platform_refresh_institution_clone_config", "platform_refresh_institution_clone_config_trigger",
-  "academic_calendar", "grading_scales", "academic_structure", "platform.delegation.legacy_scope_revoked",
+  "platform_list_ai_change_plans", "academic_calendar", "grading_scales", "academic_structure",
+  "platform.delegation.legacy_scope_revoked",
 ]) assert.ok(scopedMigration.includes(token), `Missing scoped support/config-sync control: ${token}`);
 assert.ok(scopedMigration.includes("raw_app_meta_data->>'platform_role'"), "Delegated module reads must revalidate trusted global role");
 assert.ok(scopedMigration.includes("d.expires_at>pg_catalog.now()"), "Delegated module reads must enforce expiry");
@@ -117,6 +118,8 @@ assert.ok(scopedMigration.includes("p_module_key=any(v_grant.module_scope)"), "E
 assert.ok(scopedMigration.includes("platform_audit_append('platform.delegation.module.read'"), "Each delegated read must be audited");
 assert.ok(scopedMigration.includes("update public.academic_years") === false, "Snapshot sync must not mutate live academic settings");
 assert.ok(operationsPanel.includes("moduleScopes") && operationsPanel.includes("execute-next"));
+assert.ok(operationsPanel.includes("/api/platform/copilot/plans") && operationsPanel.includes("Ejecutar plan aprobado"));
+assert.ok(api.includes("platform_list_ai_change_plans"), "Console must list Groq plans for review and approval");
 assert.ok(operationsPanel.includes("/approve"), "Console must expose independent approval controls");
 assert.ok(consoleSource.includes("PlatformOperationsPanel"));
 assert.ok(api.includes("platform_request_delegation_scoped_idempotent"));
