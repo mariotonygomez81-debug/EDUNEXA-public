@@ -60,7 +60,7 @@ do $$ begin
 end $$;
 
 -- Calendar: only an authorized institutional member may create an event.
-insert into public.permissions(key,description) values('academic_calendar.manage','test');
+insert into public.permissions(key,description) values('academic_calendar.manage','test') on conflict (key) do update set description=excluded.description;
 insert into public.role_permissions(role_id,permission_id)
 select '55555555-5555-5555-5555-555555555551',id from public.permissions where key='academic_calendar.manage'
 on conflict do nothing;
