@@ -397,6 +397,8 @@ $$;
 revoke all on function private.platform_clone_json_is_safe(jsonb) from public, anon, authenticated;
 revoke all on function private.platform_require_worker() from public, anon, authenticated;
 revoke all on function public.platform_request_clone_idempotent(uuid,text,text,text,text,text,text) from public, anon;
+revoke all on function public.platform_request_clone(uuid,text,text,text,text,text) from public, anon, authenticated;
+revoke all on function public.platform_request_delegation(uuid,text,timestamptz,text) from public, anon, authenticated;
 revoke all on function public.platform_approve_clone_job(uuid,text) from public, anon;
 revoke all on function public.platform_request_delegation_idempotent(uuid,text,timestamptz,text,text) from public, anon;
 revoke all on function public.platform_claim_clone_job(integer) from public, anon, authenticated;
