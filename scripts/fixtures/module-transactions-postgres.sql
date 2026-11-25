@@ -52,8 +52,8 @@ as $$ select auth.uid()='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
  and p_division_id='22222222-2222-2222-2222-222222222222'::uuid
  and p_permission='attendance.manage' $$;
 create or replace function private.has_institution_permission(p_institution_id uuid,p_permission_key text)
-returns boolean language sql stable
-as $$ select exists (
+returns boolean language sql stable security definer set search_path=''
+as $ select exists (
  select 1 from public.memberships m join public.membership_roles mr
  on mr.membership_id=m.id and mr.institution_id=m.institution_id
  join public.role_permissions rp on rp.role_id=mr.role_id
@@ -64,6 +64,8 @@ as $$ select exists (
 create or replace function private.can_access_student(p_institution_id uuid,p_student_id uuid,p_permission text)
 returns boolean language sql stable
 as $$ select exists(select 1 from public.students s where s.id=p_student_id and s.institution_id=p_institution_id) $$;
+
+grant select on public.memberships to authenticated;
 
 insert into public.institutions(id,display_name,legal_name,tax_id) values
  ('11111111-1111-1111-1111-111111111111','Synthetic School','Synthetic School','TEST-ONLY');
