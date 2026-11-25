@@ -184,7 +184,7 @@ BEGIN
 END $$;
 
 UPDATE private.platform_delegations
-SET expires_at=now()-interval '1 second'
+SET created_at=now()-interval '2 minutes',expires_at=now()-interval '1 second'
 WHERE id=(SELECT delegation_id FROM synthetic_results);
 DO $$
 BEGIN
