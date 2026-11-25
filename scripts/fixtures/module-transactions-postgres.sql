@@ -71,7 +71,8 @@ insert into auth.users(id) values
  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
  ('cccccccc-cccc-cccc-cccc-cccccccccccc'),
- ('dddddddd-dddd-dddd-dddd-dddddddddddd');
+ ('dddddddd-dddd-dddd-dddd-dddddddddddd'),
+ ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef');
 insert into public.memberships(id,institution_id,user_id,status) values
  ('33333333-3333-3333-3333-333333333331','11111111-1111-1111-1111-111111111111','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','active'),
  ('33333333-3333-3333-3333-333333333332','11111111-1111-1111-1111-111111111111','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','active'),
