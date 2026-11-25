@@ -160,9 +160,17 @@ CREATE TABLE IF NOT EXISTS public.campuses (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
   name text NOT NULL,
+  code text,
+  address text,
+  phone text,
+  is_main boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(id,institution_id)
+  UNIQUE(id,institution_id),
+  UNIQUE(institution_id,name),
+  UNIQUE(institution_id,code)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS campuses_one_main_per_institution_unique
+  ON public.campuses(institution_id) WHERE is_main;
 CREATE TABLE IF NOT EXISTS public.divisions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
