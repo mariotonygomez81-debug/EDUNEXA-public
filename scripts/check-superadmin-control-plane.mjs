@@ -39,8 +39,8 @@ assert.ok(consoleSource.includes("Copiloto EDUNEXA"));
 const publicFunctions = [...migration.matchAll(/create or replace function public\.(platform_[a-z_]+)/g)].map((match) => match[1]);
 assert.equal(new Set(publicFunctions).size, publicFunctions.length, "Public platform RPCs must not be duplicated");
 for (const name of publicFunctions) {
-  assert.ok(migration.includes(\`revoke all on function public.\${name}(\`), \`\${name} must revoke default PUBLIC execution\`);
-  assert.ok(migration.includes(\`grant execute on function public.\${name}(\`), \`\${name} must explicitly grant authenticated execution\`);
+  assert.ok(migration.includes("revoke all on function public." + name + "("), name + " must revoke default PUBLIC execution");
+  assert.ok(migration.includes("grant execute on function public." + name + "("), name + " must explicitly grant authenticated execution");
 }
 assert.equal((migration.match(/as \$\$/g) ?? []).length, (migration.match(/\$\$;/g) ?? []).length, "SQL dollar quotes must be balanced");
 assert.ok(!/as \$\r?\n/.test(migration), "Malformed single-dollar function delimiters are forbidden");
