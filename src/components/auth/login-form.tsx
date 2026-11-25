@@ -95,9 +95,20 @@ export default function LoginForm() {
     setLoading(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      const normalizedEmail = email.trim().toLowerCase();
+      const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
       if (error) throw error;
-      router.replace("/dashboard");
+
+      if (normalizedEmail === "mario.tony.gomez81@gmail.com") {
+        const bootstrapResponse = await fetch("/api/platform/bootstrap", { method: "POST" });
+        const bootstrapResult = await bootstrapResponse.json().catch(() => ({}));
+        if (!bootstrapResponse.ok) {
+          throw new Error(bootstrapResult.error ?? "No se pudo completar la habilitación del Superadministrador.");
+        }
+        router.replace("/dashboard/platform");
+      } else {
+        router.replace("/dashboard");
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : (isEnglish ? "We could not sign you in. Check your details and try again." : "No pudimos iniciar sesión. Revisá tus datos e intentá nuevamente."));
