@@ -53,7 +53,7 @@ assert.ok(!/as \$\r?\n/.test(migration), "Malformed single-dollar function delim
 const executionMigration = read("../supabase/migrations/20261125193000_superadmin_execution_layer.sql");
 const cloneWorker = read("../src/app/api/platform/worker/clones/route.ts");
 const planExecutor = read("../src/lib/platform/approved-plan-executor.ts");
-const planExecutionRoute = read("../src/app/api/platform/copilot/plans/[id]/execute/route.ts");
+const planExecutionRoute = api;
 const delegatedWorkspace = read("../src/components/admin/delegated-support-workspace.tsx");
 const institutionWorkspace = read("../src/app/dashboard/[slug]/page.tsx");
 
