@@ -9,8 +9,19 @@ export async function GET(request: NextRequest) {
  const type = searchParams.get("type") as EmailOtpType | null;
  const requestedNext = searchParams.get("next") ?? "/dashboard";
  const institutionSlug = searchParams.get("institution") ?? "";
+ const platformBootstrap = searchParams.get("flow") === "platform-bootstrap";
  const next = allowedNext.has(requestedNext) ? requestedNext : "/dashboard";
  const supabase = await createClient();
+ const finishRedirect = async () => {
+  if (platformBootstrap) {
+   const { data: { user } } = await supabase.auth.getUser();
+   if (user?.email?.toLowerCase() !== "mario.tony.gomez81@gmail.com" || user.app_metadata?.platform_role !== "superadmin") {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(new URL("/login?message=La%20cuenta%20no%20tiene%20autorizaci%C3%B3n%20de%20Superadministrador.", origin));
+   }
+  }
+  return NextResponse.redirect(new URL(next, origin));
+ };
  if (code) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (!error) {
@@ -18,7 +29,7 @@ export async function GET(request: NextRequest) {
     const { error: activationError } = await supabase.functions.invoke("manage-institution-users", { body: { action: "activate_self", slug: institutionSlug } });
     if (activationError) return NextResponse.redirect(new URL("/login?message=No%20se%20pudo%20activar%20la%20invitaci%C3%B3n.%20Contact%C3%A1%20al%20administrador.", origin));
    }
-   return NextResponse.redirect(new URL(next, origin));
+   return await finishRedirect();
   }
  }
  if (tokenHash && type) {
