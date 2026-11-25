@@ -19,7 +19,7 @@ do $$ begin
  exception when unique_violation then null; end;
  begin
   insert into public.prefect_attendance_records(institution_id,session_id,student_id,status)
-  select s.institution_id,s.id,'44444444-4444-4444-4444-444444444442','invalid'
+  select s.institution_id,s.id,'44444444-4444-4444-4444-444444444443','invalid'
   from public.prefect_attendance_sessions s where s.held_on=current_date;
   raise exception 'Invalid attendance status unexpectedly accepted';
  exception when check_violation then null; end;
@@ -28,7 +28,7 @@ update public.prefect_attendance_sessions set status='closed' where held_on=curr
 do $$ begin
  begin
   insert into public.prefect_attendance_records(institution_id,session_id,student_id,status)
-  select s.institution_id,s.id,'44444444-4444-4444-4444-444444444442','absent'
+  select s.institution_id,s.id,'44444444-4444-4444-4444-444444444443','absent'
   from public.prefect_attendance_sessions s where s.held_on=current_date;
   raise exception 'Closed attendance session accepted a record';
  exception when insufficient_privilege then null; end;
