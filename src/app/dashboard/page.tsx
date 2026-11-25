@@ -11,6 +11,9 @@ export default async function DashboardPage() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) redirect("/login");
 
+  // Platform administrators are authorized by trusted Auth app_metadata, not school membership.
+  if (user.app_metadata?.platform_role === "superadmin") redirect("/dashboard/platform");
+
   const [{ data: profile }, { data: memberships, error: membershipError }] = await Promise.all([
     supabase.from("profiles").select("display_name,first_name,last_name").eq("id", user.id).maybeSingle(),
     supabase.from("memberships").select("id,institution_id,status")

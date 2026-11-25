@@ -62,6 +62,8 @@ jobs:
         run: npm run check:single-school
       - name: Validate role-scoped authorization, Hosted role matrix and report-card audience
         run: npm run check:role-scoped-authz
+      - name: Validate global Superadmin and eight-module boundary
+        run: npm run check:platform-roles
       - name: Build
         run: npm run build
       - name: Smoke test public routes

@@ -4,20 +4,14 @@ import { getMembershipPermissions } from "@/lib/auth/permissions";
 import { signOut } from "../actions";
 import { WorkspaceExperience } from "./workspace-experience";
 
-const modules: { name: string; detail: string; icon: string; href: string; permission: string; roles?: string[]; category: "Académico" | "Gestión" | "Comunidad" }[] = [
-  { name: "Alumnos", detail: "Legajos y trayectorias", icon: "students", href: "students", permission: "students.read", roles: ["institution_admin", "administrative", "director", "teacher", "prefect"], category: "Académico" as const },
-  { name: "Mi espacio de alumno", detail: "Mis aulas, actividades y aprendizaje", icon: "portal", href: "student", permission: "institution.read", roles: ["student"], category: "Académico" as const },
-  { name: "Gestión administrativa", detail: "Documentación, trámites y registros internos", icon: "administrative", href: "administrative", permission: "administrative_records.read", roles: ["institution_admin", "administrative"], category: "Gestión" as const },
-  { name: "Asistencia", detail: "Presentismo y justificaciones", icon: "attendance", href: "attendance", permission: "attendance.read", roles: ["institution_admin", "administrative", "director", "teacher", "prefect"], category: "Académico" as const },
-  { name: "Calificaciones", detail: "Evaluaciones, notas y boletines", icon: "grades", href: "grades", permission: "grades.read", roles: ["institution_admin", "administrative", "director", "teacher"], category: "Académico" as const },
-  { name: "Boletines", detail: "Revisión, aprobación y publicación", icon: "report", href: "report-cards", permission: "grades.read", category: "Académico" as const },
-  { name: "Aula virtual", detail: "Clases, tareas y materiales", icon: "classroom", href: "classroom", permission: "classroom.read", category: "Académico" as const },
-  { name: "Comunicaciones", detail: "Anuncios para la comunidad educativa", icon: "announcements", href: "announcements", permission: "institution.read", category: "Comunidad" as const },
-  { name: "Mensajes", detail: "Conversaciones privadas por perfil", icon: "messages", href: "messages", permission: "institution.read", category: "Comunidad" as const },
-  { name: "Calendario académico", detail: "Jornadas, ferias, exámenes, actos y reuniones", icon: "calendar", href: "calendar", permission: "institution.read", category: "Comunidad" as const },
-  { name: "Notificaciones", detail: "Avisos y preferencias personales", icon: "notifications", href: "notifications", permission: "institution.read", category: "Comunidad" as const },
-  { name: "Citaciones a tutores", detail: "Convocar familias y seguir entrevistas", icon: "appointments", href: "appointments", permission: "students.read", roles: ["teacher", "prefect"], category: "Comunidad" as const },
-  { name: "Mi portal", detail: "Seguimiento académico personal y familiar", icon: "portal", href: "portal", permission: "institution.read", roles: ["student", "guardian"], category: "Comunidad" as const },
+const modules: { name: string; detail: string; icon: string; href: string; permission: string; role: string; category: "Académico" | "Gestión" | "Comunidad" }[] = [
+  { name: "Docentes", detail: "Enseñanza, aulas, actividades y evaluaciones", icon: "classroom", href: "teaching", permission: "classroom.read", role: "teacher", category: "Académico" },
+  { name: "Preceptor", detail: "Divisiones, seguimiento y asistencia", icon: "prefect", href: "prefect", permission: "attendance.read", role: "prefect", category: "Académico" },
+  { name: "Alumnos", detail: "Trayectoria, aulas y actividades personales", icon: "students", href: "student", permission: "institution.read", role: "student", category: "Académico" },
+  { name: "Tutor", detail: "Seguimiento académico y comunicación familiar", icon: "portal", href: "portal", permission: "institution.read", role: "guardian", category: "Comunidad" },
+  { name: "Directivos", detail: "Indicadores y supervisión institucional", icon: "direction", href: "direction", permission: "reports.read", role: "director", category: "Gestión" },
+  { name: "Administrativos", detail: "Documentación, trámites y registros", icon: "administrative", href: "administrative", permission: "administrative_records.read", role: "administrative", category: "Gestión" },
+  { name: "Administrador", detail: "Usuarios, permisos y configuración del colegio", icon: "users", href: "admin-center", permission: "memberships.manage", role: "institution_admin", category: "Gestión" },
 ];
 
 export default async function InstitutionWorkspace({ params }: { params: Promise<{ slug: string }> }) {
@@ -41,11 +35,10 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   const roleKeys = (roleRows ?? []).map((row) => row.roles?.key).filter(Boolean) as string[];
   const permissions = await getMembershipPermissions(supabase, membership.id);
   const visibleModules = modules.filter((module) =>
-    permissions.has(module.permission) && (module.roles?.some((role) => roleKeys.includes(role)) ?? true)
+    permissions.has(module.permission) && roleKeys.includes(module.role)
   ).map((module) => ({
-    name: module.href === "students" && roleKeys.includes("administrative") ? "Gestión administrativa" : module.name,
-    detail: module.href === "students" && roleKeys.includes("administrative") ? "Consulta de registros y datos autorizados" : module.detail,
-    icon: module.icon, href: `/dashboard/${slug}/${module.href}`, category: module.category,
+    name: module.name, detail: module.detail, icon: module.icon,
+    href: `/dashboard/${slug}/${module.href}`, category: module.category,
     unread: undefined,
   }));
 
