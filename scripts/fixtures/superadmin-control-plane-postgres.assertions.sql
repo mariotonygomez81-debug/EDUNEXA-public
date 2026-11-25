@@ -280,7 +280,7 @@ BEGIN;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
-DO $
+DO $$
 DECLARE v_profile integer; v_calendar integer; v_scales integer; v_structure integer;
 BEGIN
   SELECT count(*) INTO v_profile FROM private.platform_institution_clone_config
@@ -295,7 +295,7 @@ BEGIN
     RAISE EXCEPTION 'RLS scope mismatch for preceptor: profile %, calendar %, scales %, structure %',
       v_profile,v_calendar,v_scales,v_structure;
   END IF;
-END $;
+END $$;
 RESET ROLE;
 COMMIT;
 
@@ -307,7 +307,7 @@ BEGIN;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
-DO $
+DO $$
 DECLARE v_profile integer; v_calendar integer; v_scales integer; v_structure integer;
 BEGIN
   SELECT count(*) INTO v_profile FROM private.platform_institution_clone_config
@@ -322,7 +322,7 @@ BEGIN
     RAISE EXCEPTION 'RLS scope mismatch for alumnos: profile %, calendar %, scales %, structure %',
       v_profile,v_calendar,v_scales,v_structure;
   END IF;
-END $;
+END $$;
 RESET ROLE;
 COMMIT;
 
@@ -334,7 +334,7 @@ BEGIN;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
-DO $
+DO $$
 DECLARE v_profile integer; v_calendar integer; v_scales integer; v_structure integer;
 BEGIN
   SELECT count(*) INTO v_profile FROM private.platform_institution_clone_config
@@ -349,7 +349,7 @@ BEGIN
     RAISE EXCEPTION 'RLS scope mismatch for tutor: profile %, calendar %, scales %, structure %',
       v_profile,v_calendar,v_scales,v_structure;
   END IF;
-END $;
+END $$;
 RESET ROLE;
 COMMIT;
 
@@ -361,7 +361,7 @@ BEGIN;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
-DO $
+DO $$
 DECLARE v_profile integer; v_calendar integer; v_scales integer; v_structure integer;
 BEGIN
   SELECT count(*) INTO v_profile FROM private.platform_institution_clone_config
@@ -376,7 +376,7 @@ BEGIN
     RAISE EXCEPTION 'RLS scope mismatch for directivos: profile %, calendar %, scales %, structure %',
       v_profile,v_calendar,v_scales,v_structure;
   END IF;
-END $;
+END $$;
 RESET ROLE;
 COMMIT;
 
@@ -388,7 +388,7 @@ BEGIN;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
-DO $
+DO $$
 DECLARE v_profile integer; v_calendar integer; v_scales integer; v_structure integer;
 BEGIN
   SELECT count(*) INTO v_profile FROM private.platform_institution_clone_config
@@ -403,7 +403,7 @@ BEGIN
     RAISE EXCEPTION 'RLS scope mismatch for administrativos: profile %, calendar %, scales %, structure %',
       v_profile,v_calendar,v_scales,v_structure;
   END IF;
-END $;
+END $$;
 RESET ROLE;
 COMMIT;
 
@@ -415,7 +415,7 @@ BEGIN;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
-DO $
+DO $$
 DECLARE v_profile integer; v_calendar integer; v_scales integer; v_structure integer;
 BEGIN
   SELECT count(*) INTO v_profile FROM private.platform_institution_clone_config
@@ -430,7 +430,7 @@ BEGIN
     RAISE EXCEPTION 'RLS scope mismatch for administrador: profile %, calendar %, scales %, structure %',
       v_profile,v_calendar,v_scales,v_structure;
   END IF;
-END $;
+END $$;
 RESET ROLE;
 COMMIT;
 
