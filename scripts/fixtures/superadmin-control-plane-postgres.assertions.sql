@@ -191,10 +191,32 @@ DO $$
 DECLARE v_job private.platform_clone_jobs%rowtype;
 BEGIN
   SELECT * INTO v_job FROM private.platform_clone_jobs WHERE id=(SELECT clone_job_id FROM synthetic_results);
-  IF v_job.copy_mode<>'configuration_only' OR v_job.status<>'queued' THEN RAISE EXCEPTION 'clone job is not safely queued'; END IF;
+  IF v_job.copy_mode<>'configuration_only' OR v_job.status<>'pending_approval' THEN RAISE EXCEPTION 'clone job must wait for independent approval'; END IF;
   IF NOT EXISTS(SELECT 1 FROM public.institutions WHERE id=v_job.target_institution_id AND status='pending') THEN
     RAISE EXCEPTION 'clone target must remain pending';
   END IF;
+END $$;
+
+-- The clone requester cannot approve their own job; a second Superadministrator releases it to the worker.
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
+DO $$
+DECLARE v_id uuid;
+BEGIN
+  SELECT clone_job_id INTO v_id FROM synthetic_results;
+  BEGIN
+    PERFORM public.platform_approve_clone_job(v_id,'synthetic-request-clone-self-approve');
+    RAISE EXCEPTION 'expected independent clone approval';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","app_metadata":{"platform_role":"superadmin"}}',false);
+DO $$
+DECLARE v_id uuid; v_result jsonb;
+BEGIN
+  SELECT clone_job_id INTO v_id FROM synthetic_results;
+  v_result:=public.platform_approve_clone_job(v_id,'synthetic-request-clone-approve-001');
+  IF v_result->>'status'<>'queued' THEN RAISE EXCEPTION 'second approver must release clone job'; END IF;
 END $$;
 
 -- The worker copies only approved non-personal configuration categories and is idempotent.
