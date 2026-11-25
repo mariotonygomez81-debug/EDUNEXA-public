@@ -306,6 +306,22 @@ export async function PATCH(request: Request, route: RouteContext) {
   const { segments } = await route.params;
   const body = await readJson(request);
   if (!body) return json({ error: "El cuerpo JSON no es válido." }, 400);
+  if (segments.length === 2 && segments[0] === "institutions" && validUuid(segments[1])) {
+    if (!requiredReason(body.reason) || !text(body.displayName) || !text(body.legalName)
+      || !text(body.locale) || !text(body.timezone) || !text(body.expectedUpdatedAt) || !idempotencyKey(request)) {
+      return json({ error: "Nombre, razón social, idioma, zona horaria, versión, motivo e Idempotency-Key son obligatorios." }, 400);
+    }
+    const expected = new Date(text(body.expectedUpdatedAt));
+    if (Number.isNaN(expected.getTime())) return json({ error: "Versión de institución inválida." }, 400);
+    const updated = await platformRpc(auth.supabase, "platform_update_institution", {
+      p_institution_id: segments[1], p_display_name: text(body.displayName), p_legal_name: text(body.legalName),
+      p_locale: text(body.locale), p_timezone: text(body.timezone), p_expected_updated_at: expected.toISOString(),
+      p_reason: text(body.reason), p_request_id: requestId(), p_idempotency_key: idempotencyKey(request),
+    });
+    if (updated.error) return rpcErrorResponse(updated.error);
+    return json({ institution: updated.data });
+  }
+
   if (segments.length !== 3 || segments[0] !== "institutions" || segments[2] !== "status" || !validUuid(segments[1])) {
     return json({ error: "Recurso no encontrado." }, 404);
   }
