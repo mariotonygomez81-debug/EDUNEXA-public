@@ -149,7 +149,7 @@ export default function PlatformSuperadminConsole({ institutions, loadError }: P
     <section className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
       <article className="rounded-2xl border border-cyan-200/15 bg-gradient-to-br from-cyan-950/60 to-slate-900 p-6">
         <div className="flex items-center gap-3"><Bot className="text-cyan-200" size={22}/><div><p className="text-[10px] font-bold tracking-[0.18em] text-cyan-200">ASISTENTE DE OPERACIONES</p><h2 className="mt-1 text-lg font-bold text-white">Copiloto EDUNEXA</h2></div></div>
-        <p className="mt-3 text-sm leading-6 text-slate-300">La integración debe usar Groq como proveedor de IA, generar un plan de cambios y solicitar aprobación antes de ejecutar operaciones en repositorios o infraestructura. En esta entrega no se conecta una API ni se ejecutan cambios desde este panel.</p>
+        <p className="mt-3 text-sm leading-6 text-slate-300">El panel de operaciones permite generar planes con Groq, revisarlos, aprobarlos por un segundo Superadministrador y ejecutar únicamente las acciones allowlisted. Supabase y Render continúan en modo de solo lectura/planificación.</p>
         <div className="mt-5 flex flex-wrap gap-2 text-xs text-slate-300"><span className="rounded-lg border border-white/10 px-3 py-2">GitHub · PR y CI</span><span className="rounded-lg border border-white/10 px-3 py-2">Supabase · migraciones y RLS</span><span className="rounded-lg border border-white/10 px-3 py-2">Render · servicios y deploys</span></div>
       </article>
       <article className="rounded-2xl border border-amber-200/15 bg-amber-200/[0.045] p-6">
@@ -158,7 +158,7 @@ export default function PlatformSuperadminConsole({ institutions, loadError }: P
       </article>
     </section>
 
-    <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-xs text-slate-500"><span>EDUNEXA GLOBAL · Gobierno central de plataformas</span><span className="inline-flex items-center gap-2"><CircleHelp size={14}/> Las operaciones privilegiadas permanecen bloqueadas hasta completar el backend auditado.</span></footer>
+    <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-xs text-slate-500"><span>EDUNEXA GLOBAL · Gobierno central de plataformas</span><span className="inline-flex items-center gap-2"><CircleHelp size={14}/> Las operaciones privilegiadas exigen motivo, doble aprobación, permisos acotados y auditoría.</span></footer>
 
     {selected && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="institution-detail-title" className="w-full max-w-xl rounded-t-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl sm:rounded-3xl">
