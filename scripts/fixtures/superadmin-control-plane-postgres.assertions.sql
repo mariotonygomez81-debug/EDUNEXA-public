@@ -180,7 +180,7 @@ GRANT USAGE ON SCHEMA private TO authenticated;
 GRANT SELECT ON private.platform_institution_clone_config TO authenticated;
 BEGIN;
 SET LOCAL ROLE authenticated;
-DO $
+DO $$
 DECLARE v_structure integer; v_scales integer;
 BEGIN
   SELECT count(*) INTO v_structure FROM private.platform_institution_clone_config
@@ -190,7 +190,7 @@ BEGIN
   IF v_structure<>1 OR v_scales<>0 THEN
     RAISE EXCEPTION 'module RLS must allow only the categories assigned to docentes';
   END IF;
-END $;
+END $$;
 RESET ROLE;
 COMMIT;
   v_context:=public.platform_resolve_delegated_context_by_slug('colegio-sintetico-uno');
