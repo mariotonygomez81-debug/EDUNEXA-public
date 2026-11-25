@@ -12,7 +12,8 @@ export default function CourseDivisionSelect({
   courses: Course[];
   divisions: Division[];
 }) {
-  const [courseId, setCourseId] = useState("");\n  const [divisionId, setDivisionId] = useState("");
+  const [courseId, setCourseId] = useState("");
+  const [divisionId, setDivisionId] = useState("");
   const availableDivisions = useMemo(
     () => divisions.filter((division) => division.course_id === courseId),
     [courseId, divisions],
