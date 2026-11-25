@@ -16,10 +16,10 @@ async function context(slug:string){
  return {supabase,user,institution,membership};
 }
 export async function createPrefectAttendanceSession(data:FormData){
- const slug=field(data,"slug"),divisionId=field(data,"division_id"),heldOn=field(data,"held_on"),period=field(data,"period_label");
- if(!slug||!/^[0-9a-f-]{36}$/i.test(divisionId)||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(heldOn)||period.length>80)redirect(`/dashboard/${encodeURIComponent(slug)}/prefect/attendance?error=invalid`);
+ const slug=field(data,"slug"),courseId=field(data,"course_id"),divisionId=field(data,"division_id"),heldOn=field(data,"held_on"),period=field(data,"period_label");
+ if(!slug||!/^[0-9a-f-]{36}$/i.test(courseId)||!/^[0-9a-f-]{36}$/i.test(divisionId)||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(heldOn)||period.length>80)redirect(`/dashboard/${encodeURIComponent(slug)}/prefect/attendance?error=invalid`);
  const {supabase,user,institution}=await context(slug);
- const {data:assignment}=await supabase.from("staff_assignments").select("id").eq("institution_id",institution.id).eq("membership_id",(await supabase.from("memberships").select("id").eq("institution_id",institution.id).eq("user_id",user.id).eq("status","active").single()).data!.id).eq("assignment_type","prefect").eq("division_id",divisionId).or(`starts_on.is.null,starts_on.lte.${heldOn}`).or(`ends_on.is.null,ends_on.gte.${heldOn}`).maybeSingle();
+ const {data:assignment}=await supabase.from("staff_assignments").select("id").eq("institution_id",institution.id).eq("membership_id",membership.id).eq("assignment_type","prefect").eq("division_id",divisionId).or(`starts_on.is.null,starts_on.lte.${heldOn}`).or(`ends_on.is.null,ends_on.gte.${heldOn}`).maybeSingle();
  if(!assignment)redirect(`/dashboard/${slug}/prefect/attendance?error=scope`);
  const db=supabase as unknown as {from:(table:string)=>any};
  const {error}=await db.from("prefect_attendance_sessions").insert({institution_id:institution.id,division_id:divisionId,held_on:heldOn,period_label:period||null,created_by:user.id});
