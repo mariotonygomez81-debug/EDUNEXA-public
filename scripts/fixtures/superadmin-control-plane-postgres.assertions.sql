@@ -72,7 +72,7 @@ BEGIN
   INSERT INTO public.campuses(institution_id,name,code,address,phone,is_main)
     VALUES(v_second,'Sede Exclusiva Dos','DOS','Dirección de prueba Dos','+54-11-5555-0202',true);
 END $$;
-DO $
+DO $$
 DECLARE v_first uuid; v_second uuid;
 BEGIN
   SELECT institution_id,second_institution_id INTO v_first,v_second FROM synthetic_results;
