@@ -271,6 +271,49 @@ begin
 end;
 $$;
 
+create or replace function public.platform_list_superadmins()
+returns table(user_id uuid,email text,created_at timestamptz,last_sign_in_at timestamptz)
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  perform private.require_platform_superadmin();
+  perform private.platform_audit_append('platform.superadmin.list','superadmin_collection',null,null,
+    'Consulta del registro de Superadministradores','superadmins-'||pg_catalog.gen_random_uuid()::text,'success','{}'::jsonb);
+  return query
+  select u.id,u.email,u.created_at,u.last_sign_in_at
+  from auth.users u
+  where u.raw_app_meta_data->>'platform_role'='superadmin'
+  order by u.created_at asc,u.id;
+end;
+$;
+
+create or replace function public.platform_list_institution_admins(p_institution_id uuid)
+returns table(membership_id uuid,user_id uuid,email text,display_name text,status text,assigned_at timestamptz)
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  perform private.require_platform_superadmin();
+  if not exists(select 1 from public.institutions where id=p_institution_id) then
+    raise exception using errcode='P0002',message='institution_not_found';
+  end if;
+  perform private.platform_audit_append('platform.institution.admin.list','institution_admin_collection',p_institution_id::text,p_institution_id,
+    'Consulta de administradores institucionales','institution-admins-'||pg_catalog.gen_random_uuid()::text,'success','{}'::jsonb);
+  return query
+  select m.id,m.user_id,u.email,p.display_name,m.status,mr.assigned_at
+  from public.memberships m
+  join public.membership_roles mr on mr.membership_id=m.id and mr.institution_id=m.institution_id
+  join public.roles r on r.id=mr.role_id and r.key='institution_admin'
+  join auth.users u on u.id=m.user_id
+  left join public.profiles p on p.id=m.user_id
+  where m.institution_id=p_institution_id
+  order by m.created_at desc,m.id;
+end;
+$;
+
 create or replace function public.platform_create_institution(
   p_display_name text,p_legal_name text,p_slug text,p_reason text,p_request_id text,p_idempotency_key text
 )
@@ -455,6 +498,28 @@ begin
   return jsonb_build_object('id',p_delegation_id,'status','active','institution_id',v_row.institution_id,'expires_at',v_row.expires_at);
 end;
 $$;
+
+create or replace function public.platform_revoke_delegation(p_delegation_id uuid,p_reason text,p_request_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare v_actor uuid:=private.require_platform_superadmin(); v_row private.platform_delegations%rowtype;
+begin
+  if pg_catalog.length(pg_catalog.btrim(coalesce(p_reason,'')))<12 then
+    raise exception using errcode='22023',message='reason_required';
+  end if;
+  select * into v_row from private.platform_delegations where id=p_delegation_id for update;
+  if not found or v_row.status not in ('pending','active') then
+    raise exception using errcode='P0002',message='active_delegation_not_found';
+  end if;
+  update private.platform_delegations set status='revoked',revoked_at=pg_catalog.now() where id=p_delegation_id;
+  perform private.platform_audit_append('platform.delegation.revoke','delegation',p_delegation_id::text,v_row.institution_id,
+    p_reason,p_request_id,'success',jsonb_build_object('requested_by',v_row.requested_by,'revoked_by',v_actor));
+  return jsonb_build_object('id',p_delegation_id,'status','revoked');
+end;
+$;
 
 create or replace function public.platform_request_clone(
   p_source_institution_id uuid,p_display_name text,p_legal_name text,p_slug text,p_reason text,p_request_id text
@@ -649,6 +714,9 @@ begin
 end;
 $$;
 
+revoke all on function public.platform_list_superadmins() from public,anon;
+revoke all on function public.platform_list_institution_admins(uuid) from public,anon;
+revoke all on function public.platform_revoke_delegation(uuid,text,text) from public,anon;
 revoke all on function public.platform_list_institutions(integer,timestamptz,text,text) from public,anon;
 revoke all on function public.platform_create_institution(text,text,text,text,text,text) from public,anon;
 revoke all on function public.platform_set_institution_status(uuid,text,timestamptz,text,text,text) from public,anon;
@@ -665,6 +733,9 @@ revoke all on function public.platform_create_ai_change_plan(text,jsonb) from pu
 revoke all on function public.platform_approve_ai_change_plan(uuid,text) from public,anon;
 revoke all on function public.platform_list_audit_events(integer,timestamptz,uuid) from public,anon;
 
+grant execute on function public.platform_list_superadmins() to authenticated;
+grant execute on function public.platform_list_institution_admins(uuid) to authenticated;
+grant execute on function public.platform_revoke_delegation(uuid,text,text) to authenticated;
 grant execute on function public.platform_list_institutions(integer,timestamptz,text,text) to authenticated;
 grant execute on function public.platform_create_institution(text,text,text,text,text,text) to authenticated;
 grant execute on function public.platform_set_institution_status(uuid,text,timestamptz,text,text,text) to authenticated;
