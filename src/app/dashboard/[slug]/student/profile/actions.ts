@@ -8,8 +8,10 @@ import { createClient } from "@/lib/supabase/server";
 export async function saveStudentProfile(formData: FormData) {
   const slug = String(formData.get("slug") ?? "").trim();
   const avatarStyle = String(formData.get("avatar_style") ?? "neutral");
+  const phone = String(formData.get("phone") ?? "").trim();
+  const address = String(formData.get("address") ?? "").trim();
   const file = formData.get("photo");
-  if (!/^[a-z0-9-]{2,80}$/i.test(slug) || !["neutral", "masculino", "femenino"].includes(avatarStyle)) {
+  if (!/^[a-z0-9-]{2,80}$/i.test(slug) || phone.length > 40 || address.length > 240 || !["neutral", "masculino", "femenino"].includes(avatarStyle)) {
     redirect(`/dashboard/${encodeURIComponent(slug)}/student/profile?error=invalid`);
   }
 
@@ -47,7 +49,7 @@ export async function saveStudentProfile(formData: FormData) {
     if (error) redirect(`/dashboard/${slug}/student/profile?error=upload`);
   }
 
-  const update: { avatar_style: string; avatar_path?: string } = { avatar_style: avatarStyle };
+  const update: { avatar_style: string; phone: string | null; address: string | null; avatar_path?: string } = { avatar_style: avatarStyle, phone: phone || null, address: address || null };
   if (avatarPath) update.avatar_path = avatarPath;
   const { error } = await supabase.from("profiles").update(update).eq("id", user.id);
   if (error) {
