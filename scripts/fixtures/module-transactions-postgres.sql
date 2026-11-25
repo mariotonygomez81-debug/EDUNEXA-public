@@ -72,13 +72,15 @@ insert into auth.users(id) values
  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
  ('cccccccc-cccc-cccc-cccc-cccccccccccc'),
  ('dddddddd-dddd-dddd-dddd-dddddddddddd'),
- ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef');
+ ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef'),
+ ('ffffffff-ffff-ffff-ffff-ffffffffffff');
 insert into public.memberships(id,institution_id,user_id,status) values
  ('33333333-3333-3333-3333-333333333331','11111111-1111-1111-1111-111111111111','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','active'),
  ('33333333-3333-3333-3333-333333333332','11111111-1111-1111-1111-111111111111','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','active'),
  ('33333333-3333-3333-3333-333333333333','11111111-1111-1111-1111-111111111111','cccccccc-cccc-cccc-cccc-cccccccccccc','active'),
  ('33333333-3333-3333-3333-333333333334','11111111-1111-1111-1111-111111111112','dddddddd-dddd-dddd-dddd-dddddddddddd','active'),
- ('33333333-3333-3333-3333-333333333335','11111111-1111-1111-1111-111111111111','eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef','active');
+ ('33333333-3333-3333-3333-333333333335','11111111-1111-1111-1111-111111111111','eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef','active'),
+ ('33333333-3333-3333-3333-333333333336','11111111-1111-1111-1111-111111111111','ffffffff-ffff-ffff-ffff-ffffffffffff','active');
 insert into public.divisions(id,institution_id) values
  ('22222222-2222-2222-2222-222222222222','11111111-1111-1111-1111-111111111111'),
  ('22222222-2222-2222-2222-222222222223','11111111-1111-1111-1111-111111111111');
@@ -105,6 +107,7 @@ insert into public.membership_roles values
  ('33333333-3333-3333-3333-333333333332','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555553'),
  ('33333333-3333-3333-3333-333333333333','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555555'),
  ('33333333-3333-3333-3333-333333333335','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555554'),
+ ('33333333-3333-3333-3333-333333333336','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555552'),
  ('33333333-3333-3333-3333-333333333334','11111111-1111-1111-1111-111111111112','55555555-5555-5555-5555-555555555551');
 
 -- Synthetic identity/profile links used by the real messaging and classroom RPCs.
@@ -114,7 +117,8 @@ insert into public.profiles(id,display_name,first_name,last_name) values
  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','Alumno sintético','Alumno','Test'),
  ('cccccccc-cccc-cccc-cccc-cccccccccccc','Usuario externo','Usuario','Test'),
  ('dddddddd-dddd-dddd-dddd-dddddddddddd','Usuario de otra institución','Usuario','Externo'),
- ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef','Docente sintético','Docente','Test');
+ ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef','Docente sintético','Docente','Test'),
+ ('ffffffff-ffff-ffff-ffff-ffffffffffff','Directivo sintético','Directivo','Test');
 create table public.student_memberships(
  student_id uuid not null,institution_id uuid not null,membership_id uuid not null,
  primary key(student_id,membership_id)
@@ -233,6 +237,18 @@ alter table public.submissions add constraint submissions_scope_unique unique(id
 insert into public.virtual_classrooms(id,institution_id,division_id,title,description)
 values('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee','11111111-1111-1111-1111-111111111111',
 '22222222-2222-2222-2222-222222222222','Aula sintética','Fixture de integración');
+-- Exact institution-member RLS read policy from 20261120024755_academic_core_and_learning_modules.sql.
+alter table public.virtual_classrooms enable row level security;
+drop policy if exists virtual_classrooms_member_read on public.virtual_classrooms;
+create policy virtual_classrooms_member_read on public.virtual_classrooms
+for select to authenticated
+using (exists (
+ select 1 from public.memberships m
+ where m.institution_id = virtual_classrooms.institution_id
+   and m.user_id = (select auth.uid())
+   and m.status = 'active'
+));
+grant select on public.virtual_classrooms to authenticated;
 update public.virtual_classrooms set owner_membership_id='33333333-3333-3333-3333-333333333335',
  created_by='eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef'
  where id='eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
