@@ -70,15 +70,18 @@ grant execute on function auth.uid() to authenticated;
 grant select on public.memberships, public.enrollments, public.students, public.divisions to authenticated;
 
 insert into public.institutions(id,display_name,legal_name,tax_id) values
- ('11111111-1111-1111-1111-111111111111','Synthetic School','Synthetic School','TEST-ONLY');
+ ('11111111-1111-1111-1111-111111111111','Synthetic School','Synthetic School','TEST-ONLY'),
+ ('11111111-1111-1111-1111-111111111112','Other Synthetic School','Other Synthetic School','TEST-ONLY-2');
 insert into auth.users(id) values
  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
- ('cccccccc-cccc-cccc-cccc-cccccccccccc');
+ ('cccccccc-cccc-cccc-cccc-cccccccccccc'),
+ ('dddddddd-dddd-dddd-dddd-dddddddddddd');
 insert into public.memberships(id,institution_id,user_id,status) values
  ('33333333-3333-3333-3333-333333333331','11111111-1111-1111-1111-111111111111','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','active'),
  ('33333333-3333-3333-3333-333333333332','11111111-1111-1111-1111-111111111111','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','active'),
- ('33333333-3333-3333-3333-333333333333','11111111-1111-1111-1111-111111111111','cccccccc-cccc-cccc-cccc-cccccccccccc','active');
+ ('33333333-3333-3333-3333-333333333333','11111111-1111-1111-1111-111111111111','cccccccc-cccc-cccc-cccc-cccccccccccc','active'),
+ ('33333333-3333-3333-3333-333333333334','11111111-1111-1111-1111-111111111112','dddddddd-dddd-dddd-dddd-dddddddddddd','active');
 insert into public.divisions(id,institution_id) values
  ('22222222-2222-2222-2222-222222222222','11111111-1111-1111-1111-111111111111'),
  ('22222222-2222-2222-2222-222222222223','11111111-1111-1111-1111-111111111111');
@@ -103,7 +106,8 @@ create table public.profiles(id uuid primary key references auth.users(id),displ
 insert into public.profiles(id,display_name,first_name,last_name) values
  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Admin sintético','Admin','Test'),
  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','Alumno sintético','Alumno','Test'),
- ('cccccccc-cccc-cccc-cccc-cccccccccccc','Usuario externo','Usuario','Test');
+ ('cccccccc-cccc-cccc-cccc-cccccccccccc','Usuario externo','Usuario','Test'),
+ ('dddddddd-dddd-dddd-dddd-dddddddddddd','Usuario de otra institución','Usuario','Externo');
 create table public.student_memberships(
  student_id uuid not null,institution_id uuid not null,membership_id uuid not null,
  primary key(student_id,membership_id)
