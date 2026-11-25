@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CalendarCheck, ClipboardList, GraduationCap, Users } from "lucide-react";
+import { ArrowLeft, CalendarCheck, CalendarClock, ClipboardList, GraduationCap, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 
@@ -106,6 +106,9 @@ export default async function PrefectWorkspace({ params }: { params: Promise<{ s
                   </Link>
                   <Link href={`/dashboard/${slug}/prefect/novelties`} className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-100">
                     <ClipboardList size={15} /> Novedades
+                  </Link>
+                  <Link href={`/dashboard/${slug}/appointments`} className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100">
+                    <CalendarClock size={15} /> Citaciones a tutores
                   </Link>
                 </div>
               </article>
