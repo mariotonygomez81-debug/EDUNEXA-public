@@ -15,9 +15,13 @@ export default async function NewAppointmentPage({params,searchParams}:{params:P
  const {data:institution}=await supabase.from("institutions").select("id,display_name").eq("slug",slug).eq("status","active").maybeSingle(); if(!institution) redirect("/dashboard");
  const {data:membership}=await supabase.from("memberships").select("id").eq("institution_id",institution.id).eq("user_id",user.id).eq("status","active").maybeSingle(); if(!membership) redirect("/dashboard");
  const {data:roles}=await supabase.from("membership_roles").select("roles(key)").eq("membership_id",membership.id).eq("institution_id",institution.id);
- if(!(roles??[]).some(row=>row.roles?.key==="teacher")) redirect(`/dashboard/${slug}`);
+ const roleKeys=(roles??[]).map(row=>row.roles?.key);
+ const isTeacher=roleKeys.includes("teacher");
+ const isPrefect=roleKeys.includes("prefect");
+ if(!isTeacher&&!isPrefect) redirect(`/dashboard/${slug}`);
+ const assignmentType=isPrefect?"prefect":"teacher";
  const {data:assignments,error:assignmentError}=await supabase.from("staff_assignments").select("division_id,course_subject_id,starts_on,ends_on")
-   .eq("institution_id",institution.id).eq("membership_id",membership.id).eq("assignment_type","teacher");
+   .eq("institution_id",institution.id).eq("membership_id",membership.id).eq("assignment_type",assignmentType);
  if(assignmentError) throw new Error("No se pudieron consultar tus divisiones asignadas.");
  const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Argentina/Buenos_Aires"}).format(new Date());
  const activeAssignments=(assignments??[]).filter(a=>(!a.starts_on||a.starts_on<=today)&&(!a.ends_on||a.ends_on>=today));
@@ -33,13 +37,14 @@ export default async function NewAppointmentPage({params,searchParams}:{params:P
    : {data:[],error:null};
  if(divisionError) throw new Error("No se pudieron consultar las divisiones de tus materias.");
  const divisionIds=[...new Set([...directDivisionIds,...(subjectDivisions??[]).map(row=>row.id)])];
- const results=await Promise.all(divisionIds.map(division_id=>supabase.rpc("list_teacher_guardian_contacts",{p_division_id:division_id})));
+ const contactsRpc=isPrefect?"list_prefect_guardian_contacts":"list_teacher_guardian_contacts";
+ const results=await Promise.all(divisionIds.map(division_id=>supabase.rpc(contactsRpc,{p_division_id:division_id})));
  if(results.some(r=>r.error)) throw new Error("No se pudieron cargar los tutores vinculados a tus divisiones.");
  const contactMap=new Map<string,Contact>();
  for(const result of results) for(const row of (result.data??[]) as Contact[]) contactMap.set(`${row.student_id}:${row.guardian_membership_id}`,row);
  const contacts=[...contactMap.values()].sort((a,b)=>a.student_name.localeCompare(b.student_name,"es"));
  return <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8"><div className="mx-auto max-w-3xl space-y-6">
-  <Link href={`/dashboard/${slug}/teaching`} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-violet-700"><ArrowLeft size={16}/> Volver al espacio docente</Link>
+  <Link href={isPrefect?`/dashboard/${slug}/prefect`:`/dashboard/${slug}/teaching`} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-violet-700"><ArrowLeft size={16}/> Volver al espacio {isPrefect?"de preceptoría":"docente"}</Link>
   <header className="rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-violet-900 p-7 text-white"><span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold"><CalendarPlus size={15}/> ENTREVISTA CON FAMILIAS</span><h1 className="mt-4 text-3xl font-bold">Nueva citación</h1><p className="mt-2 text-sm text-indigo-100">{institution.display_name} · Seleccioná un alumno y su tutor autorizado para solicitar una entrevista.</p></header>
   {query.error?<p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{query.error==="date"?"La fecha y hora deben ser futuras.":query.error==="invalid"?"Revisá los datos ingresados.":"No se pudo guardar la citación. Verificá el vínculo del tutor y volvé a intentarlo."}</p>:null}
   <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
