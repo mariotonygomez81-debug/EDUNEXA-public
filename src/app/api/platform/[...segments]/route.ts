@@ -239,6 +239,9 @@ export async function POST(request: Request, route: RouteContext) {
         console.error("[platform-copilot] execution and audit finalization failed", { planId: segments[2], code });
         return json({ error: "La ejecución falló y el cierre de auditoría requiere reconciliación manual.", planId: segments[2] }, 500);
       }
+      if (code.startsWith("rollback_incomplete:")) {
+        return json({ error: "Una acción externa falló y su compensación no pudo completarse. Requiere reconciliación manual.", result: finished.data }, 500);
+      }
       return json({ error: "El adaptador rechazó el plan o falló una operación. No se ejecutaron acciones fuera de la lista permitida.", result: finished.data }, 502);
     }
 
