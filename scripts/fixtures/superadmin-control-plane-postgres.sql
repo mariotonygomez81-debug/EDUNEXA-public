@@ -62,3 +62,96 @@ INSERT INTO public.roles(key,name) VALUES('institution_admin','Administrador ins
 ON CONFLICT(key) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS public.profiles (id uuid PRIMARY KEY, display_name text);
+
+
+-- Synthetic institutional configuration tables used by clone snapshot synchronization.
+CREATE TABLE IF NOT EXISTS public.grading_scales (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  description text,
+  display_mode text NOT NULL DEFAULT 'numeric',
+  minimum_value numeric(8,2) NOT NULL DEFAULT 1,
+  maximum_value numeric(8,2) NOT NULL DEFAULT 10,
+  passing_value numeric(8,2),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(id,institution_id),
+  UNIQUE(institution_id,name)
+);
+CREATE TABLE IF NOT EXISTS public.grading_scale_levels (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  institution_id uuid NOT NULL,
+  grading_scale_id uuid NOT NULL,
+  minimum_percentage numeric(5,2) NOT NULL,
+  maximum_percentage numeric(5,2) NOT NULL,
+  label text NOT NULL,
+  grade_value numeric(8,2),
+  is_passing boolean NOT NULL DEFAULT false,
+  sort_order integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY(grading_scale_id,institution_id) REFERENCES public.grading_scales(id,institution_id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS public.academic_years (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  starts_on date NOT NULL,
+  ends_on date NOT NULL,
+  status text NOT NULL DEFAULT 'planned',
+  grading_scale_id uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(id,institution_id),
+  FOREIGN KEY(grading_scale_id,institution_id) REFERENCES public.grading_scales(id,institution_id),
+  CHECK(ends_on>starts_on)
+);
+CREATE TABLE IF NOT EXISTS public.grading_periods (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
+  academic_year_id uuid NOT NULL,
+  name text NOT NULL,
+  starts_on date NOT NULL,
+  ends_on date NOT NULL,
+  sort_order integer NOT NULL DEFAULT 0,
+  UNIQUE(id,institution_id),
+  FOREIGN KEY(academic_year_id,institution_id) REFERENCES public.academic_years(id,institution_id),
+  CHECK(ends_on>=starts_on)
+);
+CREATE TABLE IF NOT EXISTS public.education_levels (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  code text,
+  sort_order integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(id,institution_id)
+);
+CREATE TABLE IF NOT EXISTS public.courses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
+  level_id uuid NOT NULL,
+  name text NOT NULL,
+  grade_number integer,
+  shift text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(id,institution_id),
+  FOREIGN KEY(level_id,institution_id) REFERENCES public.education_levels(id,institution_id)
+);
+CREATE TABLE IF NOT EXISTS public.subjects (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  code text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(id,institution_id)
+);
+CREATE TABLE IF NOT EXISTS public.course_subjects (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
+  course_id uuid NOT NULL,
+  subject_id uuid NOT NULL,
+  weekly_hours numeric(4,1),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY(course_id,institution_id) REFERENCES public.courses(id,institution_id),
+  FOREIGN KEY(subject_id,institution_id) REFERENCES public.subjects(id,institution_id)
+);
