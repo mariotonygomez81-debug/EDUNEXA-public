@@ -390,9 +390,17 @@ declare
 begin
   select * into v_job from private.platform_clone_jobs where id=p_job_id for update;
   if not found or v_job.status<>'completed' or v_job.approved_by is null
-    or v_job.copy_mode<>'configuration_only' then
+    or v_job.copy_mode<>'configuration_only' or v_job.source_institution_id=v_job.target_institution_id then
     raise exception using errcode='23514',message='clone_materialization_requires_completed_approved_job';
   end if;
+  if not exists(select 1 from public.institutions i where i.id=v_job.target_institution_id and i.status='pending')
+    or exists(select 1 from public.memberships m where m.institution_id=v_job.target_institution_id) then
+    raise exception using errcode='23514',message='clone_target_must_be_pending_and_have_no_memberships';
+  end if;
+  update public.institutions target
+    set locale=source.locale,timezone=source.timezone
+  from public.institutions source
+  where source.id=v_job.source_institution_id and target.id=v_job.target_institution_id;
   if exists (
     select 1 from private.platform_institution_clone_config c
     where c.institution_id=v_job.source_institution_id
@@ -401,6 +409,11 @@ begin
     raise exception using errcode='23514',message='unsafe_clone_configuration_rejected';
   end if;
 
+  drop table if exists pg_temp.edunexa_clone_scale_map;
+  drop table if exists pg_temp.edunexa_clone_year_map;
+  drop table if exists pg_temp.edunexa_clone_level_map;
+  drop table if exists pg_temp.edunexa_clone_course_map;
+  drop table if exists pg_temp.edunexa_clone_subject_map;
   create temporary table if not exists edunexa_clone_scale_map(source_id uuid primary key,target_id uuid not null) on commit drop;
   create temporary table if not exists edunexa_clone_year_map(source_id uuid primary key,target_id uuid not null) on commit drop;
   create temporary table if not exists edunexa_clone_level_map(source_id uuid primary key,target_id uuid not null) on commit drop;
