@@ -10,6 +10,15 @@ alter table private.platform_clone_jobs
 create index if not exists platform_clone_jobs_claim_idx
   on private.platform_clone_jobs(status, lease_expires_at, created_at);
 
+alter table private.platform_clone_jobs
+  add column if not exists approved_by uuid,
+  add column if not exists approved_at timestamptz;
+alter table private.platform_clone_jobs
+  drop constraint if exists platform_clone_jobs_status_check;
+alter table private.platform_clone_jobs
+  add constraint platform_clone_jobs_status_check
+  check (status in ('pending_approval','queued','running','completed','failed','cancelled'));
+
 create table if not exists private.platform_institution_clone_config (
   institution_id uuid not null references public.institutions(id) on delete cascade,
   config_key text not null check (config_key in (
@@ -79,6 +88,11 @@ begin
     return v_claim->'result';
   end if;
   v_result := public.platform_request_clone(p_source_institution_id,p_display_name,p_legal_name,p_slug,p_reason,p_request_id);
+  update private.platform_clone_jobs set status='pending_approval' where id=(v_result->>'job_id')::uuid;
+  perform private.platform_audit_append('platform.clone.approval_required','clone_job',v_result->>'job_id',
+    (v_result->>'target_institution_id')::uuid,p_reason,p_request_id,'started',
+    jsonb_build_object('source_institution_id',p_source_institution_id,'requires_second_approval',true));
+  v_result := pg_catalog.jsonb_set(v_result,'{status}','\"pending_second_approval\"'::jsonb);
   perform private.platform_idempotency_complete(v_actor,p_idempotency_key,v_result);
   return v_result;
 end;
@@ -125,6 +139,33 @@ begin
 end;
 $$;
 
+create or replace function public.platform_approve_clone_job(p_job_id uuid,p_request_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor uuid := private.require_platform_superadmin();
+  v_job private.platform_clone_jobs%rowtype;
+begin
+  select * into v_job from private.platform_clone_jobs where id=p_job_id for update;
+  if not found or v_job.status<>'pending_approval' then
+    raise exception using errcode='P0002', message='pending_clone_approval_not_found';
+  end if;
+  if v_job.requested_by=v_actor then
+    raise exception using errcode='42501', message='clone_requires_independent_approval';
+  end if;
+  update private.platform_clone_jobs set status='queued',approved_by=v_actor,approved_at=pg_catalog.now()
+  where id=p_job_id;
+  perform private.platform_audit_append('platform.clone.approve','clone_job',p_job_id::text,
+    v_job.target_institution_id,'Aprobación independiente de clonación configuration-only',p_request_id,'success',
+    jsonb_build_object('source_institution_id',v_job.source_institution_id,'target_institution_id',v_job.target_institution_id,
+      'copy_mode','configuration_only','personal_data_copied',false));
+  return jsonb_build_object('id',p_job_id,'status','queued','approved_by',v_actor,'copy_mode','configuration_only');
+end;
+$$;
+
 create or replace function public.platform_claim_clone_job(p_lease_seconds integer default 180)
 returns jsonb
 language plpgsql
@@ -155,7 +196,7 @@ begin
 
   select * into v_job
   from private.platform_clone_jobs
-  where (status='queued' or (status='running' and lease_expires_at < pg_catalog.now()))
+  where (status='queued' and approved_by is not null or (status='running' and lease_expires_at < pg_catalog.now()))
     and attempt_count < 3
   order by created_at, id
   limit 1
@@ -198,7 +239,7 @@ declare
 begin
   perform private.platform_require_worker();
   select * into v_job from private.platform_clone_jobs where id=p_job_id for update;
-  if not found or v_job.status<>'running' then
+  if not found or v_job.status<>'running' or v_job.approved_by is null then
     raise exception using errcode='P0002', message='running_clone_job_not_found';
   end if;
 
@@ -357,6 +398,7 @@ $$;
 revoke all on function private.platform_clone_json_is_safe(jsonb) from public, anon, authenticated;
 revoke all on function private.platform_require_worker() from public, anon, authenticated;
 revoke all on function public.platform_request_clone_idempotent(uuid,text,text,text,text,text,text) from public, anon;
+revoke all on function public.platform_approve_clone_job(uuid,text) from public, anon;
 revoke all on function public.platform_request_delegation_idempotent(uuid,text,timestamptz,text,text) from public, anon;
 revoke all on function public.platform_claim_clone_job(integer) from public, anon, authenticated;
 revoke all on function public.platform_finish_clone_job(uuid,boolean,text) from public, anon, authenticated;
@@ -365,6 +407,7 @@ revoke all on function public.platform_claim_ai_change_plan_execution(uuid) from
 revoke all on function public.platform_finish_ai_change_plan_execution(uuid,boolean,jsonb,text) from public, anon;
 
 grant execute on function public.platform_request_clone_idempotent(uuid,text,text,text,text,text,text) to authenticated;
+grant execute on function public.platform_approve_clone_job(uuid,text) to authenticated;
 grant execute on function public.platform_request_delegation_idempotent(uuid,text,timestamptz,text,text) to authenticated;
 grant usage on schema private to service_role;
 grant execute on function private.platform_require_worker() to service_role;
