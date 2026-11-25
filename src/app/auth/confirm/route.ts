@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const { error: activationError } = await supabase.functions.invoke("manage-institution-users", { body: { action: "activate_self", slug: institutionSlug } });
     if (activationError) return NextResponse.redirect(new URL("/login?message=No%20se%20pudo%20activar%20la%20invitaci%C3%B3n.%20Contact%C3%A1%20al%20administrador.", origin));
    }
-   return NextResponse.redirect(new URL(next, origin));
+   return await finishRedirect();
   }
  }
  return NextResponse.redirect(new URL("/login?message=El%20enlace%20no%20es%20v%C3%A1lido%20o%20ya%20venci%C3%B3.%20Solicit%C3%A1%20uno%20nuevo.", origin));
