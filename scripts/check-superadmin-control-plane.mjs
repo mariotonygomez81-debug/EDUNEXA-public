@@ -98,3 +98,4 @@ assert.ok(institutionWorkspace.includes("platform_resolve_delegated_context_by_s
 assert.ok(institutionWorkspace.includes("platform_resolve_delegated_context"));
 assert.ok(api.includes("platform_request_clone_idempotent") && api.includes("platform_request_delegation_idempotent"));
 assert.ok(api.includes("Idempotency-Key"), "Clone and delegation request routes must require idempotency keys");
+assert.ok(!/as \$(?!\$)/.test(executionMigration), "Execution migration cannot contain malformed single-dollar delimiters");
