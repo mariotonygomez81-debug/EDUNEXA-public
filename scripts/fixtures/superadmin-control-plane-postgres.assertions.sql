@@ -69,6 +69,7 @@ BEGIN
     'Segunda institución ficticia para aislamiento multi-tenant','synthetic-request-0003','synthetic-idempotency-0002'
   )->>'id')::uuid;
   UPDATE synthetic_results SET second_institution_id=v_second;
+  UPDATE public.institutions SET locale='es-UY',timezone='America/Montevideo' WHERE id=v_second;
   INSERT INTO public.campuses(institution_id,name,code,address,phone,is_main)
     VALUES(v_second,'Sede Exclusiva Dos','DOS','Dirección de prueba Dos','+54-11-5555-0202',true);
 END $$;
@@ -82,6 +83,12 @@ BEGIN
     OR NOT EXISTS(SELECT 1 FROM private.platform_institution_clone_config
     WHERE institution_id=v_second AND config_key='academic_structure'
       AND config_value->'campuses'->0->>'name'='Sede Exclusiva Dos')
+    OR NOT EXISTS(SELECT 1 FROM private.platform_institution_clone_config
+    WHERE institution_id=v_first AND config_key='institution_profile'
+      AND config_value->>'locale'='es-AR')
+    OR NOT EXISTS(SELECT 1 FROM private.platform_institution_clone_config
+    WHERE institution_id=v_second AND config_key='institution_profile'
+      AND config_value->>'locale'='es-UY' AND config_value->>'timezone'='America/Montevideo')
     OR EXISTS(SELECT 1 FROM private.platform_institution_clone_config
     WHERE institution_id=v_first AND config_key='academic_structure'
       AND config_value::text LIKE '%Sede Exclusiva Dos%') THEN
@@ -214,7 +221,7 @@ BEGIN
           WHEN 'tutor' THEN ARRAY['academic_calendar']
           WHEN 'directivos' THEN ARRAY['academic_calendar','grading_scales','academic_structure']
           WHEN 'administrativos' THEN ARRAY['academic_structure']
-          WHEN 'administrador' THEN ARRAY['academic_calendar','grading_scales','academic_structure','branding','module_settings']
+          WHEN 'administrador' THEN ARRAY['institution_profile','academic_calendar','grading_scales','academic_structure','branding','module_settings']
         END))
       ) THEN
       RAISE EXCEPTION 'delegated module % exceeded its read-only configuration allowlist',v_module;
@@ -393,6 +400,10 @@ BEGIN
     WHERE institution_id=v_target AND config_key='academic_structure'
       AND jsonb_array_length(config_value->'education_levels')=1) THEN
     RAISE EXCEPTION 'synchronized academic settings were not copied to the cloned tenant';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.institutions WHERE id=v_target
+      AND locale='es-AR' AND timezone='America/Argentina/Buenos_Aires') THEN
+    RAISE EXCEPTION 'clone must materialize safe institution profile settings from its private registry';
   END IF;
   IF NOT EXISTS(SELECT 1 FROM public.campuses WHERE institution_id=v_target AND name='Sede Central'
       AND code='CENTRAL' AND is_main AND address IS NULL AND phone IS NULL)
