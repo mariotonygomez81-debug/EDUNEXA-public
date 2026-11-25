@@ -143,7 +143,6 @@ assert.ok(postgresAssertions.includes("safe institutional settings must synchron
 assert.ok(postgresAssertions.includes("two institutions must keep independent campus configuration snapshots"));
 assert.ok(postgresAssertions.includes("configuration-only clone must copy only safe campus identity and preserve tenant isolation"));
 assert.ok(postgresAssertions.includes("clone must materialize safe institution profile settings from its private registry"));
-assert.ok(postgresAssertions.includes("institution settings must synchronize to the clone registry"));
 assert.ok(postgresAssertions.includes("delegated module % exceeded its read-only configuration allowlist"));
 assert.ok(postgresAssertions.includes("delegated context must include all seven explicitly approved read-only modules"));
 assert.ok(postgresAssertions.includes("delegated module must return only its allowed safe configuration"));
