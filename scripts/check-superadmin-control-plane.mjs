@@ -71,8 +71,8 @@ assert.ok(executionMigration.includes("grant execute on function public.platform
 assert.ok(executionMigration.includes("grant execute on function public.platform_resolve_delegated_context_by_slug(text) to authenticated"));
 assert.ok(executionMigration.includes("on conflict(institution_id,config_key) do update"), "Clone config copy must be retry-safe");
 assert.ok(executionMigration.includes("for update skip locked"), "Worker must claim jobs without double-processing");
-assert.equal((executionMigration.match(/as \\$\\$/g) ?? []).length, (executionMigration.match(/\\$\\$;/g) ?? []).length, "Execution migration dollar quotes must be balanced");
-const executionFunctions = [...executionMigration.matchAll(/create or replace function public\\.(platform_[a-z_]+)/g)].map((match) => match[1]);
+assert.equal((executionMigration.match(/as \$\$/g) ?? []).length, (executionMigration.match(/\$\$;/g) ?? []).length, "Execution migration dollar quotes must be balanced");
+const executionFunctions = [...executionMigration.matchAll(/create or replace function public\.(platform_[a-z_]+)/g)].map((match) => match[1]);
 assert.equal(new Set(executionFunctions).size, executionFunctions.length, "Execution-layer public RPCs must not be duplicated");
 for (const name of executionFunctions) {
   assert.ok(executionMigration.includes("revoke all on function public." + name + "("), name + " must revoke default PUBLIC execution");
