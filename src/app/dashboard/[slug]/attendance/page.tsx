@@ -22,7 +22,7 @@ export default async function AttendancePage({
 
   const { data: institution } = await supabase
     .from("institutions").select("id,display_name")
-    .eq("slug", slug).maybeSingle();
+    .eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
 
   const { data: membership } = await supabase
