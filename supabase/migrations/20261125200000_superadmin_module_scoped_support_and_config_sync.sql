@@ -110,6 +110,15 @@ begin
       join public.education_levels el on el.id=c.level_id and el.institution_id=c.institution_id
       where c.institution_id=p_institution_id
     ), '[]'::jsonb),
+    'divisions', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'course_name',c.name,'academic_year_name',ay.name,'name',d.name,'capacity',d.capacity
+      ) order by ay.starts_on,c.name,d.name)
+      from public.divisions d
+      join public.courses c on c.id=d.course_id and c.institution_id=d.institution_id
+      join public.academic_years ay on ay.id=d.academic_year_id and ay.institution_id=d.institution_id
+      where d.institution_id=p_institution_id
+    ), '[]'::jsonb),
     'subjects', coalesce((
       select jsonb_agg(jsonb_build_object('name',s.name,'code',s.code) order by s.name)
       from public.subjects s where s.institution_id=p_institution_id
@@ -187,6 +196,10 @@ for each row execute function private.platform_refresh_institution_clone_config_
 drop trigger if exists platform_clone_snapshot_courses on public.courses;
 create trigger platform_clone_snapshot_courses
 after insert or update or delete on public.courses
+for each row execute function private.platform_refresh_institution_clone_config_trigger();
+drop trigger if exists platform_clone_snapshot_divisions on public.divisions;
+create trigger platform_clone_snapshot_divisions
+after insert or update or delete on public.divisions
 for each row execute function private.platform_refresh_institution_clone_config_trigger();
 drop trigger if exists platform_clone_snapshot_subjects on public.subjects;
 create trigger platform_clone_snapshot_subjects
@@ -464,6 +477,15 @@ begin
     insert into pg_temp.edunexa_clone_course_map(source_id,target_id) values(v_row.id,v_course_id);
     v_count:=v_count+1;
   end loop;
+
+  insert into public.divisions(institution_id,course_id,campus_id,academic_year_id,name,capacity)
+  select v_job.target_institution_id,cm.target_id,null,ym.target_id,d.name,d.capacity
+  from public.divisions d
+  join pg_temp.edunexa_clone_course_map cm on cm.source_id=d.course_id
+  join pg_temp.edunexa_clone_year_map ym on ym.source_id=d.academic_year_id
+  where d.institution_id=v_job.source_institution_id;
+  get diagnostics v_rows = row_count;
+  v_count:=v_count+v_rows;
 
   for v_row in
     select id,name,code from public.subjects where institution_id=v_job.source_institution_id order by name
