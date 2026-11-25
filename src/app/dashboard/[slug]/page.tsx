@@ -5,7 +5,7 @@ import { signOut } from "../actions";
 import { WorkspaceExperience } from "./workspace-experience";
 
 const modules: { name: string; detail: string; icon: string; href: string; permission: string; roles?: string[]; category: "Académico" | "Gestión" | "Comunidad" }[] = [
-  { name: "Alumnos", detail: "Legajos y trayectorias", icon: "students", href: "students", permission: "students.read", roles: ["institution_admin", "administrative", "director", "secretary", "teacher", "prefect"], category: "Académico" as const },
+  { name: "Alumnos", detail: "Legajos y trayectorias", icon: "students", href: "students", permission: "students.read", roles: ["institution_admin", "administrative", "director", "teacher", "prefect"], category: "Académico" as const },
   { name: "Mi espacio de alumno", detail: "Mis aulas, actividades y aprendizaje", icon: "portal", href: "student", permission: "institution.read", roles: ["student"], category: "Académico" as const },
   { name: "Gestión administrativa", detail: "Documentación, trámites y registros internos", icon: "administrative", href: "administrative", permission: "administrative_records.read", roles: ["institution_admin", "administrative"], category: "Gestión" as const },
   { name: "Asistencia", detail: "Presentismo y justificaciones", icon: "attendance", href: "attendance", permission: "attendance.read", roles: ["institution_admin", "administrative", "director", "teacher", "prefect"], category: "Académico" as const },
@@ -42,9 +42,9 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   const visibleModules = modules.filter((module) =>
     permissions.has(module.permission) && (module.roles?.some((role) => roleKeys.includes(role)) ?? true)
   ).map((module) => ({
-    name: module.href === "students" && roleKeys.includes("secretary") ? "Secretaría" :
+    name: module.href === "students" && false ? "Secretaría" :
       module.href === "students" && roleKeys.includes("administrative") ? "Gestión administrativa" : module.name,
-    detail: module.href === "students" && roleKeys.includes("secretary") ? "Inscripciones, matrículas y legajos académicos" :
+    detail: module.href === "students" && false ? "Inscripciones, matrículas y legajos académicos" :
       module.href === "students" && roleKeys.includes("administrative") ? "Consulta de registros y datos autorizados" : module.detail,
     icon: module.icon, href: `/dashboard/${slug}/${module.href}`, category: module.category,
     unread: undefined,
@@ -120,7 +120,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   if (roleKeys.includes("prefect")) addQuick("Espacio de preceptoría", "Divisiones, nóminas y asistencia", "prefect", "prefect", "quick-blue");
   if (permissions.has("academic_calendar.manage")) addQuick("Programar eventos", "Crear jornadas, ferias, exámenes y reuniones", "calendar", "calendar", "quick-orange");
   if (roleKeys.includes("institution_admin")) addQuick("Centro de control", "Administración general y permisos", "admin-center", "users", "quick-indigo");
-  if (roleKeys.includes("administrative") || roleKeys.includes("secretary")) addQuick("Panel administrativo", "Comunicados, boletines y gestión institucional", "administrative-office", "administrative", "quick-cyan");
+  if (roleKeys.includes("administrative")) addQuick("Panel administrativo", "Comunicados, boletines y gestión institucional", "administrative-office", "administrative", "quick-cyan");
   if (currentAssignmentCount > 0) addQuick("Mis asignaciones", "Funciones, divisiones y materias", "teaching", "classroom", "quick-green");
   if (permissions.has("admin_documents.read")) addQuick("Documentación", "Archivos institucionales autorizados", "admin-documents", "administrative", "quick-cyan");
   if (permissions.has("memberships.manage")) addQuick("Usuarios y accesos", "Perfiles y permisos institucionales", "users", "users", "quick-indigo");
