@@ -18,7 +18,7 @@ export async function createTeacherGuardianAppointment(formData: FormData) {
   }
   const supabase=await createClient();
   const {data:{user}}=await supabase.auth.getUser(); if(!user) redirect("/login");
-  const {data:institution}=await supabase.from("institutions").select("id").eq("slug",slug).maybeSingle();
+  const {data:institution}=await supabase.from("institutions").select("id").eq("slug",slug).eq("status","active").maybeSingle();
   if(!institution) redirect("/dashboard");
   const {data,error}=await supabase.rpc("create_teacher_guardian_appointment",{
     p_student_id:studentId,p_guardian_membership_id:guardianMembershipId,

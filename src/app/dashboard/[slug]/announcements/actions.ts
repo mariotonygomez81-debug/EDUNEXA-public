@@ -34,7 +34,7 @@ export async function createAnnouncement(formData: FormData) {
   if (!user) redirect("/login");
 
   const { data: institution } = await supabase.from("institutions")
-    .select("id").eq("slug", slug).maybeSingle();
+    .select("id").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
 
   const { data: membership } = await supabase.from("memberships")
