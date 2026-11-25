@@ -146,8 +146,8 @@ assert.ok(postgresAssertions.includes("clone must materialize safe institution p
 assert.ok(postgresAssertions.includes("delegated module % exceeded its read-only configuration allowlist"));
 assert.ok(postgresAssertions.includes("delegated context must include all seven explicitly approved read-only modules"));
 assert.ok(postgresAssertions.includes("each of the seven delegated module reads must append an audit event"));
-for (const module of ["preceptor","alumnos","tutor","directivos","administrativos","administrador"]) {
-  assert.ok(postgresAssertions.includes("RLS scope mismatch for " + module), "Missing direct RLS test for " + module);
+for (const moduleKey of ["preceptor","alumnos","tutor","directivos","administrativos","administrador"]) {
+  assert.ok(postgresAssertions.includes("RLS scope mismatch for " + moduleKey), "Missing direct RLS test for " + moduleKey);
 }
 assert.ok(postgresAssertions.includes("synchronized academic settings were not copied to the cloned tenant"));
 assert.ok(postgresAssertions.includes("configuration-only clone must materialize academic settings"));
