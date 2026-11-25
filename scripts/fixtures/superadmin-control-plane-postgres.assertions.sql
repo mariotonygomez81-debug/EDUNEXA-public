@@ -93,22 +93,19 @@ BEGIN
 END $$;
 
 -- Delegation requires a distinct second Superadministrator and expires within 30 minutes.
-DO $$
-DECLARE v_id uuid; v_delegation uuid; v_self uuid;
+DO $
+DECLARE v_id uuid; v_delegation uuid;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
   v_delegation:=public.platform_request_delegation(v_id,'Asistencia técnica sintética solicitada',
     now()+interval '15 minutes','synthetic-request-delegation-001');
   UPDATE synthetic_results SET delegation_id=v_delegation;
-  v_self:=public.platform_request_delegation(v_id,'Segunda solicitud sintética para prueba',
-    now()+interval '10 minutes','synthetic-request-delegation-002');
-  UPDATE synthetic_results SET self_delegation_id=v_self;
   BEGIN
     PERFORM public.platform_request_delegation(v_id,'Prueba de vencimiento fuera del máximo',
       now()+interval '1 hour','synthetic-request-delegation-003');
     RAISE EXCEPTION 'expected delegation maximum lifetime protection';
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
-END $$;
+END $;
 
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","app_metadata":{"platform_role":"superadmin"}}',false);
@@ -134,15 +131,18 @@ END $$;
 -- The requester cannot approve their own delegation.
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000003","app_metadata":{"platform_role":"superadmin"}}',false);
-DO $$
-DECLARE v_self uuid;
+DO $
+DECLARE v_id uuid; v_self uuid;
 BEGIN
-  SELECT self_delegation_id INTO v_self FROM synthetic_results;
+  SELECT institution_id INTO v_id FROM synthetic_results;
+  v_self:=public.platform_request_delegation(v_id,'Solicitud propia de soporte sintético para validar doble aprobación',
+    now()+interval '10 minutes','synthetic-request-delegation-self-001');
+  UPDATE synthetic_results SET self_delegation_id=v_self;
   BEGIN
     PERFORM public.platform_approve_delegation(v_self,'synthetic-request-delegation-self-approve');
     RAISE EXCEPTION 'expected independent delegation approval';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-END $$;
+END $;
 
 -- Clone request creates an isolated pending tenant and a configuration-only job.
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
