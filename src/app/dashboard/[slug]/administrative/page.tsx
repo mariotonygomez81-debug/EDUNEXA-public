@@ -37,6 +37,11 @@ export default async function AdministrativeWorkspace({
     .select("id").eq("institution_id",institution.id).eq("user_id",user.id)
     .eq("status","active").maybeSingle();
   if(!membership) redirect("/dashboard");
+  const {data:roleRows,error:roleError}=await supabase.from("membership_roles").select("roles(key)")
+    .eq("membership_id",membership.id).eq("institution_id",institution.id);
+  if(roleError) redirect(`/dashboard/${slug}`);
+  const roleKeys=(roleRows ?? []).map(row=>row.roles?.key);
+  if(!roleKeys.includes("administrative")) redirect(`/dashboard/${slug}`);
   const permissions=await getMembershipPermissions(supabase,membership.id);
   if(!permissions.has("administrative_records.read")) redirect(`/dashboard/${slug}`);
   const canManage=permissions.has("administrative_records.manage");
