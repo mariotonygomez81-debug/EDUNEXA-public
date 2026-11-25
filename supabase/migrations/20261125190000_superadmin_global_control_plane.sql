@@ -388,6 +388,8 @@ begin
   v_claim:=private.platform_idempotency_claim(v_actor,p_idempotency_key,'institution.admin.revoke',
     jsonb_build_object('institution',p_institution_id,'membership',p_membership_id,'reason',p_reason));
   if v_claim->>'claimed'='false' then return v_claim->'result'; end if;
+  perform 1 from public.institutions where id=p_institution_id for update;
+  if not found then raise exception using errcode='P0002',message='institution_not_found'; end if;
   select user_id into v_target from public.memberships where id=p_membership_id and institution_id=p_institution_id and status='active' for update;
   if not found then raise exception using errcode='P0002',message='active_admin_membership_not_found'; end if;
   if v_target=v_actor then raise exception using errcode='42501',message='self_revocation_forbidden'; end if;
@@ -491,10 +493,17 @@ set search_path = ''
 as $$
 declare v_actor uuid:=private.require_platform_superadmin(); v_id uuid;
 begin
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('edunexa-platform-superadmin-global'));
   if p_action not in ('grant','revoke') or p_target_user_id=v_actor or pg_catalog.length(pg_catalog.btrim(coalesce(p_reason,'')))<12 then
     raise exception using errcode='22023',message='invalid_superadmin_change_request';
   end if;
   if not exists(select 1 from auth.users where id=p_target_user_id) then raise exception using errcode='P0002',message='auth_user_not_found'; end if;
+  if p_action='grant' and exists(select 1 from auth.users where id=p_target_user_id and raw_app_meta_data->>'platform_role'='superadmin') then
+    raise exception using errcode='23505',message='user_is_already_superadmin';
+  end if;
+  if p_action='revoke' and not exists(select 1 from auth.users where id=p_target_user_id and raw_app_meta_data->>'platform_role'='superadmin') then
+    raise exception using errcode='23514',message='target_is_not_superadmin';
+  end if;
   if p_action='revoke' and (select count(*) from auth.users where raw_app_meta_data->>'platform_role'='superadmin')<=1 then
     raise exception using errcode='23514',message='cannot_revoke_last_superadmin';
   end if;
@@ -533,6 +542,7 @@ set search_path = ''
 as $$
 declare v_actor uuid:=private.require_platform_superadmin(); v_row private.platform_superadmin_change_requests%rowtype;
 begin
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('edunexa-platform-superadmin-global'));
   select * into v_row from private.platform_superadmin_change_requests where id=p_request_id for update;
   if not found or v_row.status<>'approved' then raise exception using errcode='P0002',message='approved_superadmin_request_not_found'; end if;
   if v_row.target_user_id=v_actor then
