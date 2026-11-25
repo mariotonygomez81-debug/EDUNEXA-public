@@ -4,14 +4,14 @@ import { getMembershipPermissions } from "@/lib/auth/permissions";
 import { signOut } from "../actions";
 import { WorkspaceExperience } from "./workspace-experience";
 
-const modules: { name: string; detail: string; icon: string; href: string; permission: string; role: string; category: "Académico" | "Gestión" | "Comunidad" }[] = [
-  { name: "Docentes", detail: "Enseñanza, aulas, actividades y evaluaciones", icon: "classroom", href: "teaching", permission: "classroom.read", role: "teacher", category: "Académico" },
-  { name: "Preceptor", detail: "Divisiones, seguimiento y asistencia", icon: "prefect", href: "prefect", permission: "attendance.read", role: "prefect", category: "Académico" },
-  { name: "Alumnos", detail: "Trayectoria, aulas y actividades personales", icon: "students", href: "student", permission: "institution.read", role: "student", category: "Académico" },
+const modules: { name: string; detail: string; icon: string; href: string; permissions: string[]; role: string; category: "Académico" | "Gestión" | "Comunidad" }[] = [
+  { name: "Docentes", detail: "Enseñanza, aulas, actividades y evaluaciones", icon: "classroom", href: "teaching", permissions: ["classroom.read"], role: "teacher", category: "Académico" },
+  { name: "Preceptor", detail: "Divisiones, seguimiento y asistencia", icon: "prefect", href: "prefect", permissions: ["students.read", "attendance.read"], role: "prefect", category: "Académico" },
+  { name: "Alumnos", detail: "Trayectoria, aulas y actividades personales", icon: "students", href: "student", permissions: ["institution.read"], role: "student", category: "Académico" },
   { name: "Tutor", detail: "Seguimiento académico y comunicación familiar", icon: "portal", href: "portal", permission: "institution.read", role: "guardian", category: "Comunidad" },
-  { name: "Directivos", detail: "Indicadores y supervisión institucional", icon: "direction", href: "direction", permission: "reports.read", role: "director", category: "Gestión" },
-  { name: "Administrativos", detail: "Documentación, trámites y registros", icon: "administrative", href: "administrative", permission: "administrative_records.read", role: "administrative", category: "Gestión" },
-  { name: "Administrador", detail: "Usuarios, permisos y configuración del colegio", icon: "users", href: "admin-center", permission: "memberships.manage", role: "institution_admin", category: "Gestión" },
+  { name: "Directivos", detail: "Indicadores y supervisión institucional", icon: "direction", href: "direction", permissions: ["reports.read", "students.read", "attendance.read", "grades.read"], role: "director", category: "Gestión" },
+  { name: "Administrativos", detail: "Documentación, trámites y registros", icon: "administrative", href: "administrative", permissions: ["administrative_records.read"], role: "administrative", category: "Gestión" },
+  { name: "Administrador", detail: "Usuarios, permisos y configuración del colegio", icon: "users", href: "admin-center", permissions: ["institution.manage"], role: "institution_admin", category: "Gestión" },
 ];
 
 export default async function InstitutionWorkspace({ params }: { params: Promise<{ slug: string }> }) {
@@ -35,7 +35,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   const roleKeys = (roleRows ?? []).map((row) => row.roles?.key).filter(Boolean) as string[];
   const permissions = await getMembershipPermissions(supabase, membership.id);
   const visibleModules = modules.filter((module) =>
-    permissions.has(module.permission) && roleKeys.includes(module.role)
+    module.permissions.every((permission) => permissions.has(permission)) && roleKeys.includes(module.role)
   ).map((module) => ({
     name: module.name, detail: module.detail, icon: module.icon,
     href: `/dashboard/${slug}/${module.href}`, category: module.category,
