@@ -111,11 +111,26 @@ SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002'
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","app_metadata":{"platform_role":"superadmin"}}',false);
 SELECT public.platform_approve_delegation(delegation_id,'synthetic-request-delegation-approve-001')
 FROM synthetic_results WHERE delegation_id IS NOT NULL;
-DO $$ BEGIN
+DO $ BEGIN
   IF NOT EXISTS(SELECT 1 FROM private.platform_delegations WHERE status='active' AND approved_by='00000000-0000-4000-8000-000000000002') THEN
     RAISE EXCEPTION 'delegation was not activated by second Superadministrator';
   END IF;
-END $$;
+END $;
+
+-- Only the requesting Superadministrator can resolve the active delegated context.
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
+DO $
+DECLARE v_id uuid; v_context jsonb;
+BEGIN
+  SELECT institution_id INTO v_id FROM synthetic_results;
+  v_context:=public.platform_resolve_delegated_context(v_id);
+  IF v_context->>'mode'<>'delegated_support_read_only'
+    OR NOT (v_context->'capabilities' ? 'institution.read')
+    OR (v_context->>'expires_at')::timestamptz<=now() THEN
+    RAISE EXCEPTION 'delegated context must be scoped, read-only and unexpired';
+  END IF;
+END $;
 
 -- An active support delegation can be revoked and the action is audited.
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
@@ -151,11 +166,18 @@ DO $$
 DECLARE v_source uuid; v_result jsonb;
 BEGIN
   SELECT institution_id INTO v_source FROM synthetic_results;
-  v_result:=public.platform_request_clone(v_source,'Colegio Clonado Sintético','Colegio Clonado Sintético S.A.',
-    'colegio-clonado-sintetico','Clonación sintética sin expedientes ni datos personales','synthetic-request-clone-001');
+  v_result:=public.platform_request_clone_idempotent(v_source,'Colegio Clonado Sintético','Colegio Clonado Sintético S.A.',
+    'colegio-clonado-sintetico','Clonación sintética sin expedientes ni datos personales',
+    'synthetic-request-clone-001','synthetic-clone-idempotency-0001');
   UPDATE synthetic_results SET clone_job_id=(v_result->>'job_id')::uuid,clone_target_id=(v_result->>'target_institution_id')::uuid;
+  IF (public.platform_request_clone_idempotent(v_source,'Colegio Clonado Sintético','Colegio Clonado Sintético S.A.',
+    'colegio-clonado-sintetico','Clonación sintética sin expedientes ni datos personales',
+    'synthetic-request-clone-retry','synthetic-clone-idempotency-0001')->>'job_id')::uuid
+      IS DISTINCT FROM (v_result->>'job_id')::uuid THEN
+    RAISE EXCEPTION 'clone idempotency key must return the original job';
+  END IF;
 END $$;
-DO $$
+DO $
 DECLARE v_job private.platform_clone_jobs%rowtype;
 BEGIN
   SELECT * INTO v_job FROM private.platform_clone_jobs WHERE id=(SELECT clone_job_id FROM synthetic_results);
@@ -163,7 +185,33 @@ BEGIN
   IF NOT EXISTS(SELECT 1 FROM public.institutions WHERE id=v_job.target_institution_id AND status='pending') THEN
     RAISE EXCEPTION 'clone target must remain pending';
   END IF;
-END $$;
+END $;
+
+-- The worker copies only approved non-personal configuration categories and is idempotent.
+INSERT INTO private.platform_institution_clone_config(institution_id,config_key,config_value)
+SELECT institution_id,'branding','{"primary_color":"#123456","logo_variant":"school"}'::jsonb FROM synthetic_results;
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"},"role":"service_role"}',false);
+DO $
+DECLARE v_claim jsonb; v_job uuid; v_target uuid; v_result jsonb;
+BEGIN
+  v_claim:=public.platform_claim_clone_job(180);
+  IF v_claim IS NULL OR v_claim->>'copy_mode'<>'configuration_only' THEN
+    RAISE EXCEPTION 'service worker must claim a configuration-only job';
+  END IF;
+  v_job:=(v_claim->>'id')::uuid;
+  v_target:=(v_claim->>'target_institution_id')::uuid;
+  v_result:=public.platform_finish_clone_job(v_job,true,null);
+  IF v_result->>'status'<>'completed' OR v_result->>'personal_data_copied'<>'false' THEN
+    RAISE EXCEPTION 'clone worker completion must confirm no personal data';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM private.platform_institution_clone_config WHERE institution_id=v_target AND config_key='branding') THEN
+    RAISE EXCEPTION 'allowlisted branding configuration was not copied';
+  END IF;
+  IF EXISTS(SELECT 1 FROM public.memberships WHERE institution_id=v_target) THEN
+    RAISE EXCEPTION 'clone worker must never copy institutional memberships';
+  END IF;
+END $;
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
 
 -- Global privilege changes require a second approver and a recorded execution saga.
 DO $$
@@ -205,11 +253,45 @@ END $$;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","app_metadata":{"platform_role":"superadmin"}}',false);
 SELECT public.platform_approve_ai_change_plan(ai_plan_id,'synthetic-request-ai-approve-001') FROM synthetic_results;
-DO $$ BEGIN
+DO $ BEGIN
   IF NOT EXISTS(SELECT 1 FROM private.platform_ai_change_plans WHERE status='approved' AND provider='groq') THEN
     RAISE EXCEPTION 'Groq plan was not independently approved';
   END IF;
-END $$;
+END $;
+
+-- The original requester cannot execute; the independent approver claims and finishes once.
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
+DO $
+DECLARE v_id uuid;
+BEGIN
+  SELECT ai_plan_id INTO v_id FROM synthetic_results;
+  BEGIN
+    PERFORM public.platform_claim_ai_change_plan_execution(v_id);
+    RAISE EXCEPTION 'expected original requester execution denial';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","app_metadata":{"platform_role":"superadmin"}}',false);
+DO $
+DECLARE v_id uuid; v_claim jsonb;
+BEGIN
+  SELECT ai_plan_id INTO v_id FROM synthetic_results;
+  v_claim:=public.platform_claim_ai_change_plan_execution(v_id);
+  IF v_claim->>'id' IS NULL OR v_claim->'plan'->>'provider'<>'groq' THEN
+    RAISE EXCEPTION 'independent approver must claim the Groq plan';
+  END IF;
+  PERFORM public.platform_finish_ai_change_plan_execution(v_id,true,'{"completed":1,"actions":[{"system":"github","action":"run_ci","status":"dispatched"}]}'::jsonb,null);
+  BEGIN
+    PERFORM public.platform_claim_ai_change_plan_execution(v_id);
+    RAISE EXCEPTION 'expected single execution/idempotency guard';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+END $;
+DO $ BEGIN
+  IF NOT EXISTS(SELECT 1 FROM private.platform_ai_change_plans WHERE status='executed' AND approved_by='00000000-0000-4000-8000-000000000002') THEN
+    RAISE EXCEPTION 'approved plan execution saga did not finish';
+  END IF;
+END $;
 
 -- Audit rows are append-only.
 DO $$
