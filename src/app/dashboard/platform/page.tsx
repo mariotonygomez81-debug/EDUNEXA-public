@@ -39,7 +39,7 @@ export default async function PlatformAdminPage() {
         </div>
         <div className="secure-caption">
           <LockKeyhole size={17} />
-          <span>Autorización global basada exclusivamente en Auth app_metadata.platform_role = "superadmin". No se aceptan claims de user_metadata ni roles institucionales para elevar privilegios.</span>
+          <span>Autorización global basada exclusivamente en Auth app_metadata.platform_role = &quot;superadmin&quot;. No se aceptan claims de user_metadata ni roles institucionales para elevar privilegios.</span>
         </div>
       </section>
     </main>
