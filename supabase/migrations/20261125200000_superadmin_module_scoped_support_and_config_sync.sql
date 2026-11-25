@@ -162,7 +162,7 @@ begin
   perform private.platform_refresh_institution_clone_config(v_institution_id);
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists platform_clone_snapshot_academic_years on public.academic_years;
 create trigger platform_clone_snapshot_academic_years
@@ -309,7 +309,7 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $$
   select exists (
     select 1
     from private.platform_delegations d
@@ -324,7 +324,7 @@ as $
       and i.status='active'
       and p_module_key=any(d.module_scope)
   );
-$;
+$$;
 
 -- Defense in depth: even if table SELECT is granted in a future release,
 -- each module sees only its own configuration categories and only during its grant.
@@ -434,7 +434,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare v_actor uuid:=private.require_platform_superadmin(); v_result jsonb;
 begin
   select coalesce(jsonb_agg(jsonb_build_object(
@@ -450,7 +450,7 @@ begin
     jsonb_build_object('count',jsonb_array_length(v_result),'provider','groq'));
   return v_result;
 end;
-$;
+$$;
 
 create or replace function public.platform_list_clone_jobs()
 returns jsonb
