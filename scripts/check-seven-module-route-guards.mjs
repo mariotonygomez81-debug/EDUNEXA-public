@@ -32,19 +32,22 @@ const pages = [
   ["Alumnos", student, 'roles.includes("student")', '.eq("status", "active")'],
   ["Tutor", tutor, 'roleKeys.includes("guardian")', '.eq("status", "active")'],
   ["Directivos", direction, 'role==="director" || role==="institution_admin"', 'permissions.has("grades.read")'],
-  ["Administrativos", administrative, 'permissions.has("administrative_records.read")', 'permissions.has("administrative_records.manage")'],
+  ["Administrativos", administrative, 'roleKeys.includes("administrative")', 'permissions.has("administrative_records.read")'],
   ["Administrador", adminCenter, 'row.roles?.key === "institution_admin"', 'permissions.has("institution.manage")'],
 ];
 for (const [name, source, roleGuard, permissionGuard] of pages) {
   assert.ok(source.includes(roleGuard), name + ": role guard missing");
   assert.ok(source.includes(permissionGuard), name + ": permission guard missing");
   assert.ok(source.includes("auth.getUser()"), name + ": server authentication missing");
+  assert.ok(source.includes("redirect("), name + ": unauthorized profile must be rejected, not merely hidden");
   assert.ok(source.includes('.eq("status", "active")'), name + ": active institution/membership guard missing");
 }
 assert.ok(workspace.includes('.eq("status", "active").maybeSingle()'), "inactive institution must not open");
 assert.ok(workspace.includes("module.permissions.every"), "navigation must require every declared permission");
 assert.ok(workspace.includes("roleKeys.includes(module.role)"), "navigation must match institutional role");
-assert.ok(!tutor.includes('role === "student"'), "student access belongs to the separate student workspace");
+assert.ok(tutor.includes('roleKeys.includes("guardian")'), "Tutor route must require guardian role");
+assert.ok(!tutor.includes('roleKeys.includes("student")'), "student must be denied the Tutor route");
+assert.ok(administrative.includes('roleKeys.includes("administrative")'), "administrative route must require the administrative role");
 for (const [name, source] of [["perfil de alumno", studentProfile], ["tareas de alumno", studentTasks], ["asistencia de tutor", guardianAttendance], ["calificaciones", gradesPage], ["asistencia", attendancePage], ["boletines", reportCardsPage]]) {
   assert.ok(source.includes('.eq("status", "active")'), name + ": route must reject inactive institutions");
 }
