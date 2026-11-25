@@ -89,10 +89,12 @@ create table if not exists private.platform_superadmin_change_requests (
   requested_action text not null check (requested_action in ('grant','revoke')),
   requested_by uuid not null,
   approved_by uuid,
+  executed_by uuid,
   status text not null default 'pending' check (status in ('pending','approved','executing','completed','failed','rejected')),
   reason text not null,
   created_at timestamptz not null default now(),
   approved_at timestamptz,
+  claimed_at timestamptz,
   completed_at timestamptz,
   failure_code text
 );
@@ -533,10 +535,10 @@ declare v_actor uuid:=private.require_platform_superadmin(); v_row private.platf
 begin
   select * into v_row from private.platform_superadmin_change_requests where id=p_request_id for update;
   if not found or v_row.status<>'approved' then raise exception using errcode='P0002',message='approved_superadmin_request_not_found'; end if;
-  if v_row.requested_by=v_actor or v_row.approved_by=v_actor or v_row.target_user_id=v_actor then
-    raise exception using errcode='42501',message='executor_must_be_independent';
+  if v_row.target_user_id=v_actor then
+    raise exception using errcode='42501',message='target_cannot_execute_privilege_change';
   end if;
-  update private.platform_superadmin_change_requests set status='executing' where id=p_request_id;
+  update private.platform_superadmin_change_requests set status='executing',executed_by=v_actor,claimed_at=pg_catalog.now() where id=p_request_id;
   perform private.platform_audit_append('platform.superadmin.change.execute.start','superadmin_change',p_request_id::text,null,
     'Inicio de ejecución de cambio de privilegio aprobado',p_audit_request_id,'started',
     jsonb_build_object('target_user_id',v_row.target_user_id,'requested_action',v_row.requested_action));
@@ -553,7 +555,7 @@ as $$
 declare v_actor uuid:=private.require_platform_superadmin(); v_row private.platform_superadmin_change_requests%rowtype; v_status text;
 begin
   select * into v_row from private.platform_superadmin_change_requests where id=p_request_id for update;
-  if not found or v_row.status<>'executing' then raise exception using errcode='P0002',message='executing_superadmin_request_not_found'; end if;
+  if not found or v_row.status<>'executing' or v_row.executed_by is distinct from v_actor then raise exception using errcode='P0002',message='executing_superadmin_request_not_found'; end if;
   v_status:=case when p_success then 'completed' else 'failed' end;
   update private.platform_superadmin_change_requests set status=v_status,completed_at=pg_catalog.now(),
     failure_code=case when p_success then null else coalesce(p_failure_code,'external_auth_update_failed') end
@@ -619,6 +621,8 @@ as $$
 begin
   perform private.require_platform_superadmin();
   if p_limit<1 or p_limit>100 then raise exception using errcode='22023',message='invalid_limit'; end if;
+  perform private.platform_audit_append('platform.audit.read','audit_collection',null,p_institution_id,
+    'Consulta de bitácora de auditoría','audit-'||pg_catalog.gen_random_uuid()::text,'success',jsonb_build_object('limit',p_limit));
   return query select e.id,e.occurred_at,e.actor_user_id,e.action,e.target_type,e.target_id,e.institution_id,
     e.reason,e.request_id,e.outcome,e.metadata_redacted
   from private.platform_audit_events e
