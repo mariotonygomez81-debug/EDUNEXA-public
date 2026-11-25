@@ -1,6 +1,8 @@
 \set ON_ERROR_STOP on
 CREATE TEMP TABLE synthetic_results (
   institution_id uuid,
+  second_institution_id uuid,
+  source_campus_id uuid,
   delegation_id uuid,
   self_delegation_id uuid,
   clone_job_id uuid,
@@ -28,7 +30,7 @@ SELECT (public.platform_create_institution(
 
 -- Seed real, synthetic institution settings; triggers must mirror only safe configuration.
 DO $$
-DECLARE v_institution uuid; v_level uuid; v_year uuid; v_scale uuid; v_course uuid; v_subject uuid; v_division uuid;
+DECLARE v_institution uuid; v_level uuid; v_year uuid; v_scale uuid; v_course uuid; v_subject uuid; v_division uuid; v_campus uuid; v_second uuid;
 BEGIN
   SELECT institution_id INTO v_institution FROM synthetic_results;
   INSERT INTO public.grading_scales(institution_id,name,description,display_mode,minimum_value,maximum_value,passing_value)
@@ -43,8 +45,12 @@ BEGIN
     VALUES(v_institution,'Secundario','SEC',1) RETURNING id INTO v_level;
   INSERT INTO public.courses(institution_id,level_id,name,grade_number,shift)
     VALUES(v_institution,v_level,'Primer año',1,'morning') RETURNING id INTO v_course;
-  INSERT INTO public.divisions(institution_id,course_id,academic_year_id,name,capacity)
-    VALUES(v_institution,v_course,v_year,'A',30) RETURNING id INTO v_division;
+  INSERT INTO public.campuses(institution_id,name,code,address,phone,is_main)
+    VALUES(v_institution,'Sede Central','CENTRAL','Calle privada 123','+54-11-5555-0101',true)
+    RETURNING id INTO v_campus;
+  UPDATE synthetic_results SET source_campus_id=v_campus;
+  INSERT INTO public.divisions(institution_id,course_id,campus_id,academic_year_id,name,capacity)
+    VALUES(v_institution,v_course,v_campus,v_year,'A',30) RETURNING id INTO v_division;
   INSERT INTO public.subjects(institution_id,name,code) VALUES(v_institution,'Matemática','MAT') RETURNING id INTO v_subject;
   INSERT INTO public.course_subjects(institution_id,course_id,subject_id,weekly_hours)
     VALUES(v_institution,v_course,v_subject,4);
@@ -52,8 +58,36 @@ BEGIN
     SELECT 1 FROM private.platform_institution_clone_config
     WHERE institution_id=v_institution AND config_key='academic_structure'
       AND jsonb_array_length(config_value->'education_levels')=1
-  ) THEN RAISE EXCEPTION 'institution settings must synchronize to the clone registry'; END IF;
-END $$;
+      AND jsonb_array_length(config_value->'campuses')=1
+      AND config_value->'campuses'->0->>'name'='Sede Central'
+      AND NOT ((config_value->'campuses'->0) ? 'address')
+      AND NOT ((config_value->'campuses'->0) ? 'phone')
+  ) THEN RAISE EXCEPTION 'safe institutional settings must synchronize without campus contact fields'; END IF;
+
+  v_second:=(public.platform_create_institution(
+    'Colegio Sintético Dos','Colegio Sintético Dos S.A.','colegio-sintetico-dos',
+    'Segunda institución ficticia para aislamiento multi-tenant','synthetic-request-0003','synthetic-idempotency-0002'
+  )->>'id')::uuid;
+  UPDATE synthetic_results SET second_institution_id=v_second;
+  INSERT INTO public.campuses(institution_id,name,code,address,phone,is_main)
+    VALUES(v_second,'Sede Exclusiva Dos','DOS','Dirección de prueba Dos','+54-11-5555-0202',true);
+END $;
+DO $
+DECLARE v_first uuid; v_second uuid;
+BEGIN
+  SELECT institution_id,second_institution_id INTO v_first,v_second FROM synthetic_results;
+  IF NOT EXISTS(SELECT 1 FROM private.platform_institution_clone_config
+    WHERE institution_id=v_first AND config_key='academic_structure'
+      AND config_value->'campuses'->0->>'name'='Sede Central')
+    OR NOT EXISTS(SELECT 1 FROM private.platform_institution_clone_config
+    WHERE institution_id=v_second AND config_key='academic_structure'
+      AND config_value->'campuses'->0->>'name'='Sede Exclusiva Dos')
+    OR EXISTS(SELECT 1 FROM private.platform_institution_clone_config
+    WHERE institution_id=v_first AND config_key='academic_structure'
+      AND config_value::text LIKE '%Sede Exclusiva Dos%') THEN
+    RAISE EXCEPTION 'two institutions must keep independent campus configuration snapshots';
+  END IF;
+END $;
 DO $$
 DECLARE v_first uuid; v_second uuid; v_count integer;
 BEGIN
@@ -127,7 +161,7 @@ DECLARE v_id uuid; v_delegation uuid;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
   v_delegation:=(public.platform_request_delegation_scoped_idempotent(v_id,'Asistencia técnica sintética solicitada',
-    now()+interval '15 minutes',ARRAY['docentes'],
+    now()+interval '15 minutes',ARRAY['docentes','preceptor','alumnos','tutor','directivos','administrativos','administrador'],
     'synthetic-request-delegation-001','synthetic-delegation-idempotency-01')->>'delegation_id')::uuid;
   IF (public.platform_request_delegation_scoped_idempotent(v_id,'Asistencia técnica sintética solicitada',
     (SELECT expires_at FROM private.platform_delegations WHERE id=v_delegation),ARRAY['docentes'],
@@ -156,25 +190,40 @@ END $$;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
 DO $$
-DECLARE v_id uuid; v_context jsonb;
+DECLARE v_id uuid; v_context jsonb; v_module text;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
   v_context:=public.platform_resolve_delegated_context(v_id);
   IF v_context->>'mode'<>'delegated_support_read_only'
-    OR NOT (v_context->'module_scope' ? 'docentes')
+    OR jsonb_array_length(to_jsonb(v_context->'module_scope'))<>7
     OR (v_context->>'expires_at')::timestamptz<=now() THEN
-    RAISE EXCEPTION 'delegated context must be scoped, read-only and unexpired';
+    RAISE EXCEPTION 'delegated context must include all seven explicitly approved read-only modules';
   END IF;
-  v_context:=public.platform_read_delegated_module(
-    (SELECT delegation_id FROM synthetic_results),'docentes');
-  IF v_context->>'read_only'<>'true'
-    OR NOT (v_context->'configuration' ? 'academic_structure') THEN
-    RAISE EXCEPTION 'delegated module must return only its allowed safe configuration';
-  END IF;
+  FOR v_module IN SELECT unnest(ARRAY['docentes','preceptor','alumnos','tutor','directivos','administrativos','administrador'])
+  LOOP
+    v_context:=public.platform_read_delegated_module(
+      (SELECT delegation_id FROM synthetic_results),v_module);
+    IF v_context->>'read_only'<>'true'
+      OR jsonb_typeof(v_context->'configuration')<>'object'
+      OR EXISTS (
+        SELECT 1 FROM jsonb_object_keys(v_context->'configuration') k
+        WHERE NOT (k=ANY(CASE v_module
+          WHEN 'docentes' THEN ARRAY['academic_structure']
+          WHEN 'preceptor' THEN ARRAY['academic_structure','academic_calendar']
+          WHEN 'alumnos' THEN ARRAY['academic_calendar','grading_scales']
+          WHEN 'tutor' THEN ARRAY['academic_calendar']
+          WHEN 'directivos' THEN ARRAY['academic_calendar','grading_scales','academic_structure']
+          WHEN 'administrativos' THEN ARRAY['academic_structure']
+          WHEN 'administrador' THEN ARRAY['academic_calendar','grading_scales','academic_structure','branding','module_settings']
+        END))
+      ) THEN
+      RAISE EXCEPTION 'delegated module % exceeded its read-only configuration allowlist',v_module;
+    END IF;
+  END LOOP;
   BEGIN
-    PERFORM public.platform_read_delegated_module((SELECT delegation_id FROM synthetic_results),'tutor');
-    RAISE EXCEPTION 'expected module scope denial';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+    PERFORM public.platform_read_delegated_module((SELECT delegation_id FROM synthetic_results),'superadmin');
+    RAISE EXCEPTION 'expected unknown module denial';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
 
   v_context:=public.platform_resolve_delegated_context_by_slug('colegio-sintetico-uno');
   IF v_context->'institution'->>'slug'<>'colegio-sintetico-uno'
@@ -182,6 +231,10 @@ BEGIN
     RAISE EXCEPTION 'delegated workspace must resolve through institution slug under RLS';
   END IF;
 END $$;
+
+-- Narrow the grant for the direct RLS test after exercising all seven module RPC scopes.
+UPDATE private.platform_delegations SET module_scope=ARRAY['docentes']
+WHERE id=(SELECT delegation_id FROM synthetic_results);
 
 -- RLS defense-in-depth: a docentes grant can SELECT only academic_structure snapshots.
 GRANT USAGE ON SCHEMA private TO authenticated;
@@ -340,6 +393,17 @@ BEGIN
     WHERE institution_id=v_target AND config_key='academic_structure'
       AND jsonb_array_length(config_value->'education_levels')=1) THEN
     RAISE EXCEPTION 'synchronized academic settings were not copied to the cloned tenant';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.campuses WHERE institution_id=v_target AND name='Sede Central'
+      AND code='CENTRAL' AND is_main AND address IS NULL AND phone IS NULL)
+    OR EXISTS(SELECT 1 FROM public.campuses WHERE institution_id=v_target AND name='Sede Exclusiva Dos') THEN
+    RAISE EXCEPTION 'configuration-only clone must copy only safe campus identity and preserve tenant isolation';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.divisions d
+    JOIN public.campuses cp ON cp.id=d.campus_id AND cp.institution_id=d.institution_id
+    WHERE d.institution_id=v_target AND d.name='A' AND cp.name='Sede Central')
+    OR EXISTS(SELECT 1 FROM public.divisions d WHERE d.institution_id=v_target AND d.campus_id=(SELECT source_campus_id FROM synthetic_results)) THEN
+    RAISE EXCEPTION 'cloned division must reference a newly mapped target campus id';
   END IF;
   IF NOT EXISTS(SELECT 1 FROM public.education_levels WHERE institution_id=v_target AND name='Secundario')
     OR NOT EXISTS(SELECT 1 FROM public.academic_years WHERE institution_id=v_target AND name='2027' AND status='planned')
