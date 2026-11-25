@@ -68,7 +68,7 @@ export async function createAttendanceSession(formData: FormData): Promise<Atten
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: institution } = await supabase.from("institutions").select("id").eq("slug", slug).maybeSingle();
+  const { data: institution } = await supabase.from("institutions").select("id").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) return { ok: false, message: "No se encontró la institución." };
   const { data: membership } = await supabase.from("memberships").select("id").eq("institution_id", institution.id).eq("user_id", user.id).eq("status", "active").maybeSingle();
   if (!membership) return { ok: false, message: "No tenés una membresía activa en esta institución." };
@@ -101,7 +101,7 @@ export async function saveAttendance(formData: FormData): Promise<AttendanceActi
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: institution } = await supabase.from("institutions").select("id").eq("slug", slug).maybeSingle();
+  const { data: institution } = await supabase.from("institutions").select("id").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) return { ok: false, message: "No se encontró la institución." };
   const { data: membership } = await supabase.from("memberships").select("id").eq("institution_id", institution.id).eq("user_id", user.id).eq("status", "active").maybeSingle();
   if (!membership) return { ok: false, message: "No tenés una membresía activa en esta institución." };

@@ -36,7 +36,7 @@ export async function createStudent(formData: FormData) {
   if (!user) redirect("/login");
 
   const { data: institution } = await supabase
-    .from("institutions").select("id").eq("slug", slug).maybeSingle();
+    .from("institutions").select("id").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
 
   const { data: membership } = await supabase
@@ -92,7 +92,7 @@ export async function updateStudent(formData: FormData) {
   if (!user) redirect("/login");
 
   const { data: institution } = await supabase
-    .from("institutions").select("id").eq("slug", slug).maybeSingle();
+    .from("institutions").select("id").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
 
   const { data: membership } = await supabase
@@ -140,7 +140,7 @@ export async function createEnrollment(formData: FormData) {
   if (!user) redirect("/login");
 
   const { data: institution } = await supabase
-    .from("institutions").select("id").eq("slug", slug).maybeSingle();
+    .from("institutions").select("id").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
 
   const { data: membership } = await supabase
@@ -205,7 +205,7 @@ export async function linkStudentGuardian(formData: FormData) {
     redirect(`/dashboard/${encodeURIComponent(slug)}/students/${encodeURIComponent(studentId)}?error=guardian_save`);
   }
   const { data: institution } = await supabase.from("institutions")
-    .select("id").eq("slug", slug).maybeSingle();
+    .select("id").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
   const { error: permissionError } = await supabase.from("student_guardians").update({
     can_view_report_cards: canViewReportCards,
@@ -263,7 +263,7 @@ export async function transferStudentEnrollment(formData: FormData) {
   if (!user) redirect("/login");
 
   const { data: institution } = await supabase
-    .from("institutions").select("id").eq("slug", slug).maybeSingle();
+    .from("institutions").select("id").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
 
   const { data: membership } = await supabase
@@ -313,7 +313,7 @@ export async function closeStudentEnrollment(formData: FormData) {
   if (!user) redirect("/login");
 
   const { data: institution } = await supabase
-    .from("institutions").select("id").eq("slug", slug).maybeSingle();
+    .from("institutions").select("id").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
 
   const { data: membership } = await supabase
@@ -365,7 +365,7 @@ export async function createStudentPreviousSubject(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: institution } = await supabase.from("institutions").select("id").eq("slug", slug).maybeSingle();
+  const { data: institution } = await supabase.from("institutions").select("id").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
   const { data: membership } = await supabase.from("memberships").select("id")
     .eq("institution_id", institution.id).eq("user_id", user.id).eq("status", "active").maybeSingle();
@@ -404,7 +404,7 @@ export async function updateStudentPreviousSubjectStatus(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: institution } = await supabase.from("institutions").select("id").eq("slug", slug).maybeSingle();
+  const { data: institution } = await supabase.from("institutions").select("id").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
   const { data: membership } = await supabase.from("memberships").select("id")
     .eq("institution_id", institution.id).eq("user_id", user.id).eq("status", "active").maybeSingle();
@@ -436,7 +436,7 @@ export async function updateStudentGuardianPermissions(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
   const { data: institution } = await supabase.from("institutions")
-    .select("id").eq("slug", slug).maybeSingle();
+    .select("id").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
   const { data: membership } = await supabase.from("memberships")
     .select("id").eq("institution_id", institution.id)
