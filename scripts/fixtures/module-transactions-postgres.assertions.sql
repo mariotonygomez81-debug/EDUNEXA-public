@@ -155,7 +155,7 @@ do $$ declare v_assignment uuid; begin
 end $$;
 reset role;
 set role authenticated;
-select set_config('request.jwt.claim.sub','cccccccc-cccc-cccc-cccc-cccccccccccc',false);
+select set_config('request.jwt.claim.sub','dddddddd-dddd-dddd-dddd-dddddddddddd',false);
 do $$ begin
  begin
   perform public.create_classroom_material('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee','Material no autorizado','No',true);
@@ -211,25 +211,24 @@ end $$;
 -- Messaging: execute real direct-conversation, message, notification, read, and scope RPCs.
 set role authenticated;
 select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',false);
-select public.create_direct_conversation(
- '11111111-1111-1111-1111-111111111111',
- '33333333-3333-3333-3333-333333333332',
- 'Conversación de integración'
-) as integration_conversation_id \\gset
-select public.send_conversation_message(
- '11111111-1111-1111-1111-111111111111',
- :'integration_conversation_id'::uuid,
- 'Mensaje transaccional sintético'
-);
-do $$ begin
- if not exists(select 1 from public.messages where conversation_id=:'integration_conversation_id'::uuid and body='Mensaje transaccional sintético') then
+do $ declare v_conversation uuid; v_message uuid; begin
+ v_conversation:=public.create_direct_conversation(
+  '11111111-1111-1111-1111-111111111111',
+  '33333333-3333-3333-3333-333333333332',
+  'Conversación de integración'
+ );
+ v_message:=public.send_conversation_message(
+  '11111111-1111-1111-1111-111111111111',v_conversation,'Mensaje transaccional sintético'
+ );
+ if not exists(select 1 from public.messages where id=v_message and conversation_id=v_conversation
+   and body='Mensaje transaccional sintético') then
   raise exception 'Messaging send RPC did not persist the message';
  end if;
  if not exists(select 1 from public.notifications where recipient_membership_id='33333333-3333-3333-3333-333333333332'
-   and notification_type='message' and resource_id=:'integration_conversation_id'::uuid) then
+   and notification_type='message' and resource_id=v_conversation) then
   raise exception 'Messaging notification fanout did not notify the counterpart';
  end if;
-end $$;
+end $;
 reset role;
 
 set role authenticated;
@@ -249,7 +248,7 @@ reset role;
 
 -- An unrelated active membership is denied access to the conversation.
 set role authenticated;
-select set_config('request.jwt.claim.sub','cccccccc-cccc-cccc-cccc-cccccccccccc',false);
+select set_config('request.jwt.claim.sub','dddddddd-dddd-dddd-dddd-dddddddddddd',false);
 do $$ declare v_conversation uuid; begin
  select id into v_conversation from public.conversations where subject='Conversación de integración';
  begin
