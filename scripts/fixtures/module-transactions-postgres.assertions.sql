@@ -211,7 +211,7 @@ select public.create_direct_conversation(
  '11111111-1111-1111-1111-111111111111',
  '33333333-3333-3333-3333-333333333332',
  'Conversación de integración'
-) as integration_conversation_id \\gset
+) as integration_conversation_id \gset
 select public.send_conversation_message(
  '11111111-1111-1111-1111-111111111111',
  :'integration_conversation_id'::uuid,
