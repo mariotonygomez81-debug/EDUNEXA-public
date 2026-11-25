@@ -116,8 +116,8 @@ begin
   where (status='queued' or (status='running' and lease_expires_at < pg_catalog.now()))
     and attempt_count < 3
   order by created_at, id
-  for update skip locked
-  limit 1;
+  limit 1
+  for update skip locked;
   if not found then return null; end if;
 
   update private.platform_clone_jobs
