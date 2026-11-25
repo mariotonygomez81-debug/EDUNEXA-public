@@ -135,8 +135,28 @@ do $classroom_auth$ begin
   raise exception 'Guardian must not submit student work';
  end if;
 end $classroom_auth$;
+select set_config('request.jwt.claim.sub','ffffffff-ffff-ffff-ffff-ffffffffffff',false);
+do $classroom_auth$ begin
+ if not private.can_access_classroom('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+   '11111111-1111-1111-1111-111111111111','classroom.read') then
+  raise exception 'Institution director should read classrooms';
+ end if;
+ if private.can_access_classroom('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+   '11111111-1111-1111-1111-111111111111','classroom.grade') then
+  raise exception 'Institution director must not grade classroom submissions';
+ end if;
+end $classroom_auth$;
+select set_config('request.jwt.claim.sub','eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef',false);
+do $classroom_auth$ begin
+ if (select count(*) from public.virtual_classrooms) <> 1 then
+  raise exception 'Institution member RLS policy should expose its classroom';
+ end if;
+end $classroom_auth$;
 select set_config('request.jwt.claim.sub','dddddddd-dddd-dddd-dddd-dddddddddddd',false);
 do $classroom_auth$ begin
+ if (select count(*) from public.virtual_classrooms) <> 0 then
+  raise exception 'Institution member RLS policy leaked another institution classroom';
+ end if;
  if private.can_access_classroom('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
    '11111111-1111-1111-1111-111111111111','classroom.read') then
   raise exception 'Other-institution user crossed the classroom boundary';
