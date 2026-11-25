@@ -65,6 +65,8 @@ create or replace function private.can_access_student(p_institution_id uuid,p_st
 returns boolean language sql stable
 as $$ select exists(select 1 from public.students s where s.id=p_student_id and s.institution_id=p_institution_id) $$;
 
+grant usage on schema auth, private to authenticated;
+grant execute on function auth.uid() to authenticated;
 grant select on public.memberships to authenticated;
 
 insert into public.institutions(id,display_name,legal_name,tax_id) values
