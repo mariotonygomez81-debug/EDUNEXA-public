@@ -65,7 +65,7 @@ export async function POST(request: Request, route: RouteContext) {
   const body = await readJson(request) ?? {};
   const requestIdValue = requestId();
   const key = idempotencyKey(request);
-  let result;
+  let result: Awaited<ReturnType<typeof platformRpc>>;
 
   if (segments.length === 1 && segments[0] === "institutions") {
     if (!requiredReason(body.reason) || !text(body.displayName) || !text(body.legalName) || !text(body.slug)) {
