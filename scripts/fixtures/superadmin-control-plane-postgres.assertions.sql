@@ -318,6 +318,14 @@ BEGIN
       AND jsonb_array_length(config_value->'education_levels')=1) THEN
     RAISE EXCEPTION 'synchronized academic settings were not copied to the cloned tenant';
   END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.education_levels WHERE institution_id=v_target AND name='Secundario')
+    OR NOT EXISTS(SELECT 1 FROM public.academic_years WHERE institution_id=v_target AND name='2027' AND status='planned')
+    OR NOT EXISTS(SELECT 1 FROM public.grading_scales WHERE institution_id=v_target AND name='Escala sintética')
+    OR NOT EXISTS(SELECT 1 FROM public.courses WHERE institution_id=v_target AND name='Primer año')
+    OR NOT EXISTS(SELECT 1 FROM public.subjects WHERE institution_id=v_target AND name='Matemática')
+    OR NOT EXISTS(SELECT 1 FROM public.course_subjects cs WHERE cs.institution_id=v_target) THEN
+    RAISE EXCEPTION 'configuration-only clone must materialize academic settings in the target institution';
+  END IF;
   IF EXISTS(SELECT 1 FROM public.memberships WHERE institution_id=v_target) THEN
     RAISE EXCEPTION 'clone worker must never copy institutional memberships';
   END IF;
