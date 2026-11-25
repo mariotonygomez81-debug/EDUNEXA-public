@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 import { signOut } from "../actions";
 import { WorkspaceExperience } from "./workspace-experience";
+import DelegatedSupportWorkspace from "@/components/admin/delegated-support-workspace";
 
 const modules: { name: string; detail: string; icon: string; href: string; permissions: string[]; role: string; category: "Académico" | "Gestión" | "Comunidad" }[] = [
   { name: "Docentes", detail: "Enseñanza, aulas, actividades y evaluaciones", icon: "classroom", href: "teaching", permissions: ["classroom.read"], role: "teacher", category: "Académico" },
@@ -27,7 +28,32 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   const { data: membership } = await supabase.from("memberships")
     .select("id,status").eq("institution_id", institution.id)
     .eq("user_id", user.id).eq("status", "active").maybeSingle();
-  if (!membership) redirect("/dashboard");
+  if (!membership) {
+    // Delegation is resolved from fresh trusted Auth metadata in PostgreSQL.
+    // The resulting support workspace is intentionally read-only and never borrows
+    // an institutional membership or exposes student/guardian records.
+    const platformRpc = supabase as unknown as {
+      rpc: (name: string, args: Record<string, unknown>) => Promise<{
+        data: unknown; error: { message: string } | null;
+      }>;
+    };
+    const delegated = await platformRpc.rpc("platform_resolve_delegated_context", {
+      p_institution_id: institution.id,
+    });
+    const delegatedContext = delegated.data && typeof delegated.data === "object"
+      ? delegated.data as { delegation_id?: string; expires_at?: string; mode?: string }
+      : null;
+    if (!delegated.error && delegatedContext?.mode === "delegated_support_read_only"
+      && delegatedContext.delegation_id && delegatedContext.expires_at) {
+      return <DelegatedSupportWorkspace
+        institutionName={institution.display_name}
+        institutionSlug={slug}
+        delegationId={delegatedContext.delegation_id}
+        expiresAt={delegatedContext.expires_at}
+      />;
+    }
+    redirect("/dashboard");
+  }
 
   const { data: roleRows } = await supabase.from("membership_roles")
     .select("roles(key,name)").eq("membership_id", membership.id);
