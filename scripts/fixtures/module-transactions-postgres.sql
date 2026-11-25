@@ -33,6 +33,10 @@ create table public.divisions(
  id uuid primary key, institution_id uuid not null references public.institutions(id),
  unique(id,institution_id)
 );
+alter table public.divisions add column course_id uuid;
+create table public.course_subjects(
+ id uuid primary key,institution_id uuid not null,course_id uuid not null
+);
 create table public.students(
  id uuid primary key, institution_id uuid not null references public.institutions(id),
  first_name text not null default 'Test', last_name text not null default 'Student',
