@@ -88,11 +88,11 @@ set role authenticated;
 select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',false);
 select public.create_classroom_material(
  'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee','Material de integración','Contenido publicado',true
-) as classroom_material_id \\gset
+) as classroom_material_id \gset
 select public.create_classroom_assignment(
  'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee','RPC integration assignment',
  'Complete the synthetic task',now()+interval '2 days',10,true
-) as classroom_assignment_id \\gset
+) as classroom_assignment_id \gset
 reset role;
 do $$ begin
  if not exists(select 1 from public.classroom_materials where title='Material de integración' and published_at is not null) then
@@ -106,7 +106,7 @@ end $$;
 -- A student with active enrollment submits, edits once, and gets a versioned revision trail.
 set role authenticated;
 select set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',false);
-select public.submit_classroom_assignment(:'classroom_assignment_id'::uuid,'Primera entrega') as classroom_submission_id \\gset
+select public.submit_classroom_assignment(:'classroom_assignment_id'::uuid,'Primera entrega') as classroom_submission_id \gset
 select public.submit_classroom_assignment(:'classroom_assignment_id'::uuid,'Entrega corregida');
 reset role;
 do $$ begin
@@ -114,10 +114,10 @@ do $$ begin
    and body='Entrega corregida' and score is null) then
   raise exception 'Student submission RPC did not persist the updated delivery';
  end if;
- if (select count(*) from public.submission_revisions where submission_id=:'classroom_submission_id'::uuid)<>2 then
+ if (select count(*) from public.submission_revisions where submission_id=(select s.id from public.submissions s join public.assignments a on a.id=s.assignment_id where a.title='RPC integration assignment'))<>2 then
   raise exception 'Submission edit did not create the expected revision history';
  end if;
- if not exists(select 1 from public.submission_revisions where submission_id=:'classroom_submission_id'::uuid and body='Primera entrega') then
+ if not exists(select 1 from public.submission_revisions where submission_id=(select s.id from public.submissions s join public.assignments a on a.id=s.assignment_id where a.title='RPC integration assignment') and body='Primera entrega') then
   raise exception 'Submission revision did not preserve the previous body';
  end if;
 end $$;
@@ -128,7 +128,7 @@ select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 select public.grade_classroom_submission(:'classroom_submission_id'::uuid,7,'Buen trabajo');
 reset role;
 do $$ declare v_submission uuid; begin
- v_submission:=:'classroom_submission_id'::uuid;
+ select s.id into v_submission from public.submissions s join public.assignments a on a.id=s.assignment_id where a.title='RPC integration assignment';
  if not exists(select 1 from public.submissions where id=v_submission and score=7 and feedback='Buen trabajo') then
   raise exception 'Grade RPC did not persist score and feedback';
  end if;
