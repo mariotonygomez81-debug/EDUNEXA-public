@@ -33,7 +33,7 @@ export default async function StudentTasksPage({ params }: { params: Promise<{ s
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: institution } = await supabase.from("institutions").select("id,display_name").eq("slug", slug).maybeSingle();
+  const { data: institution } = await supabase.from("institutions").select("id,display_name").eq("slug", slug).eq("status", "active").maybeSingle();
   if (!institution) redirect("/dashboard");
   const { data: membership } = await supabase.from("memberships").select("id")
     .eq("institution_id", institution.id).eq("user_id", user.id).eq("status", "active").maybeSingle();
