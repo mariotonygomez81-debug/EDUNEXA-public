@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
+import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { isPlatformSuperAdmin } from "@/lib/auth/platform-admin";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 export type PlatformContext =
-  | { ok: true; supabase: SupabaseServerClient; user: NonNullable<Awaited<ReturnType<SupabaseServerClient["auth"]["getUser"]>>["data"]["user"]> }
+  | { ok: true; supabase: SupabaseServerClient; user: User }
   | { ok: false; response: NextResponse };
 
 export async function requirePlatformSuperadmin(request: Request, write = false): Promise<PlatformContext> {
