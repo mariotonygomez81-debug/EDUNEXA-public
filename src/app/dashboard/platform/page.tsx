@@ -20,7 +20,7 @@ export default async function PlatformAdminPage() {
     .limit(200);
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
+    <main className="min-h-screen bg-slate-950 text-slate-100" aria-label="Centro de Superadministración">
       <header className="border-b border-white/10 bg-slate-950/90">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-5 py-4 lg:px-8">
           <div className="flex items-center gap-3">
