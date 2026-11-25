@@ -42,7 +42,7 @@ export async function savePrefectAttendance(data:FormData): Promise<void>{
  const {supabase,user,institution}=await context(slug);const db=supabase as unknown as {from:(table:string)=>any};
  const {data:session}=await db.from("prefect_attendance_sessions").select("id,division_id,held_on,status").eq("id",sessionId).eq("institution_id",institution.id).maybeSingle();
  if(!session||session.status!=="open")redirect(`/dashboard/${slug}/prefect/attendance?error=session`);
- const rows=[];for(const id of ids){const status=field(data,`status_${id}`),note=field(data,`note_${id}`);if(!allowed.includes(status)||note.length>500)redirect(`/dashboard/${slug}/prefect/attendance/${sessionId}?error=invalid`);rows.push({institution_id:institution.id,session_id:sessionId,student_id:id,status,note:note||null,recorded_by:user.id,recorded_at:new Date().toISOString()});}
+ const rows=[];for(const id of ids){const status=field(data,`status_${id}`),note=field(data,`note_${id}`);if(!allowed.includes(status)||(note!==""&&note.length>500))redirect(`/dashboard/${slug}/prefect/attendance/${sessionId}?error=invalid`);rows.push({institution_id:institution.id,session_id:sessionId,student_id:id,status,note:note||null,recorded_by:user.id,recorded_at:new Date().toISOString()});}
  const {error}=await db.from("prefect_attendance_records").upsert(rows,{onConflict:"institution_id,session_id,student_id"});
  if(error)redirect(`/dashboard/${slug}/prefect/attendance/${sessionId}?error=save`);
  revalidatePath(`/dashboard/${slug}/prefect/attendance`);redirect(`/dashboard/${slug}/prefect/attendance?courseId=${field(data,"course_id")}&divisionId=${field(data,"division_id")}&date=${field(data,"held_on")}&saved=1`);
