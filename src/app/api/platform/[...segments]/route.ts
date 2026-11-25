@@ -34,6 +34,24 @@ export async function GET(request: Request, route: RouteContext) {
     if (result.error) return rpcErrorResponse(result.error);
     return json({ institutions: result.data ?? [] });
   }
+  if (segments.length === 1 && segments[0] === "clones") {
+    const result = await platformRpc(auth.supabase, "platform_list_clone_jobs");
+    if (result.error) return rpcErrorResponse(result.error);
+    return json({ clones: result.data ?? [] });
+  }
+  if (segments.length === 1 && segments[0] === "delegations") {
+    const result = await platformRpc(auth.supabase, "platform_list_delegations");
+    if (result.error) return rpcErrorResponse(result.error);
+    return json({ delegations: result.data ?? [] });
+  }
+  if (segments.length === 4 && segments[0] === "delegations" && segments[2] === "modules"
+    && validUuid(segments[1]) && ["docentes","preceptor","alumnos","tutor","directivos","administrativos","administrador"].includes(segments[3])) {
+    const result = await platformRpc(auth.supabase, "platform_read_delegated_module", {
+      p_delegation_id: segments[1], p_module_key: segments[3],
+    });
+    if (result.error) return rpcErrorResponse(result.error);
+    return json({ module: result.data });
+  }
   if (segments.length === 1 && segments[0] === "superadmins") {
     const result = await platformRpc(auth.supabase, "platform_list_superadmins");
     if (result.error) return rpcErrorResponse(result.error);
@@ -94,6 +112,41 @@ export async function POST(request: Request, route: RouteContext) {
     return json({ administrator: result.data }, 201);
   }
 
+  if (segments.length === 2 && segments[0] === "clones" && segments[1] === "execute-next") {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const adminSecret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !adminSecret) {
+      return json({ error: "El trabajador requiere una clave administrativa configurada solo en el servidor." }, 503);
+    }
+    const admin = createSupabaseAdminClient(supabaseUrl, adminSecret, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const worker = admin as unknown as {
+      rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+    };
+    const claim = await worker.rpc("platform_claim_clone_job", { p_lease_seconds: 180 });
+    if (claim.error) return json({ error: "No se pudo reclamar un trabajo de clonación." }, 502);
+    if (!claim.data || typeof claim.data !== "object") return json({ status: "idle", message: "No hay trabajos aprobados pendientes." });
+    const claimed = claim.data as { id?: string; copy_mode?: string };
+    if (!validUuid(claimed.id) || claimed.copy_mode !== "configuration_only") {
+      return json({ error: "El trabajador recibió un trabajo fuera de la lista permitida." }, 409);
+    }
+    const finished = await worker.rpc("platform_finish_clone_job", {
+      p_job_id: claimed.id, p_success: true, p_failure_code: null,
+    });
+    if (finished.error) {
+      const failed = await worker.rpc("platform_finish_clone_job", {
+        p_job_id: claimed.id, p_success: false, p_failure_code: "configuration_copy_failed",
+      });
+      if (failed.error) {
+        console.error("[platform-clone] worker finish and recovery failed", { jobId: claimed.id });
+        return json({ error: "La clonación quedó en ejecución y requiere reconciliación manual.", jobId: claimed.id }, 500);
+      }
+      return json({ error: "No se pudo completar la copia de configuración.", recovery: failed.data }, 502);
+    }
+    return json({ job: finished.data, personalDataCopied: false });
+  }
+
   if (segments.length === 3 && segments[0] === "clones" && segments[2] === "approve") {
     if (!validUuid(segments[1])) return json({ error: "Identificador de clonación inválido." }, 400);
     result = await platformRpc(auth.supabase, "platform_approve_clone_job", {
@@ -109,9 +162,15 @@ export async function POST(request: Request, route: RouteContext) {
     }
     const expiresAt = new Date(text(body.expiresAt));
     if (Number.isNaN(expiresAt.getTime())) return json({ error: "Vencimiento inválido." }, 400);
-    result = await platformRpc(auth.supabase, "platform_request_delegation_idempotent", {
+    const moduleScopes = Array.isArray(body.moduleScopes) ? body.moduleScopes.filter((value): value is string => typeof value === "string") : [];
+    const allowedModules = ["docentes","preceptor","alumnos","tutor","directivos","administrativos","administrador"];
+    if (!moduleScopes.length || moduleScopes.length > 7 || moduleScopes.some((value) => !allowedModules.includes(value))) {
+      return json({ error: "Seleccioná al menos un módulo válido para el acceso delegado." }, 400);
+    }
+    result = await platformRpc(auth.supabase, "platform_request_delegation_scoped_idempotent", {
       p_institution_id: body.institutionId, p_reason: text(body.reason),
-      p_expires_at: expiresAt.toISOString(), p_request_id: requestIdValue, p_idempotency_key: key,
+      p_expires_at: expiresAt.toISOString(), p_module_scope: moduleScopes,
+      p_request_id: requestIdValue, p_idempotency_key: key,
     });
     if (result.error) return rpcErrorResponse(result.error);
     const delegation = result.data as { delegation_id?: string; status?: string } | null;
