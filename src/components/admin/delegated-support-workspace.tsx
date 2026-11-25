@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 type Props = {
   institutionName: string;
   institutionSlug: string;
@@ -63,9 +65,9 @@ export default function DelegatedSupportWorkspace({
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-xs text-slate-500">
           <span>EDUNEXA · {institutionSlug}</span>
-          <a href="/dashboard/platform" className="rounded-xl border border-white/15 px-4 py-2 font-semibold text-slate-200 hover:bg-white/10">
+          <Link href="/dashboard/platform" className="rounded-xl border border-white/15 px-4 py-2 font-semibold text-slate-200 hover:bg-white/10">
             Volver al centro global
-          </a>
+          </Link>
         </footer>
       </div>
     </main>
