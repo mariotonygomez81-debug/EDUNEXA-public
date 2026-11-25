@@ -10,7 +10,7 @@ test("single login form exposes accessible credentials and recovery", async ({ p
   await expect(page.locator("#password")).toBeVisible();
   await expect(page.locator("#password")).toHaveAttribute("type", "password");
   await expect(page.locator("#password")).toHaveAttribute("minlength", "8");
-  await expect(page.getByRole("button", { name: "Ingresar" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ingresar", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "¿Olvidaste tu contraseña?" })).toHaveAttribute("href", "/forgot-password");
 
   await page.getByRole("button", { name: "Mostrar contraseña" }).click();
