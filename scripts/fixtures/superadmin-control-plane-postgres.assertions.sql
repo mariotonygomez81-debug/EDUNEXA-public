@@ -197,7 +197,7 @@ END $$;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
 DO $$
-DECLARE v_id uuid; v_context jsonb; v_module text;
+DECLARE v_id uuid; v_context jsonb; v_module text; v_audit_count integer;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
   v_context:=public.platform_resolve_delegated_context(v_id);
@@ -211,6 +211,7 @@ BEGIN
     v_context:=public.platform_read_delegated_module(
       (SELECT delegation_id FROM synthetic_results),v_module);
     IF v_context->>'read_only'<>'true'
+      OR v_context::text LIKE '%Sede Exclusiva Dos%'
       OR jsonb_typeof(v_context->'configuration')<>'object'
       OR EXISTS (
         SELECT 1 FROM jsonb_object_keys(v_context->'configuration') k
@@ -227,6 +228,12 @@ BEGIN
       RAISE EXCEPTION 'delegated module % exceeded its read-only configuration allowlist',v_module;
     END IF;
   END LOOP;
+  SELECT count(*) INTO v_audit_count FROM private.platform_audit_events
+  WHERE action='platform.delegation.module.read'
+    AND target_id=(SELECT delegation_id::text FROM synthetic_results);
+  IF v_audit_count<7 THEN
+    RAISE EXCEPTION 'each of the seven delegated module reads must append an audit event';
+  END IF;
   BEGIN
     PERFORM public.platform_read_delegated_module((SELECT delegation_id FROM synthetic_results),'superadmin');
     RAISE EXCEPTION 'expected unknown module denial';
@@ -265,6 +272,171 @@ BEGIN
 END $$;
 RESET ROLE;
 COMMIT;
+
+-- Direct RLS verification for delegated module: preceptor.
+UPDATE private.platform_delegations SET module_scope=ARRAY['preceptor']
+WHERE id=(SELECT delegation_id FROM synthetic_results);
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
+DO $
+DECLARE v_profile integer; v_calendar integer; v_scales integer; v_structure integer;
+BEGIN
+  SELECT count(*) INTO v_profile FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='institution_profile';
+  SELECT count(*) INTO v_calendar FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_calendar';
+  SELECT count(*) INTO v_scales FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='grading_scales';
+  SELECT count(*) INTO v_structure FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_structure';
+  IF v_profile<>0 OR v_calendar<>1 OR v_scales<>0 OR v_structure<>1 THEN
+    RAISE EXCEPTION 'RLS scope mismatch for preceptor: profile %, calendar %, scales %, structure %',
+      v_profile,v_calendar,v_scales,v_structure;
+  END IF;
+END $;
+RESET ROLE;
+COMMIT;
+
+
+-- Direct RLS verification for delegated module: alumnos.
+UPDATE private.platform_delegations SET module_scope=ARRAY['alumnos']
+WHERE id=(SELECT delegation_id FROM synthetic_results);
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
+DO $
+DECLARE v_profile integer; v_calendar integer; v_scales integer; v_structure integer;
+BEGIN
+  SELECT count(*) INTO v_profile FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='institution_profile';
+  SELECT count(*) INTO v_calendar FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_calendar';
+  SELECT count(*) INTO v_scales FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='grading_scales';
+  SELECT count(*) INTO v_structure FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_structure';
+  IF v_profile<>0 OR v_calendar<>1 OR v_scales<>1 OR v_structure<>0 THEN
+    RAISE EXCEPTION 'RLS scope mismatch for alumnos: profile %, calendar %, scales %, structure %',
+      v_profile,v_calendar,v_scales,v_structure;
+  END IF;
+END $;
+RESET ROLE;
+COMMIT;
+
+
+-- Direct RLS verification for delegated module: tutor.
+UPDATE private.platform_delegations SET module_scope=ARRAY['tutor']
+WHERE id=(SELECT delegation_id FROM synthetic_results);
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
+DO $
+DECLARE v_profile integer; v_calendar integer; v_scales integer; v_structure integer;
+BEGIN
+  SELECT count(*) INTO v_profile FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='institution_profile';
+  SELECT count(*) INTO v_calendar FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_calendar';
+  SELECT count(*) INTO v_scales FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='grading_scales';
+  SELECT count(*) INTO v_structure FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_structure';
+  IF v_profile<>0 OR v_calendar<>1 OR v_scales<>0 OR v_structure<>0 THEN
+    RAISE EXCEPTION 'RLS scope mismatch for tutor: profile %, calendar %, scales %, structure %',
+      v_profile,v_calendar,v_scales,v_structure;
+  END IF;
+END $;
+RESET ROLE;
+COMMIT;
+
+
+-- Direct RLS verification for delegated module: directivos.
+UPDATE private.platform_delegations SET module_scope=ARRAY['directivos']
+WHERE id=(SELECT delegation_id FROM synthetic_results);
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
+DO $
+DECLARE v_profile integer; v_calendar integer; v_scales integer; v_structure integer;
+BEGIN
+  SELECT count(*) INTO v_profile FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='institution_profile';
+  SELECT count(*) INTO v_calendar FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_calendar';
+  SELECT count(*) INTO v_scales FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='grading_scales';
+  SELECT count(*) INTO v_structure FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_structure';
+  IF v_profile<>0 OR v_calendar<>1 OR v_scales<>1 OR v_structure<>1 THEN
+    RAISE EXCEPTION 'RLS scope mismatch for directivos: profile %, calendar %, scales %, structure %',
+      v_profile,v_calendar,v_scales,v_structure;
+  END IF;
+END $;
+RESET ROLE;
+COMMIT;
+
+
+-- Direct RLS verification for delegated module: administrativos.
+UPDATE private.platform_delegations SET module_scope=ARRAY['administrativos']
+WHERE id=(SELECT delegation_id FROM synthetic_results);
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
+DO $
+DECLARE v_profile integer; v_calendar integer; v_scales integer; v_structure integer;
+BEGIN
+  SELECT count(*) INTO v_profile FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='institution_profile';
+  SELECT count(*) INTO v_calendar FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_calendar';
+  SELECT count(*) INTO v_scales FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='grading_scales';
+  SELECT count(*) INTO v_structure FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_structure';
+  IF v_profile<>0 OR v_calendar<>0 OR v_scales<>0 OR v_structure<>1 THEN
+    RAISE EXCEPTION 'RLS scope mismatch for administrativos: profile %, calendar %, scales %, structure %',
+      v_profile,v_calendar,v_scales,v_structure;
+  END IF;
+END $;
+RESET ROLE;
+COMMIT;
+
+
+-- Direct RLS verification for delegated module: administrador.
+UPDATE private.platform_delegations SET module_scope=ARRAY['administrador']
+WHERE id=(SELECT delegation_id FROM synthetic_results);
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
+DO $
+DECLARE v_profile integer; v_calendar integer; v_scales integer; v_structure integer;
+BEGIN
+  SELECT count(*) INTO v_profile FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='institution_profile';
+  SELECT count(*) INTO v_calendar FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_calendar';
+  SELECT count(*) INTO v_scales FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='grading_scales';
+  SELECT count(*) INTO v_structure FROM private.platform_institution_clone_config
+    WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_structure';
+  IF v_profile<>1 OR v_calendar<>1 OR v_scales<>1 OR v_structure<>1 THEN
+    RAISE EXCEPTION 'RLS scope mismatch for administrador: profile %, calendar %, scales %, structure %',
+      v_profile,v_calendar,v_scales,v_structure;
+  END IF;
+END $;
+RESET ROLE;
+COMMIT;
+
+UPDATE private.platform_delegations
+SET module_scope=ARRAY['docentes']
+WHERE id=(SELECT delegation_id FROM synthetic_results);
 
 UPDATE private.platform_delegations
 SET created_at=now()-interval '2 minutes',expires_at=now()-interval '1 second'
