@@ -99,10 +99,10 @@ BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
   v_delegation:=public.platform_request_delegation(v_id,'Asistencia técnica sintética solicitada',
     now()+interval '15 minutes','synthetic-request-delegation-001');
-  INSERT INTO synthetic_results(delegation_id) VALUES(v_delegation);
+  UPDATE synthetic_results SET delegation_id=v_delegation;
   v_self:=public.platform_request_delegation(v_id,'Segunda solicitud sintética para prueba',
     now()+interval '10 minutes','synthetic-request-delegation-002');
-  INSERT INTO synthetic_results(self_delegation_id) VALUES(v_self);
+  UPDATE synthetic_results SET self_delegation_id=v_self;
   BEGIN
     PERFORM public.platform_request_delegation(v_id,'Prueba de vencimiento fuera del máximo',
       now()+interval '1 hour','synthetic-request-delegation-003');
