@@ -191,7 +191,7 @@ BEGIN;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
-DO $
+DO $$
 DECLARE v_structure integer; v_scales integer; v_scope boolean;
 BEGIN
   v_scope:=private.has_active_delegated_module_scope(current_setting('test.institution_id')::uuid,'docentes');
@@ -202,7 +202,7 @@ BEGIN
   IF NOT v_scope OR v_structure<>1 OR v_scales<>0 THEN
     RAISE EXCEPTION 'module RLS must allow only the categories assigned to docentes (scope %, structure %, scales %)',v_scope,v_structure,v_scales;
   END IF;
-END $;
+END $$;
 RESET ROLE;
 COMMIT;
 
