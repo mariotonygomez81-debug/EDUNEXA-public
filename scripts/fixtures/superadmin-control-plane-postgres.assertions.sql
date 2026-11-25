@@ -97,8 +97,13 @@ DO $$
 DECLARE v_id uuid; v_delegation uuid;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
-  v_delegation:=public.platform_request_delegation(v_id,'Asistencia técnica sintética solicitada',
-    now()+interval '15 minutes','synthetic-request-delegation-001');
+  v_delegation:=(public.platform_request_delegation_idempotent(v_id,'Asistencia técnica sintética solicitada',
+    now()+interval '15 minutes','synthetic-request-delegation-001','synthetic-delegation-idempotency-01')->>'delegation_id')::uuid;
+  IF (public.platform_request_delegation_idempotent(v_id,'Asistencia técnica sintética solicitada',
+    (SELECT expires_at FROM private.platform_delegations WHERE id=v_delegation),
+    'synthetic-request-delegation-retry','synthetic-delegation-idempotency-01')->>'delegation_id')::uuid IS DISTINCT FROM v_delegation THEN
+    RAISE EXCEPTION 'delegation idempotency key must return the original request';
+  END IF;
   UPDATE synthetic_results SET delegation_id=v_delegation;
   BEGIN
     PERFORM public.platform_request_delegation(v_id,'Prueba de vencimiento fuera del máximo',
