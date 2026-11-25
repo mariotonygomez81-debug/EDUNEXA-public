@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { useState } from "react";
 
 type Props = {
   institutionName: string;
   institutionSlug: string;
   expiresAt: string;
   delegationId: string;
+  moduleScopes: string[];
 };
 
 const modules = [
@@ -18,8 +20,27 @@ const modules = [
 ] as const;
 
 export default function DelegatedSupportWorkspace({
-  institutionName, institutionSlug, expiresAt, delegationId,
+  institutionName, institutionSlug, expiresAt, delegationId, moduleScopes,
 }: Props) {
+  const [selectedModule, setSelectedModule] = useState("");
+  const [moduleData, setModuleData] = useState<Record<string, unknown> | null>(null);
+  const [loadingModule, setLoadingModule] = useState(false);
+  const [moduleError, setModuleError] = useState("");
+  const moduleLabels: Record<string, string> = {
+    docentes: "Docentes", preceptor: "Preceptor", alumnos: "Alumnos", tutor: "Tutor",
+    directivos: "Directivos", administrativos: "Administrativos", administrador: "Administrador",
+  };
+  async function inspectModule(moduleKey: string) {
+    setSelectedModule(moduleKey); setLoadingModule(true); setModuleError(""); setModuleData(null);
+    try {
+      const response = await fetch(`/api/platform/delegations/${delegationId}/modules/${moduleKey}`, { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(typeof result.error === "string" ? result.error : "No se pudo consultar el módulo.");
+      setModuleData(result.module as Record<string, unknown>);
+    } catch (error) {
+      setModuleError(error instanceof Error ? error.message : "Consulta no disponible.");
+    } finally { setLoadingModule(false); }
+  }
   const expiration = new Date(expiresAt);
   const formattedExpiration = Number.isNaN(expiration.getTime())
     ? "Vencimiento no disponible"
@@ -53,14 +74,26 @@ export default function DelegatedSupportWorkspace({
             La autorización vigente se limita a contexto institucional y auditoría. No se habilita lectura de datos personales o académicos.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {modules.map(([name, detail]) => (
-              <article key={name} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                <h3 className="font-semibold text-white">{name}</h3>
-                <p className="mt-1 text-sm text-slate-400">{detail}</p>
-                <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-amber-200">Contexto validado · lectura restringida</p>
-              </article>
-            ))}
+            {modules.filter(([name]) => moduleScopes.includes(Object.entries(moduleLabels).find(([, label]) => label === name)?.[0] ?? ""))
+              .map(([name, detail]) => {
+                const key = Object.entries(moduleLabels).find(([, label]) => label === name)?.[0] ?? "";
+                return <article key={key} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                  <h3 className="font-semibold text-white">{name}</h3>
+                  <p className="mt-1 text-sm text-slate-400">{detail}</p>
+                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-amber-200">Permiso específico · solo lectura</p>
+                  <button type="button" onClick={() => void inspectModule(key)} className="mt-3 rounded-lg border border-amber-200/20 px-3 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-100/10">Consultar configuración segura</button>
+                </article>;
+              })}
           </div>
+          {moduleScopes.length === 0 && <p className="mt-4 rounded-xl border border-rose-300/20 p-3 text-sm text-rose-100">Esta autorización no tiene módulos habilitados. No se permite el acceso.</p>}
+          {selectedModule && <section className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold text-white">{moduleLabels[selectedModule] ?? selectedModule} · configuración permitida</h3>
+              <button type="button" onClick={() => { setSelectedModule(""); setModuleData(null); }} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300">Cerrar</button>
+            </div>
+            {loadingModule && <p className="mt-3 text-sm text-slate-400">Consultando con autorización vigente…</p>}
+            {moduleError && <p role="alert" className="mt-3 text-sm text-rose-200">{moduleError}</p>}
+            {moduleData && <pre className="mt-3 max-h-96 overflow-auto rounded-xl bg-slate-950 p-3 text-xs leading-5 text-cyan-100">{JSON.stringify(moduleData.configuration ?? {}, null, 2)}</pre>}
+          </section>}
         </section>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-xs text-slate-500">
