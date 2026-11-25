@@ -12,12 +12,17 @@ export default async function PlatformAdminPage() {
   if (authError || !user) redirect("/login");
   if (!isPlatformSuperAdmin(user)) redirect("/dashboard");
 
-  // Use only the authenticated RLS-constrained client. Never expose service-role keys.
-  const { data, error } = await supabase
-    .from("institutions")
-    .select("id,display_name,legal_name,slug,status,locale,timezone,created_at,updated_at")
-    .order("created_at", { ascending: false })
-    .limit(200);
+  // The RPC performs a fresh global-role check and records the administrative read.
+  // No service-role key or browser-side privilege escalation is used here.
+  const rpcClient = supabase as unknown as {
+    rpc: (name: string, args: Record<string, unknown>) => Promise<{
+      data: unknown;
+      error: { message: string } | null;
+    }>;
+  };
+  const { data, error } = await rpcClient.rpc("platform_list_institutions", {
+    p_limit: 100, p_before: null, p_status: null, p_search: null,
+  });
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100" aria-label="Centro de Superadministración">
