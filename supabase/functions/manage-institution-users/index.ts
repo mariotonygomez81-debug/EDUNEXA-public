@@ -9,8 +9,8 @@ if (!serviceKey) throw new Error("Missing Supabase server secret.");
 const admin = createClient(supabaseUrl, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-const allowedRoles = new Set([
-  "institution_admin", "director", "secretary", "administrative", "teacher",
+const directorSubprofiles = new Set([\n  "rector", "vicerrector", "secretaria", "director_proyectos",\n  "director_deportes", "representante_legal", "pedagoga",\n]);\nconst allowedRoles = new Set([
+  "institution_admin", "director", "administrative", "teacher",
   "prefect", "student", "guardian",
 ]);
 const appUrl = Deno.env.get("EDUNEXA_APP_URL") ?? "https://edunexa.example.edu";
@@ -218,7 +218,7 @@ Deno.serve(async (req: Request) => {
 
     if (action === "list") {
       const { data: memberships, error } = await admin.from("memberships")
-        .select("id,user_id,status,joined_at,membership_roles(role_id,roles(key,name))")
+        .select("id,user_id,status,joined_at,director_subprofile,membership_roles(role_id,roles(key,name))")
         .eq("institution_id", institution.id).order("created_at", { ascending: false });
       if (error) throw error;
       const ids = (memberships ?? []).map((m) => m.user_id);
