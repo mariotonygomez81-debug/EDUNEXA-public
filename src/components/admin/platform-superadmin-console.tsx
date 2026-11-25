@@ -41,22 +41,26 @@ function Metric({ label, value, detail, icon: Icon }: { label: string; value: st
   </article>;
 }
 
-function ToolCard({ title, description, icon: Icon, status = "Preparado para siguiente etapa", tone = "cyan" }: {
-  title: string; description: string; icon: LucideIcon; status?: string; tone?: "cyan" | "violet" | "amber";
+function ToolCard({ title, description, icon: Icon, status, tone = "cyan", href }: {
+  title: string; description: string; icon: LucideIcon; status?: string; tone?: "cyan" | "violet" | "amber"; href?: string;
 }) {
   const tones = {
     cyan: "border-cyan-300/20 bg-cyan-300/10 text-cyan-200",
     violet: "border-violet-300/20 bg-violet-300/10 text-violet-200",
     amber: "border-amber-300/20 bg-amber-300/10 text-amber-200",
   };
-  return <article className="flex min-h-[170px] flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+  const content = <>
     <div className="flex items-start justify-between gap-3">
       <span className={`flex h-10 w-10 items-center justify-center rounded-xl border ${tones[tone]}`}><Icon size={19}/></span>
-      <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-semibold text-slate-400">{status}</span>
+      <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-semibold text-slate-400">{status ?? (href ? "Ir a sección" : "Preparado para siguiente etapa")}</span>
     </div>
     <h3 className="mt-4 font-bold text-white">{title}</h3>
     <p className="mt-1 text-sm leading-6 text-slate-400">{description}</p>
-  </article>;
+    {href && <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-cyan-200">Abrir sección <ArrowUpRight size={13}/></span>}
+  </>;
+  return href
+    ? <a href={href} className="flex min-h-[170px] flex-col rounded-2xl border border-cyan-200/25 bg-white/[0.04] p-5 transition hover:border-cyan-200/50 hover:bg-cyan-200/[0.07] focus:outline-none focus:ring-2 focus:ring-cyan-300">{content}</a>
+    : <article className="flex min-h-[170px] flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-5">{content}</article>;
 }
 
 
@@ -144,7 +148,7 @@ function InstitutionLifecyclePanel({ institutions }: { institutions: PlatformIns
   }
 
   return (
-    <section className="space-y-4 rounded-2xl border border-cyan-200/15 bg-cyan-950/20 p-5">
+    <section id="institution-lifecycle" className="scroll-mt-6 space-y-4 rounded-2xl border border-cyan-200/15 bg-cyan-950/20 p-5">
       <div>
         <p className="text-[11px] font-bold tracking-[0.16em] text-cyan-200">ABM DE PLATAFORMAS · PRIMERA ETAPA</p>
         <h3 className="mt-1 text-lg font-bold text-white">Altas, activación y suspensión</h3>
@@ -249,8 +253,8 @@ export default function PlatformSuperadminConsole({ institutions, loadError }: P
     <section className="space-y-4">
       <div><p className="text-[11px] font-bold tracking-[0.18em] text-violet-200">CENTRO DE HERRAMIENTAS</p><h2 className="mt-1 text-xl font-bold text-white">Administración avanzada</h2><p className="mt-1 text-sm text-slate-400">Áreas previstas para el control integral de EDUNEXA.</p></div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <ToolCard title="ABM de plataformas" description="Crear, editar, activar, suspender y archivar instituciones, con historial de cambios." icon={Building2} tone="cyan"/>
-        <ToolCard title="Administradores de colegios" description="Invitar responsables, asignar administradores, revocar accesos y revisar sus permisos." icon={Users} tone="violet"/>
+        <ToolCard title="ABM de plataformas" description="Crear, editar, activar y suspender instituciones, con historial de cambios." icon={Building2} tone="cyan" href="#institution-lifecycle"/>
+        <ToolCard title="Administradores de colegios" description="Asignar administradores existentes, revocar accesos y revisar responsables por institución." icon={Users} tone="violet" href="#institution-admins"/>
         <ToolCard title="Superadministradores" description="Alta, baja, modificación, recuperación de acceso y control de privilegios globales." icon={KeyRound} tone="amber"/>
         <ToolCard title="Acceso delegado a colegios" description="Entrar en modo de asistencia administrativa, con motivo obligatorio, alcance temporal y registro visible." icon={Network} tone="cyan"/>
         <ToolCard title="Clonación de plataformas" description="Crear una nueva institución desde una plantilla, con configuración aislada y datos de prueba opcionales." icon={Layers3} tone="violet"/>
