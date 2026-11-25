@@ -104,3 +104,12 @@ La migración adicional `20261125193000_superadmin_execution_layer.sql` agrega l
 - Los adaptadores de Supabase y Render son de solo lectura. No se aplicaron migraciones alojadas, no se cambió ningún servicio de Render, no se añadieron secretos y no se desplegó el worker.
 - El runtime de esta sesión no tiene Supabase CLI instalado; por eso la nueva migración se añadió directamente al repositorio siguiendo el formato de migraciones y queda pendiente de validación con CLI/local Supabase antes de cualquier aplicación.
 - El acceso delegado a los módulos y la sincronización de configuración real para clonación continúan siendo tareas separadas antes de considerar esta función productiva.
+
+
+## Alcance delegado por módulo y sincronización de configuración
+
+- Cada delegación nueva requiere una lista explícita de módulos (docentes, preceptor, alumnos, tutor, directivos, administrativos, administrador), motivo y vencimiento máximo de 30 minutos. Las delegaciones antiguas sin alcance explícito se revocan durante la migración.
+- El RPC platform_read_delegated_module valida en cada consulta la identidad global confiable, la solicitud del actor, la segunda aprobación, el vencimiento, el estado activo de la institución y el módulo permitido. Devuelve únicamente instantáneas de configuración no personal; no otorga SELECT sobre tablas de alumnos, tutores, notas, asistencia, mensajes ni membresías. Cada lectura genera auditoría.
+- Los cambios en ciclos lectivos, períodos, escalas y estructura académica sincronizan instantáneas no personales en private.platform_institution_clone_config. La clonación configuration-only copia las categorías permitidas y nunca membresías ni expedientes. El snapshot sirve como plantilla aislada; no replica identidades ni registros transaccionales.
+- La consola Superadministrador incorpora formularios de solicitud, aprobaciones independientes, ejecución de un trabajo de clonación ya aprobado y cola de planes Groq con aprobación/ejecución. Los secretos administrativos se leen únicamente en rutas del servidor.
+- Supabase alojado y Render siguen en lectura/planificación: esta migración no se aplica a servicios alojados ni autoriza despliegues o cambios de esquema remotos.
