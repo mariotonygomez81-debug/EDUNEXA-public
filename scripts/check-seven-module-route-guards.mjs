@@ -40,7 +40,8 @@ for (const [name, source, roleGuard, permissionGuard] of pages) {
   assert.ok(source.includes(permissionGuard), name + ": permission guard missing");
   assert.ok(source.includes("auth.getUser()"), name + ": server authentication missing");
   assert.ok(source.includes("redirect("), name + ": unauthorized profile must be rejected, not merely hidden");
-  assert.ok(source.includes('.eq("status", "active")'), name + ": active institution/membership guard missing");
+  assert.match(source, /\.eq\("status",\s*"active"\)/, name + ": active institution/membership guard missing");
+  assert.match(source, /role|roles|roleKeys/, name + ": profile identity check missing");
 }
 assert.ok(workspace.includes('.eq("status", "active").maybeSingle()'), "inactive institution must not open");
 assert.ok(workspace.includes("module.permissions.every"), "navigation must require every declared permission");
@@ -48,8 +49,12 @@ assert.ok(workspace.includes("roleKeys.includes(module.role)"), "navigation must
 assert.ok(tutor.includes('roleKeys.includes("guardian")'), "Tutor route must require guardian role");
 assert.ok(!tutor.includes('roleKeys.includes("student")'), "student must be denied the Tutor route");
 assert.ok(administrative.includes('roleKeys.includes("administrative")'), "administrative route must require the administrative role");
+assert.ok(direction.includes("if(roleError) redirect"), "Directivos must fail closed when role lookup fails");
+assert.ok(teaching.includes("if (roleError) throw"), "Docentes must fail closed when role lookup fails");
+assert.ok(adminCenter.includes("isAdmin"), "Administrador must require institutional admin identity");
 for (const [name, source] of [["perfil de alumno", studentProfile], ["tareas de alumno", studentTasks], ["asistencia de tutor", guardianAttendance], ["calificaciones", gradesPage], ["asistencia", attendancePage], ["boletines", reportCardsPage]]) {
-  assert.ok(source.includes('.eq("status", "active")'), name + ": route must reject inactive institutions");
+  assert.match(source, /\.eq\("status",\s*"active"\)/, name + ": active institution/membership guard missing");
+  assert.match(source, /role|roles|roleKeys/, name + ": profile identity check missing");
 }
 assert.ok(student.includes('.eq("recipient_membership_id", membership.id)'), "student notification count must be membership-scoped");
 const slash = String.fromCharCode(92);
@@ -70,6 +75,7 @@ assert.ok(reportWorkflow.includes('"report_cards.publish"'));
 assert.ok(studentActions.includes('permissions.has("students.manage")'));
 assert.ok(administrativeActions.includes('permissions.has("administrative_records.manage")'));
 for (const [name, source] of [["calificaciones", grades], ["alumnos", studentActions], ["asistencia", attendance], ["mensajes", messagesActions], ["boletines", reportActions], ["anuncios", announcementsActions], ["citaciones", appointment]]) {
-  assert.ok(source.includes('.eq("status", "active")'), name + ": writes must reject inactive institutions");
+  assert.match(source, /\.eq\("status",\s*"active"\)/, name + ": active institution/membership guard missing");
+  assert.match(source, /role|roles|roleKeys/, name + ": profile identity check missing");
 }
 console.log("Passed seven institutional route guards, active institution/membership checks, role-permission navigation and representative write-action authorization checks.");
