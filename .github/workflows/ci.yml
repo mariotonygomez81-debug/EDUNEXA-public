@@ -104,6 +104,14 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/edunexa_role_auth_test
         run: bash scripts/test-role-scoped-authz-postgres.sh
+      - name: Create isolated module transaction test database
+        env:
+          PGPASSWORD: postgres
+        run: createdb -h 127.0.0.1 -U postgres edunexa_modules_test
+      - name: Validate module transactions against ephemeral PostgreSQL
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/edunexa_modules_test
+        run: bash scripts/test-module-transactions-postgres.sh
 
   student-notifications-e2e:
     if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feature/student-module-mobile' && vars.ENABLE_STAGING_NOTIFICATION_E2E == 'true' }}
