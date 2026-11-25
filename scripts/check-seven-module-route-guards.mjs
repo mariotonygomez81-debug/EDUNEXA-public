@@ -64,6 +64,7 @@ assert.ok(appointment.includes(validDatePattern), "appointment datetime regex mu
 assert.ok(!appointment.includes(doubleEscapedDatePattern), "appointment datetime regex must not match literal backslash-d");
 assert.ok(appointment.includes("create_teacher_guardian_appointment"));
 assert.ok(appointment.includes("auth.getUser()"));
+assert.ok(appointment.includes("if(error||!data) redirect"), "appointments must fail closed when the scoped RPC rejects the request");
 assert.ok(prefectAttendance.includes('permissions.has("attendance.manage")'));
 assert.ok(prefectAttendance.includes('assignment_type","prefect"'));
 assert.ok(attendance.includes('permissions.has("attendance.manage")'));
@@ -74,7 +75,7 @@ assert.ok(reportWorkflow.includes('"report_cards.approve"'));
 assert.ok(reportWorkflow.includes('"report_cards.publish"'));
 assert.ok(studentActions.includes('permissions.has("students.manage")'));
 assert.ok(administrativeActions.includes('permissions.has("administrative_records.manage")'));
-for (const [name, source] of [["calificaciones", grades], ["alumnos", studentActions], ["asistencia", attendance], ["boletines", reportActions], ["anuncios", announcementsActions], ["citaciones", appointment]]) {
+for (const [name, source] of [["calificaciones", grades], ["alumnos", studentActions], ["asistencia", attendance], ["boletines", reportActions], ["anuncios", announcementsActions]]) {
   assert.match(source, /\.eq\("status",\s*"active"\)/, name + ": active institution/membership guard missing");
   assert.match(source, /permissions\.has\(/, name + ": explicit permission check missing");
 }
