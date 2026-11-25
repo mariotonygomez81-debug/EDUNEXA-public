@@ -7,20 +7,29 @@ import Link from "next/link";
 
 type Role = { key: string; name: string };
 type Member = {
+  director_subprofile?: string | null;
   membership_id: string; user_id: string; status: "invited" | "active" | "suspended" | "ended";
   joined_at: string | null; email: string; display_name: string; role_key: string; role_name: string;
   role_keys?: string[]; role_names?: string[];
 };
 type Payload = { users?: Member[]; roles?: Role[]; error?: string; message?: string };
 
-const directorSubprofiles = [\n  ["rector", "Rector"], ["vicerrector", "Vicerrector"], ["secretaria", "Secretaría"],\n  ["director_proyectos", "Director de Proyectos"], ["director_deportes", "Director de Deportes"],\n  ["representante_legal", "Representante Legal"], ["pedagoga", "Pedagoga"],\n] as const;\n\nconst statusLabels: Record<Member["status"], string> = {
+const directorSubprofiles = [
+  ["rector", "Rector"], ["vicerrector", "Vicerrector"], ["secretaria", "Secretaría"],
+  ["director_proyectos", "Director de Proyectos"], ["director_deportes", "Director de Deportes"],
+  ["representante_legal", "Representante Legal"], ["pedagoga", "Pedagoga"],
+] as const;
+
+const statusLabels: Record<Member["status"], string> = {
   invited: "Invitación pendiente", active: "Activo", suspended: "Suspendido", ended: "Finalizado",
 };
 
 export default function InstitutionUsersManager({ slug }: { slug: string }) {
   const [users, setUsers] = useState<Member[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [draftRoles, setDraftRoles] = useState<Record<string, string[]>>({});\n  const [draftSubprofiles, setDraftSubprofiles] = useState<Record<string, string>>({});\n  const [directorSubprofile, setDirectorSubprofile] = useState("");
+  const [draftRoles, setDraftRoles] = useState<Record<string, string[]>>({});
+  const [draftSubprofiles, setDraftSubprofiles] = useState<Record<string, string>>({});
+  const [directorSubprofile, setDirectorSubprofile] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -44,7 +53,8 @@ export default function InstitutionUsersManager({ slug }: { slug: string }) {
       const data = await invoke({ action: "list" });
       setUsers(data.users ?? []);
       setRoles(data.roles ?? []);
-      setDraftRoles(Object.fromEntries((data.users ?? []).map((u) => [u.membership_id, u.role_keys?.length ? u.role_keys : (u.role_key ? [u.role_key] : [])])));\n      setDraftSubprofiles(Object.fromEntries((data.users ?? []).map((u) => [u.membership_id, u.director_subprofile ?? ""])));
+      setDraftRoles(Object.fromEntries((data.users ?? []).map((u) => [u.membership_id, u.role_keys?.length ? u.role_keys : (u.role_key ? [u.role_key] : [])])));
+      setDraftSubprofiles(Object.fromEntries((data.users ?? []).map((u) => [u.membership_id, u.director_subprofile ?? ""])));
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos cargar las cuentas.");
     } finally { setLoading(false); }
@@ -64,7 +74,8 @@ export default function InstitutionUsersManager({ slug }: { slug: string }) {
     e.preventDefault(); setBusy("invite"); setError(""); setNotice("");
     try {
       if (!roleKeys.length) throw new Error("Seleccioná al menos un perfil.");
-      const data = await invoke({ action: "invite", email, first_name: firstName, last_name: lastName, role_keys: roleKeys });
+      if (roleKeys.includes("director") && !directorSubprofile) throw new Error("Seleccioná el subperfil de Directivos.");
+      const data = await invoke({ action: "invite", email, first_name: firstName, last_name: lastName, role_keys: roleKeys, director_subprofile: directorSubprofile });
       setNotice(data.message ?? "Invitación enviada.");
       setEmail(""); setFirstName(""); setLastName(""); setDirectorSubprofile("");
       await load();
@@ -75,7 +86,10 @@ export default function InstitutionUsersManager({ slug }: { slug: string }) {
   async function changeRoles(member: Member) {
     const nextRoles = draftRoles[member.membership_id] ?? [];
     const currentRoles = member.role_keys?.length ? member.role_keys : (member.role_key ? [member.role_key] : []);
-    if (!nextRoles.length) return;\n    if (nextRoles.includes("director") && !draftSubprofiles[member.membership_id]) { setError("Seleccioná el subperfil de Directivos."); return; }\n    if ([...nextRoles].sort().join("|") === [...currentRoles].sort().join("|") &&\n        (draftSubprofiles[member.membership_id] ?? "") === (member.director_subprofile ?? "")) return;
+    if (!nextRoles.length) return;
+    if (nextRoles.includes("director") && !draftSubprofiles[member.membership_id]) { setError("Seleccioná el subperfil de Directivos."); return; }
+    if ([...nextRoles].sort().join("|") === [...currentRoles].sort().join("|") &&
+        (draftSubprofiles[member.membership_id] ?? "") === (member.director_subprofile ?? "")) return;
     setBusy(member.membership_id); setError(""); setNotice("");
     try {
       await invoke({ action: "update_roles", membership_id: member.membership_id, role_keys: nextRoles, director_subprofile: nextRoles.includes("director") ? (draftSubprofiles[member.membership_id] ?? "") : "" });
@@ -122,6 +136,12 @@ export default function InstitutionUsersManager({ slug }: { slug: string }) {
               {roles.map(r=><option key={r.key} value={r.key}>{r.name}</option>)}
             </select>
           </label>
+          {roleKeys.includes("director") && <label>Subperfil de Directivos
+            <select value={directorSubprofile} onChange={e=>setDirectorSubprofile(e.target.value)} required>
+              <option value="">Seleccionar cargo</option>
+              {directorSubprofiles.map(([value,label])=><option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>}
           <button className="login-submit users-invite-submit" disabled={busy==="invite" || loading || roleKeys.length===0}>{busy==="invite" ? <><LoaderCircle size={16} className="animate-spin"/> Enviando...</> : <>Enviar invitación <MailPlus size={16}/></>}</button>
         </form>
         <p className="users-security-note"><ShieldCheck size={15}/> Las invitaciones se procesan en el servidor. No se muestran ni se envían contraseñas desde esta pantalla.</p>
@@ -141,7 +161,11 @@ export default function InstitutionUsersManager({ slug }: { slug: string }) {
                   {roles.map(r=><option key={r.key} value={r.key}>{r.name}</option>)}
                 </select>
                 <button type="button" onClick={()=>void changeRoles(member)} disabled={busy===member.membership_id || !(draftRoles[member.membership_id]?.length)}>Guardar</button>
-                {(draftRoles[member.membership_id] ?? member.role_keys ?? [member.role_key]).includes("director") && <select aria-label={`Subperfil de ${member.display_name}`} value={draftSubprofiles[member.membership_id] ?? ""} onChange={e=>setDraftSubprofiles(prev=>({...prev,[member.membership_id]:e.target.value}))} disabled={member.status==="ended" || busy===member.membership_id}>\n                  <option value="">Seleccionar subperfil</option>\n                  {directorSubprofiles.map(([value,label])=><option key={value} value={value}>{label}</option>)}\n                </select>}\n                <small>{(member.role_names ?? [member.role_name]).join(" · ")}{member.director_subprofile ? ` · ${directorSubprofiles.find(([value])=>value===member.director_subprofile)?.[1] ?? member.director_subprofile}` : ""}</small>
+                {(draftRoles[member.membership_id] ?? member.role_keys ?? [member.role_key]).includes("director") && <select aria-label={`Subperfil de ${member.display_name}`} value={draftSubprofiles[member.membership_id] ?? ""} onChange={e=>setDraftSubprofiles(prev=>({...prev,[member.membership_id]:e.target.value}))} disabled={member.status==="ended" || busy===member.membership_id}>
+                  <option value="">Seleccionar subperfil</option>
+                  {directorSubprofiles.map(([value,label])=><option key={value} value={value}>{label}</option>)}
+                </select>}
+                <small>{(member.role_names ?? [member.role_name]).join(" · ")}{member.director_subprofile ? ` · ${directorSubprofiles.find(([value])=>value===member.director_subprofile)?.[1] ?? member.director_subprofile}` : ""}</small>
               </div></td>
               <td><span className={`users-status status-${member.status}`}>{statusLabels[member.status]}</span></td>
               <td>{member.status==="invited" ? <span className="users-muted">Esperando confirmación</span> : member.status==="ended" ? <span className="users-muted">Sin acceso</span> : <button type="button" className={`users-status-action ${member.status==="active"?"danger":""}`} disabled={busy===member.membership_id} onClick={()=>void changeStatus(member)}>{member.status==="active" ? <><UserRoundX size={15}/> Suspender</> : <><ShieldCheck size={15}/> Reactivar</>}</button>}</td>
