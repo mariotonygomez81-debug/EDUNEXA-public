@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BookOpen, CalendarCheck, ClipboardList, FileText, GraduationCap, Users } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarCheck, ClipboardList, FileText, GraduationCap, Users, Megaphone, MessageSquareText, FolderOpen, CalendarDays, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 
@@ -25,7 +25,7 @@ export default async function DirectorDashboard({params}:{params:Promise<{slug:s
     .select("id,display_name").eq("slug",slug).eq("status","active").maybeSingle();
   if(!institution) redirect("/dashboard");
   const {data:membership}=await supabase.from("memberships")
-    .select("id").eq("institution_id",institution.id).eq("user_id",user.id)
+    .select("id,director_subprofile").eq("institution_id",institution.id).eq("user_id",user.id)
     .eq("status","active").maybeSingle();
   if(!membership) redirect("/dashboard");
   const {data:roleRows,error:roleError}=await supabase.from("membership_roles")
@@ -33,6 +33,14 @@ export default async function DirectorDashboard({params}:{params:Promise<{slug:s
   if(roleError) redirect(`/dashboard/${slug}`);
   const roleKeys=(roleRows ?? []).map(row=>row.roles?.key);
   if(!roleKeys.some(role=>role==="director" || role==="institution_admin")) redirect(`/dashboard/${slug}`);
+  const subprofileLabels:Record<string,string>={
+    rector:"Rector",vicerrector:"Vicerrector",secretaria:"Secretaría",
+    director_proyectos:"Director de Proyectos",director_deportes:"Director de Deportes",
+    representante_legal:"Representante Legal",pedagoga:"Pedagoga",
+  };
+  const directorTitle=membership.director_subprofile
+    ? subprofileLabels[membership.director_subprofile] ?? "Directivo"
+    : "Equipo Directivo";
   const permissions=await getMembershipPermissions(supabase,membership.id);
   if(!permissions.has("reports.read") || !permissions.has("students.read") ||
      !permissions.has("attendance.read") || !permissions.has("grades.read")) redirect(`/dashboard/${slug}`);
@@ -77,7 +85,7 @@ export default async function DirectorDashboard({params}:{params:Promise<{slug:s
       <header className="rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-violet-900 p-7 text-white shadow-sm">
         <span className="text-xs font-semibold tracking-widest text-indigo-100">SEGUIMIENTO Y SUPERVISIÓN</span>
         <h1 className="mt-3 text-3xl font-bold">Panel directivo</h1>
-        <p className="mt-2 text-sm text-indigo-100">{institution.display_name} · Indicadores generales de actividad académica e institucional.</p>
+        <p className="mt-2 text-sm text-indigo-100">{institution.display_name} · {directorTitle} · Indicadores generales de actividad académica e institucional.</p>
       </header>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -118,6 +126,32 @@ export default async function DirectorDashboard({params}:{params:Promise<{slug:s
         <Link href={`/dashboard/${slug}/attendance`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 font-semibold text-slate-700 hover:border-violet-300"><CalendarCheck className="text-violet-700"/> Asistencia</Link>
         <Link href={`/dashboard/${slug}/grades`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 font-semibold text-slate-700 hover:border-violet-300"><ClipboardList className="text-violet-700"/> Calificaciones</Link>
         <Link href={`/dashboard/${slug}/report-cards`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 font-semibold text-slate-700 hover:border-violet-300"><FileText className="text-violet-700"/> Boletines</Link>
+      </section>
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Gestión institucional</h2>
+          <p className="mt-1 text-sm text-slate-500">Accesos directos a las herramientas de supervisión, comunicación y organización del colegio.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Link href={`/dashboard/${slug}/classroom`} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-violet-300 hover:shadow-md">
+            <span className="rounded-xl bg-violet-50 p-3 text-violet-700"><Eye size={20}/></span><span><strong className="text-sm text-slate-900">Supervisar aulas virtuales</strong><span className="mt-1 block text-xs leading-5 text-slate-500">Consultar aulas, materiales y actividades en modo de solo lectura.</span></span>
+          </Link>
+          <Link href={`/dashboard/${slug}/users`} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-violet-300 hover:shadow-md">
+            <span className="rounded-xl bg-sky-50 p-3 text-sky-700"><Users size={20}/></span><span><strong className="text-sm text-slate-900">Planilla del personal</strong><span className="mt-1 block text-xs leading-5 text-slate-500">Consultar y gestionar los perfiles institucionales autorizados.</span></span>
+          </Link>
+          <Link href={`/dashboard/${slug}/announcements`} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-violet-300 hover:shadow-md">
+            <span className="rounded-xl bg-amber-50 p-3 text-amber-700"><Megaphone size={20}/></span><span><strong className="text-sm text-slate-900">Comunicados</strong><span className="mt-1 block text-xs leading-5 text-slate-500">Publicar avisos para personal, estudiantes y familias.</span></span>
+          </Link>
+          <Link href={`/dashboard/${slug}/messages`} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-violet-300 hover:shadow-md">
+            <span className="rounded-xl bg-cyan-50 p-3 text-cyan-700"><MessageSquareText size={20}/></span><span><strong className="text-sm text-slate-900">Mensajes internos</strong><span className="mt-1 block text-xs leading-5 text-slate-500">Comunicación privada con integrantes de la institución.</span></span>
+          </Link>
+          <Link href={`/dashboard/${slug}/admin-documents`} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-violet-300 hover:shadow-md">
+            <span className="rounded-xl bg-emerald-50 p-3 text-emerald-700"><FolderOpen size={20}/></span><span><strong className="text-sm text-slate-900">Repositorio documental</strong><span className="mt-1 block text-xs leading-5 text-slate-500">Consultar documentación institucional habilitada.</span></span>
+          </Link>
+          <Link href={`/dashboard/${slug}/calendar`} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-violet-300 hover:shadow-md">
+            <span className="rounded-xl bg-orange-50 p-3 text-orange-700"><CalendarDays size={20}/></span><span><strong className="text-sm text-slate-900">Calendario académico</strong><span className="mt-1 block text-xs leading-5 text-slate-500">Organizar y consultar fechas y actividades institucionales.</span></span>
+          </Link>
+        </div>
       </section>
       <p className="text-xs leading-relaxed text-slate-500">Los indicadores se calculan con los registros disponibles y los permisos efectivos de tu perfil. Este panel es de consulta: no modifica asistencia ni calificaciones.</p>
     </div>
