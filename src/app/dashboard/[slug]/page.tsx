@@ -102,6 +102,15 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   const quickLinks: { title: string; detail: string; href: string; icon: string; tone: string }[] = [];
   const addQuick = (title: string, detail: string, href: string, icon: string, tone: string) =>
     quickLinks.push({ title, detail, href: `/dashboard/${slug}/${href}`, icon, tone });
+  if (roleKeys.some((role) => ["institution_admin","administrative","director","prefect"].includes(role))) {
+    addQuick("Mi perfil", "Foto, nombre visible y datos de contacto", "profile", "profile", "quick-mint");
+  }
+  if (roleKeys.includes("student")) {
+    addQuick("Mi perfil de alumno", "Fotografía, avatar y datos personales", "student/profile", "profile", "quick-mint");
+  }
+  if (permissions.has("institution.read")) {
+    addQuick("Mis notificaciones", "Avisos y preferencias personales", "notifications", "notifications", "quick-orange");
+  }
   if (roleKeys.includes("teacher")) {
     if (permissions.has("classroom.read")) addQuick("Aula virtual", "Clases, tareas y materiales", "classroom", "classroom", "quick-violet");
     addQuick("Mi perfil docente", "Foto, títulos y contacto", "teaching/profile", "profile", "quick-mint");
