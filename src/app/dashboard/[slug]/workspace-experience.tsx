@@ -36,11 +36,12 @@ const palettes: Record<string, string> = {
 };
 
 export function WorkspaceExperience({
-  institutionName, roleNames, teacherCard, modules, quickLinks, unreadCount, assignmentCount, signOutAction,
+  institutionName, institutionSlug, roleNames, profileCard, modules, quickLinks, unreadCount, assignmentCount, signOutAction,
 }: {
   institutionName: string;
+  institutionSlug: string;
   roleNames: string[];
-  teacherCard: { name: string; avatarUrl: string | null; avatarStyle: string; subjects: string[] } | null;
+  profileCard: { name: string; avatarUrl: string | null; avatarStyle: string; subjects: string[]; roleLabel: string; profileHref: string } | null;
   modules: WorkspaceModule[];
   quickLinks: QuickLink[];
   unreadCount: number;
@@ -81,11 +82,11 @@ export function WorkspaceExperience({
             <h1>{institutionName}<br/><em>Todo conectado.</em></h1>
             <p className="edx-hero-description">Una visión clara de la vida institucional. Encontrá tus herramientas, seguí la actividad y avanzá con menos pasos.</p>
             <div className="edx-role-tags">{roleNames.map((role) => <span key={role}>{role}</span>)}</div>
-            {teacherCard ? <section aria-label="Perfil del docente" className="mt-6 flex max-w-2xl flex-wrap items-center gap-4 rounded-2xl border border-white/20 bg-slate-950/25 p-4 backdrop-blur-sm">
-              {teacherCard.avatarUrl ? <Image src={teacherCard.avatarUrl} alt={`Foto de ${teacherCard.name}`} width={80} height={80} unoptimized className="h-20 w-20 rounded-2xl border-2 border-white/70 object-cover shadow-lg"/> : <TeacherAvatar style={teacherCard.avatarStyle} name={teacherCard.name}/>}
-              <div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wider text-cyan-100">Docente</p><h2 className="mt-1 text-xl font-bold text-white">{teacherCard.name}</h2><p className="mt-1 text-sm font-medium text-white/95">{teacherCard.subjects.length ? teacherCard.subjects.join(" · ") : "Sin materias asignadas"}</p></div>
+            {profileCard ? <section aria-label="Perfil personal" className="mt-6 flex max-w-2xl flex-wrap items-center gap-4 rounded-2xl border border-white/20 bg-slate-950/25 p-4 backdrop-blur-sm">
+              {profileCard.avatarUrl ? <Image src={profileCard.avatarUrl} alt={`Foto de ${profileCard.name}`} width={80} height={80} unoptimized className="h-20 w-20 rounded-2xl border-2 border-white/70 object-cover shadow-lg"/> : <TeacherAvatar style={profileCard.avatarStyle} name={profileCard.name}/>}
+              <div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wider text-cyan-100">{profileCard.roleLabel}</p><h2 className="mt-1 text-xl font-bold text-white">{profileCard.name}</h2><p className="mt-1 text-sm font-medium text-white/95">{profileCard.subjects.length ? profileCard.subjects.join(" · ") : "Perfil personal"}</p></div>
+              <Link href={`/dashboard/${institutionSlug}/${profileCard.profileHref}`} className="rounded-xl border border-white/40 bg-white/15 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/25">Editar perfil</Link>
             </section> : null}
-
             {quickLinks.some((item) => item.href.endsWith("/classroom") || item.href.endsWith("/teaching/profile")) && <nav aria-label="Accesos rápidos docentes" className="mt-6 flex flex-wrap gap-3">
               {quickLinks.filter((item) => item.href.endsWith("/classroom") || item.href.endsWith("/teaching/profile")).map((item) => {
                 const Icon = iconMap[item.icon as keyof typeof iconMap] || ArrowRight;
