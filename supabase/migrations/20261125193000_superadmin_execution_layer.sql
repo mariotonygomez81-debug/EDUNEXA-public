@@ -271,7 +271,7 @@ begin
     select v_job.target_institution_id, c.config_key, c.config_value
     from private.platform_institution_clone_config c
     where c.institution_id=v_job.source_institution_id
-      and c.config_key in ('branding','academic_calendar','grading_scales','timetable_templates','notification_templates','module_settings')
+      and c.config_key in ('branding','academic_calendar','grading_scales','academic_structure','timetable_templates','notification_templates','module_settings')
       and private.platform_clone_json_is_safe(c.config_value)
     on conflict(institution_id,config_key) do update
       set config_value=excluded.config_value, updated_at=pg_catalog.now();
