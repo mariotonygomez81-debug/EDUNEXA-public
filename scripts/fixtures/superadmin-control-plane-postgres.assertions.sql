@@ -183,17 +183,6 @@ BEGIN
   END IF;
 END $$;
 
-UPDATE private.platform_delegations
-SET created_at=now()-interval '2 minutes',expires_at=now()-interval '1 second'
-WHERE id=(SELECT delegation_id FROM synthetic_results);
-DO $$
-BEGIN
-  BEGIN
-    PERFORM public.platform_read_delegated_module((SELECT delegation_id FROM synthetic_results),'docentes');
-    RAISE EXCEPTION 'expected expired delegation denial';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-END $$;
-
 -- RLS defense-in-depth: a docentes grant can SELECT only academic_structure snapshots.
 GRANT USAGE ON SCHEMA private TO authenticated;
 GRANT SELECT ON private.platform_institution_clone_config TO authenticated;
@@ -213,6 +202,17 @@ BEGIN
 END $$;
 RESET ROLE;
 COMMIT;
+
+UPDATE private.platform_delegations
+SET created_at=now()-interval '2 minutes',expires_at=now()-interval '1 second'
+WHERE id=(SELECT delegation_id FROM synthetic_results);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.platform_read_delegated_module((SELECT delegation_id FROM synthetic_results),'docentes');
+    RAISE EXCEPTION 'expected expired delegation denial';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
 
 -- An active support delegation can be revoked and the action is audited.
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
