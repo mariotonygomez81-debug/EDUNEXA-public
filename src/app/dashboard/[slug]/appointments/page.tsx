@@ -98,7 +98,7 @@ export default async function AppointmentsPage({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">{appointment.student_name}</h2>
-                    <p className="mt-1 text-sm text-slate-500">{isGuardian ? `Docente: ${appointment.teacher_name ?? "No disponible"}` : `Tutor: ${appointment.guardian_name ?? "No disponible"}`}</p>
+                    <p className="mt-1 text-sm text-slate-500">{isGuardian ? `Responsable: ${appointment.teacher_name ?? "No disponible"}` : `Tutor: ${appointment.guardian_name ?? "No disponible"}`}</p>
                   </div>
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
                     appointment.status === "confirmed" ? "bg-emerald-100 text-emerald-800" :
