@@ -76,6 +76,6 @@ assert.ok(studentActions.includes('permissions.has("students.manage")'));
 assert.ok(administrativeActions.includes('permissions.has("administrative_records.manage")'));
 for (const [name, source] of [["calificaciones", grades], ["alumnos", studentActions], ["asistencia", attendance], ["mensajes", messagesActions], ["boletines", reportActions], ["anuncios", announcementsActions], ["citaciones", appointment]]) {
   assert.match(source, /\.eq\("status",\s*"active"\)/, name + ": active institution/membership guard missing");
-  assert.match(source, /role|roles|roleKeys/, name + ": profile identity check missing");
+  assert.match(source, /permissions\.has\(/, name + ": explicit permission check missing");
 }
 console.log("Passed seven institutional route guards, active institution/membership checks, role-permission navigation and representative write-action authorization checks.");
