@@ -291,7 +291,8 @@ where key='classroom.read'
 on conflict do nothing;
 
 
--- Apply the exact versioned role-scoped authorization implementation after all classroom prerequisites exist.
+-- Apply the original versioned classroom capability/role grants, then the later hardened authorization implementation.
+\i supabase/migrations/20261120042419_define_scoped_classroom_capabilities.sql
 \i supabase/migrations/20261124224714_enforce_role_scoped_academic_permissions.sql
 
 \i supabase/migrations/20261120042544_scope_classroom_submissions.sql
