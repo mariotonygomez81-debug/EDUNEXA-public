@@ -111,6 +111,9 @@ for (const token of [
   "platform_refresh_institution_clone_config", "platform_refresh_institution_clone_config_trigger",
   "platform_list_ai_change_plans", "platform_clone_materialize_academic_configuration",
   "platform_clone_materialize_trigger", "platform_clone_materialize_configuration",
+  "institution_profile", "platform_refresh_institution_profile_clone_config_trigger",
+  "platform_clone_snapshot_institution_profile", "platform_clone_snapshot_campuses",
+  "edunexa_clone_campus_map", "'name',cp.name,'code',cp.code,'is_main',cp.is_main",
   "academic_calendar", "grading_scales", "academic_structure",
   "platform.delegation.legacy_scope_revoked", "has_active_delegated_module_scope",
   "platform_delegated_config_docentes_select", "platform_delegated_config_preceptor_select",
@@ -136,7 +139,13 @@ assert.ok(api.includes("platform_claim_clone_job") && api.includes("platform_fin
 assert.ok(api.includes("SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY"), "Clone worker credentials must remain server-side");
 assert.ok(delegatedWorkspace.includes("moduleScopes") && delegatedWorkspace.includes("Consultar configuración segura"));
 assert.ok(institutionWorkspace.includes("module_scope"), "Workspace must receive approved module scope");
+assert.ok(postgresAssertions.includes("safe institutional settings must synchronize without campus contact fields"));
+assert.ok(postgresAssertions.includes("two institutions must keep independent campus configuration snapshots"));
+assert.ok(postgresAssertions.includes("configuration-only clone must copy only safe campus identity and preserve tenant isolation"));
+assert.ok(postgresAssertions.includes("clone must materialize safe institution profile settings from its private registry"));
 assert.ok(postgresAssertions.includes("institution settings must synchronize to the clone registry"));
+assert.ok(postgresAssertions.includes("delegated module % exceeded its read-only configuration allowlist"));
+assert.ok(postgresAssertions.includes("delegated context must include all seven explicitly approved read-only modules"));
 assert.ok(postgresAssertions.includes("delegated module must return only its allowed safe configuration"));
 assert.ok(postgresAssertions.includes("synchronized academic settings were not copied to the cloned tenant"));
 assert.ok(postgresAssertions.includes("configuration-only clone must materialize academic settings"));
