@@ -49,3 +49,42 @@ for (const name of publicFunctions) {
 }
 assert.equal((migration.match(/as \$\$/g) ?? []).length, (migration.match(/\$\$;/g) ?? []).length, "SQL dollar quotes must be balanced");
 assert.ok(!/as \$\r?\n/.test(migration), "Malformed single-dollar function delimiters are forbidden");
+
+const executionMigration = read("../supabase/migrations/20261125193000_superadmin_execution_layer.sql");
+const cloneWorker = read("../src/app/api/platform/worker/clones/route.ts");
+const planExecutor = read("../src/lib/platform/approved-plan-executor.ts");
+const planExecutionRoute = read("../src/app/api/platform/copilot/plans/[id]/execute/route.ts");
+const delegatedWorkspace = read("../src/components/admin/delegated-support-workspace.tsx");
+const institutionWorkspace = read("../src/app/dashboard/[slug]/page.tsx");
+
+for (const token of [
+  "private.platform_institution_clone_config", "platform_clone_json_is_safe",
+  "platform_request_clone_idempotent", "for update skip locked",
+  "platform_claim_clone_job", "platform_finish_clone_job",
+  "platform_resolve_delegated_context", "platform_resolve_delegated_context_by_slug",
+  "platform_claim_ai_change_plan_execution", "platform_finish_ai_change_plan_execution",
+  "lease_expires_at", "attempt_count >= 3", "copy_mode <> 'configuration_only'",
+]) assert.ok(executionMigration.includes(token), `Missing execution-layer database control: ${token}`);
+assert.ok(!executionMigration.includes("user_metadata"), "Delegation and worker authorization must not trust user_metadata");
+assert.ok(executionMigration.includes("grant execute on function public.platform_claim_clone_job(integer) to service_role"));
+assert.ok(executionMigration.includes("grant execute on function public.platform_finish_clone_job(uuid,boolean,text) to service_role"));
+assert.ok(executionMigration.includes("grant execute on function public.platform_resolve_delegated_context_by_slug(text) to authenticated"));
+assert.ok(executionMigration.includes("on conflict(institution_id,config_key) do update"), "Clone config copy must be retry-safe");
+assert.ok(executionMigration.includes("for update skip locked"), "Worker must claim jobs without double-processing");
+
+assert.ok(cloneWorker.includes("EDUNEXA_PLATFORM_WORKER_SECRET"));
+assert.ok(cloneWorker.includes("timingSafeEqual"));
+assert.ok(cloneWorker.includes("SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY"));
+assert.ok(cloneWorker.includes("platform_claim_clone_job") && cloneWorker.includes("platform_finish_clone_job"));
+assert.ok(planExecutor.includes('import "server-only"'));
+assert.ok(planExecutor.includes("GITHUB_TOKEN") && planExecutor.includes("SUPABASE_ACCESS_TOKEN") && planExecutor.includes("RENDER_API_KEY"));
+assert.ok(planExecutor.includes("/database/query/read-only"), "Supabase adapter must use read-only Management API endpoint");
+assert.ok(!planExecutor.includes("/database/migrations"), "Supabase adapter must not apply hosted migrations");
+assert.ok(!planExecutor.includes("POST /v1/services"), "Render adapter must not mutate hosted services");
+assert.ok(planExecutor.includes("base !== INTEGRATION_BRANCH") && planExecutor.includes('head === "main"'));
+assert.ok(planExecutionRoute.includes("platform_claim_ai_change_plan_execution"));
+assert.ok(planExecutionRoute.includes("platform_finish_ai_change_plan_execution"));
+assert.ok(planExecutionRoute.includes("execution.rollback()"), "External GitHub changes need compensation if audit finalization fails");
+assert.ok(delegatedWorkspace.includes("MODO DE SOPORTE DELEGADO") && delegatedWorkspace.includes("SOLO LECTURA"));
+assert.ok(institutionWorkspace.includes("platform_resolve_delegated_context_by_slug"));
+assert.ok(institutionWorkspace.includes("platform_resolve_delegated_context"));
