@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Copy, Loader2, Play, RefreshCw, ShieldCheck } from "lucide-react";
+import { Copy, Loader2, Play, RefreshCw, ShieldCheck } from "lucide-react";
 
 type Institution = { id: string; display_name: string; legal_name: string; slug: string };
 type CloneJob = {
@@ -66,7 +66,7 @@ export default function PlatformOperationsPanel({ institutions }: { institutions
     } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { const timer = window.setTimeout(() => { void refresh(); }, 0); return () => window.clearTimeout(timer); }, [refresh]);
 
   async function send(path: string, body: Record<string, unknown> = {}, idempotent = false) {
     setBusy(path); setMessage("");
