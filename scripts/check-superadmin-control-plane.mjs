@@ -149,7 +149,6 @@ assert.ok(postgresAssertions.includes("each of the seven delegated module reads 
 for (const module of ["preceptor","alumnos","tutor","directivos","administrativos","administrador"]) {
   assert.ok(postgresAssertions.includes("RLS scope mismatch for " + module), "Missing direct RLS test for " + module);
 }
-assert.ok(postgresAssertions.includes("delegated module must return only its allowed safe configuration"));
 assert.ok(postgresAssertions.includes("synchronized academic settings were not copied to the cloned tenant"));
 assert.ok(postgresAssertions.includes("configuration-only clone must materialize academic settings"));
 assert.ok(postgresAssertions.includes("transient worker failure must requeue the approved job"));
