@@ -60,7 +60,7 @@ const institutionWorkspace = read("../src/app/dashboard/[slug]/page.tsx");
 for (const token of [
   "private.platform_institution_clone_config", "platform_clone_json_is_safe",
   "platform_request_clone_idempotent", "platform_request_delegation_idempotent", "for update skip locked",
-  "platform_claim_clone_job", "platform_finish_clone_job",
+  "platform_approve_clone_job", "platform_claim_clone_job", "platform_finish_clone_job",
   "platform_resolve_delegated_context", "platform_resolve_delegated_context_by_slug",
   "platform_claim_ai_change_plan_execution", "platform_finish_ai_change_plan_execution",
   "lease_expires_at", "attempt_count >= 3", "copy_mode <> 'configuration_only'",
@@ -99,3 +99,4 @@ assert.ok(institutionWorkspace.includes("platform_resolve_delegated_context"));
 assert.ok(api.includes("platform_request_clone_idempotent") && api.includes("platform_request_delegation_idempotent"));
 assert.ok(api.includes("Idempotency-Key"), "Clone and delegation request routes must require idempotency keys");
 assert.ok(!/as \$(?!\$)/.test(executionMigration), "Execution migration cannot contain malformed single-dollar delimiters");
+assert.ok(api.includes("platform_approve_clone_job"), "Clone execution must require independent approval");
