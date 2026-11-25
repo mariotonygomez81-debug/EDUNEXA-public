@@ -23,7 +23,35 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
 
   const { data: institution } = await supabase.from("institutions")
     .select("id,display_name,slug").eq("slug", slug).eq("status", "active").maybeSingle();
-  if (!institution) redirect("/dashboard");
+  if (!institution) {
+    // A Superadministrator may not have a normal institution SELECT policy.
+    // Resolve by slug only through the requester-bound, active delegation RPC.
+    const platformRpc = supabase as unknown as {
+      rpc: (name: string, args: Record<string, unknown>) => Promise<{
+        data: unknown; error: { message: string } | null;
+      }>;
+    };
+    const delegated = await platformRpc.rpc("platform_resolve_delegated_context_by_slug", {
+      p_slug: slug,
+    });
+    const context = delegated.data && typeof delegated.data === "object"
+      ? delegated.data as {
+        delegation_id?: string; expires_at?: string; mode?: string;
+        institution?: { display_name?: string; slug?: string };
+      }
+      : null;
+    if (!delegated.error && context?.mode === "delegated_support_read_only"
+      && context.delegation_id && context.expires_at
+      && context.institution?.display_name && context.institution.slug) {
+      return <DelegatedSupportWorkspace
+        institutionName={context.institution.display_name}
+        institutionSlug={context.institution.slug}
+        delegationId={context.delegation_id}
+        expiresAt={context.expires_at}
+      />;
+    }
+    redirect("/dashboard");
+  }
 
   const { data: membership } = await supabase.from("memberships")
     .select("id,status").eq("institution_id", institution.id)
