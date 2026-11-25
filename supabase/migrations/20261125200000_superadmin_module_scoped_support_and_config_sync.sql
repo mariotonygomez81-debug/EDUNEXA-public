@@ -301,6 +301,63 @@ begin
 end;
 $$;
 
+create or replace function private.has_active_delegated_module_scope(
+  p_institution_id uuid,p_module_key text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select exists (
+    select 1
+    from private.platform_delegations d
+    join auth.users u on u.id=d.requested_by
+    join public.institutions i on i.id=d.institution_id
+    where d.institution_id=p_institution_id
+      and d.requested_by=auth.uid()
+      and u.raw_app_meta_data->>'platform_role'='superadmin'
+      and d.status='active'
+      and d.approved_by is not null and d.approved_by<>d.requested_by
+      and d.expires_at>pg_catalog.now()
+      and i.status='active'
+      and p_module_key=any(d.module_scope)
+  );
+$;
+
+-- Defense in depth: even if table SELECT is granted in a future release,
+-- each module sees only its own configuration categories and only during its grant.
+drop policy if exists platform_delegated_config_docentes_select on private.platform_institution_clone_config;
+create policy platform_delegated_config_docentes_select on private.platform_institution_clone_config
+for select to authenticated
+using (config_key='academic_structure' and private.has_active_delegated_module_scope(institution_id,'docentes'));
+drop policy if exists platform_delegated_config_preceptor_select on private.platform_institution_clone_config;
+create policy platform_delegated_config_preceptor_select on private.platform_institution_clone_config
+for select to authenticated
+using (config_key in ('academic_structure','academic_calendar') and private.has_active_delegated_module_scope(institution_id,'preceptor'));
+drop policy if exists platform_delegated_config_alumnos_select on private.platform_institution_clone_config;
+create policy platform_delegated_config_alumnos_select on private.platform_institution_clone_config
+for select to authenticated
+using (config_key in ('academic_calendar','grading_scales') and private.has_active_delegated_module_scope(institution_id,'alumnos'));
+drop policy if exists platform_delegated_config_tutor_select on private.platform_institution_clone_config;
+create policy platform_delegated_config_tutor_select on private.platform_institution_clone_config
+for select to authenticated
+using (config_key='academic_calendar' and private.has_active_delegated_module_scope(institution_id,'tutor'));
+drop policy if exists platform_delegated_config_directivos_select on private.platform_institution_clone_config;
+create policy platform_delegated_config_directivos_select on private.platform_institution_clone_config
+for select to authenticated
+using (config_key in ('academic_calendar','grading_scales','academic_structure') and private.has_active_delegated_module_scope(institution_id,'directivos'));
+drop policy if exists platform_delegated_config_administrativos_select on private.platform_institution_clone_config;
+create policy platform_delegated_config_administrativos_select on private.platform_institution_clone_config
+for select to authenticated
+using (config_key='academic_structure' and private.has_active_delegated_module_scope(institution_id,'administrativos'));
+drop policy if exists platform_delegated_config_administrador_select on private.platform_institution_clone_config;
+create policy platform_delegated_config_administrador_select on private.platform_institution_clone_config
+for select to authenticated
+using (config_key in ('academic_calendar','grading_scales','academic_structure','branding','module_settings')
+  and private.has_active_delegated_module_scope(institution_id,'administrador'));
+
 create or replace function public.platform_read_delegated_module(p_delegation_id uuid,p_module_key text)
 returns jsonb
 language plpgsql
@@ -422,6 +479,8 @@ $$;
 
 revoke all on function private.platform_refresh_institution_clone_config(uuid) from public,anon,authenticated;
 revoke all on function private.platform_refresh_institution_clone_config_trigger() from public,anon,authenticated;
+revoke all on function private.has_active_delegated_module_scope(uuid,text) from public,anon;
+grant execute on function private.has_active_delegated_module_scope(uuid,text) to authenticated;
 revoke all on function public.platform_request_delegation_scoped_idempotent(uuid,text,timestamptz,text[],text,text) from public,anon;
 revoke all on function public.platform_request_delegation(uuid,text,timestamptz,text) from public,anon,authenticated;
 revoke all on function public.platform_request_delegation_idempotent(uuid,text,timestamptz,text,text) from public,anon,authenticated;
