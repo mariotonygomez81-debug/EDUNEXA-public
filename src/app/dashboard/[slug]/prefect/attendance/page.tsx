@@ -135,7 +135,7 @@ export default async function PrefectAttendancePage({
             </form>
           </section>}
           {selectedSession && <PrefectAttendanceSheet slug={slug} sessionId={selectedSession.id} students={students}
-            records={records} status={selectedSession.status} saveAction={savePrefectAttendance}/>}
+            records={records} status={selectedSession.status} courseId={selectedCourse!.id} divisionId={selectedDivision.id} heldOn={selectedDate} saveAction={savePrefectAttendance}/>}
         </> : <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
           Elegí un curso y una división para habilitar el calendario y la toma de asistencia.
         </section>}
