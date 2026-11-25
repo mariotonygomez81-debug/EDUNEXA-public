@@ -87,6 +87,39 @@ function InstitutionLifecyclePanel({ institutions }: { institutions: PlatformIns
     } finally { setBusy(""); }
   }
 
+  async function editInstitution(institution: PlatformInstitution) {
+    const nextName = window.prompt("Nombre institucional:", institution.display_name);
+    if (nextName === null) return;
+    const nextLegal = window.prompt("Razón social:", institution.legal_name);
+    if (nextLegal === null) return;
+    const locale = window.prompt("Idioma / locale:", institution.locale);
+    if (locale === null) return;
+    const timezone = window.prompt("Zona horaria:", institution.timezone);
+    if (timezone === null) return;
+    const reasonText = window.prompt("Motivo del cambio (mínimo 12 caracteres):");
+    if (!reasonText || reasonText.trim().length < 12) {
+      setMessage("La edición requiere un motivo de al menos 12 caracteres.");
+      return;
+    }
+    setBusy(institution.id); setMessage("");
+    try {
+      const response = await fetch(`/api/platform/institutions/${institution.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+        body: JSON.stringify({
+          displayName: nextName.trim(), legalName: nextLegal.trim(), locale: locale.trim(),
+          timezone: timezone.trim(), expectedUpdatedAt: institution.updated_at, reason: reasonText.trim(),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "No se pudo editar la institución.");
+      setMessage("Datos institucionales actualizados.");
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error al editar la institución.");
+    } finally { setBusy(""); }
+  }
+
   async function changeStatus(institution: PlatformInstitution, nextStatus: "active" | "suspended") {
     const reasonText = window.prompt(nextStatus === "suspended" ? "Motivo de suspensión (mínimo 12 caracteres):" : "Motivo de activación (mínimo 12 caracteres):");
     if (!reasonText || reasonText.trim().length < 12) {
@@ -128,6 +161,7 @@ function InstitutionLifecyclePanel({ institutions }: { institutions: PlatformIns
         {institutions.map((institution) => <div key={institution.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/50 p-3">
           <div><p className="text-sm font-semibold text-white">{institution.display_name}</p><p className="text-xs text-slate-500">{institution.slug} · {statusLabel[institution.status] ?? institution.status}</p></div>
           <div className="flex gap-2">
+            <button type="button" disabled={!!busy} onClick={() => void editInstitution(institution)} className="rounded-lg border border-cyan-300/20 px-3 py-2 text-xs font-semibold text-cyan-200 disabled:opacity-50">Editar</button>
             {institution.status === "active" ? <button type="button" disabled={!!busy} onClick={() => void changeStatus(institution, "suspended")} className="rounded-lg border border-rose-300/20 px-3 py-2 text-xs font-semibold text-rose-200 disabled:opacity-50">Suspender</button> : institution.status === "suspended" ? <button type="button" disabled={!!busy} onClick={() => void changeStatus(institution, "active")} className="rounded-lg border border-emerald-300/20 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50">Activar</button> : <span className="text-xs text-slate-500">Pendiente de activación</span>}
           </div>
         </div>)}
