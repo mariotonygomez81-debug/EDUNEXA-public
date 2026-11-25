@@ -47,10 +47,14 @@ export async function updateAppointmentStatus(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data, error } = await supabase.rpc("update_teacher_guardian_appointment", {
-    p_appointment_id: appointmentId,
-    p_status: status,
-  });
+  const { data: roleRows } = await supabase.from("membership_roles")
+    .select("roles(key)").eq("membership_id", (await supabase.from("memberships").select("id")
+      .eq("user_id", user.id).eq("status", "active").maybeSingle()).data?.id ?? "");
+  const isPrefect = (roleRows ?? []).some((row) => row.roles?.key === "prefect");
+  const { data, error } = await supabase.rpc(
+    isPrefect ? "update_prefect_guardian_appointment" : "update_teacher_guardian_appointment",
+    { p_appointment_id: appointmentId, p_status: status },
+  );
   if (error || !data) redirect(`${path}?error=status`);
   revalidatePath(path);
   redirect(`${path}?updated=1`);
@@ -87,14 +91,20 @@ export async function createAppointment(formData: FormData) {
   if (!membership) redirect("/dashboard");
   const { data: roles } = await supabase.from("membership_roles")
     .select("roles(key)").eq("membership_id", membership.id).eq("institution_id", institution.id);
-  if (!(roles ?? []).some((row) => row.roles?.key === "teacher")) redirect(`/dashboard/${slug}`);
+  const roleKeys = (roles ?? []).map((row) => row.roles?.key);
+  const isTeacher = roleKeys.includes("teacher");
+  const isPrefect = roleKeys.includes("prefect");
+  if (!isTeacher && !isPrefect) redirect(`/dashboard/${slug}`);
 
-  const { error } = await supabase.rpc("create_teacher_guardian_appointment", {
-    p_student_id: match[1],
-    p_guardian_membership_id: match[2],
-    p_scheduled_at: scheduledDate.toISOString(),
-    p_reason: reason,
-  });
+  const { error } = await supabase.rpc(
+    isPrefect ? "create_prefect_guardian_appointment" : "create_teacher_guardian_appointment",
+    {
+      p_student_id: match[1],
+      p_guardian_membership_id: match[2],
+      p_scheduled_at: scheduledDate.toISOString(),
+      p_reason: reason,
+    },
+  );
   if (error) redirect(`/dashboard/${slug}/appointments/new?error=save`);
   revalidatePath(path);
   redirect(`${path}?created=1`);
