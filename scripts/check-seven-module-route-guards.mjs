@@ -79,7 +79,7 @@ for (const [name, source] of [["calificaciones", grades], ["alumnos", studentAct
   assert.match(source, /permissions\.has\(/, name + ": explicit permission check missing");
 }
 assert.ok(messagesActions.includes("auth.getUser()"), "messages must authenticate on the server");
-assert.ok(messagesActions.includes(\x27.eq("status", "active")\x27), "messages must require an active institution membership");
+assert.ok(messagesActions.includes('.eq("status", "active")'), "messages must require an active institution membership");
 for (const rpc of ["create_direct_conversation", "send_conversation_message", "mark_conversation_read"]) {
   assert.ok(messagesActions.includes(`rpc("${rpc}"`), `messages must use the authorized ${rpc} RPC`);
 }
