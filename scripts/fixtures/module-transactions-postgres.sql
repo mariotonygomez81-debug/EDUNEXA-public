@@ -49,16 +49,16 @@ create table public.enrollments(
  foreign key(student_id,institution_id) references public.students(id,institution_id),
  foreign key(division_id,institution_id) references public.divisions(id,institution_id)
 );
-create or replace function private.can_manage_division(p_division_id uuid,p_institution_id uuid,p_permission text)
+create or replace function private.can_manage_division(p_division_id uuid,p_institution_id uuid,p_permission_key text)
 returns boolean language sql stable
-as $$ select auth.uid()='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
+as $ select auth.uid()='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
  and p_institution_id='11111111-1111-1111-1111-111111111111'::uuid
  and p_division_id='22222222-2222-2222-2222-222222222222'::uuid
- and p_permission='attendance.manage' $$;
+ and p_permission_key='attendance.manage' $;
 \i supabase/migrations/20261120030658_create_private_permission_helpers.sql
-create or replace function private.can_access_student(p_institution_id uuid,p_student_id uuid,p_permission text)
+create or replace function private.can_access_student(p_student_id uuid,p_institution_id uuid,p_permission_key text)
 returns boolean language sql stable
-as $$ select exists(select 1 from public.students s where s.id=p_student_id and s.institution_id=p_institution_id) $$;
+as $ select exists(select 1 from public.students s where s.id=p_student_id and s.institution_id=p_institution_id) $;
 
 grant usage on schema auth, private to authenticated;
 grant execute on function auth.uid() to authenticated;
@@ -96,6 +96,10 @@ insert into public.roles(id,key) values
  ('55555555-5555-5555-5555-555555555553','student'),
  ('55555555-5555-5555-5555-555555555554','teacher'),
  ('55555555-5555-5555-5555-555555555555','guardian');
+insert into public.permissions(key,description) values('attendance.manage','Synthetic test permission') on conflict(key) do nothing;
+insert into public.role_permissions(role_id,permission_id)
+select '55555555-5555-5555-5555-555555555551',id from public.permissions where key='attendance.manage'
+on conflict do nothing;
 insert into public.membership_roles values
  ('33333333-3333-3333-3333-333333333331','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555551'),
  ('33333333-3333-3333-3333-333333333332','11111111-1111-1111-1111-111111111111','55555555-5555-5555-5555-555555555553'),
