@@ -25,11 +25,11 @@ export async function POST(request: NextRequest) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
     return NextResponse.json(
-      { error: "Falta configurar SUPABASE_SERVICE_ROLE_KEY en el entorno seguro del servidor." },
+      { error: "Falta configurar la clave administrativa de Supabase en el entorno seguro del servidor." },
       { status: 503 },
     );
   }
