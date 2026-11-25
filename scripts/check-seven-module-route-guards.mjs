@@ -39,6 +39,7 @@ assert.ok(workspace.includes('.eq("status", "active").maybeSingle()'), "inactive
 assert.ok(workspace.includes("module.permissions.every"), "navigation must require every declared permission");
 assert.ok(workspace.includes("roleKeys.includes(module.role)"), "navigation must match institutional role");
 assert.ok(!tutor.includes('role === "student"'), "student access belongs to the separate student workspace");
+assert.ok(student.includes('.eq("recipient_membership_id", membership.id)'), "student notification count must be membership-scoped");
 const slash = String.fromCharCode(92);
 const validDatePattern = "!/^" + slash + "d{4}-" + slash + "d{2}-" + slash + "d{2}T" + slash + "d{2}:" + slash + "d{2}$/.test(scheduledRaw)";
 const doubleEscapedDatePattern = "!/^" + slash + slash + "d{4}";

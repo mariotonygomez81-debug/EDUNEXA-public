@@ -71,7 +71,7 @@ export default async function StudentWorkspace({ params }: { params: Promise<{ s
   const now = new Date();
   const [{ count: unreadNotificationCount }, taskResults, announcementResult] = await Promise.all([
     supabase.from("notifications").select("id", { count: "exact", head: true })
-      .eq("institution_id", institution.id).is("read_at", null),
+      .eq("institution_id", institution.id).eq("recipient_membership_id", membership.id).is("read_at", null),
     Promise.all(classrooms.map(async (classroom) => {
       const result = await supabase.rpc("get_classroom_overview", { p_classroom_id: classroom.id });
       const overview = (result.data ?? {}) as { assignments?: { id: string; title: string; due_at: string | null }[] };
