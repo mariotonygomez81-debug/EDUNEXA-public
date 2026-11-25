@@ -113,3 +113,19 @@ La migración adicional `20261125193000_superadmin_execution_layer.sql` agrega l
 - Los cambios en ciclos lectivos, períodos, escalas y estructura académica sincronizan instantáneas no personales en private.platform_institution_clone_config. La clonación configuration-only copia las categorías permitidas y materializa en la institución destino escalas, niveles, cursos, materias, relaciones curso-materia, ciclos, períodos y divisiones, remapeando sus identificadores. No copia sedes/direcciones, membresías, personal, matrículas, alumnos, tutores, notas, asistencias, mensajes ni expedientes. La materialización ocurre en la misma transacción que marca el trabajo completado; ante error se revierte y el trabajo se reencola para recuperación.
 - La consola Superadministrador incorpora formularios de solicitud, aprobaciones independientes, ejecución de un trabajo de clonación ya aprobado y cola de planes Groq con aprobación/ejecución. Los secretos administrativos se leen únicamente en rutas del servidor.
 - Supabase alojado y Render siguen en lectura/planificación: esta migración no se aplica a servicios alojados ni autoriza despliegues o cambios de esquema remotos.
+
+
+## Registro privado de configuración y límites de clonación
+
+La migración sincroniza al registro privado los valores que existen actualmente en el modelo institucional:
+
+- `institution_profile`: `institutions.locale` y `institutions.timezone`.
+- `academic_calendar`: ciclos lectivos y períodos.
+- `grading_scales`: escalas y niveles.
+- `academic_structure`: niveles educativos, cursos, sedes (nombre/código/sede principal), divisiones, materias y relaciones curso-materia.
+
+Las sedes contienen también domicilio y teléfono, pero esos campos se excluyen deliberadamente del snapshot y de la materialización. Las divisiones conservan su relación con una sede mediante un mapa de IDs nuevos dentro del tenant destino.
+
+La revisión de las migraciones existentes no encontró una tabla general `institution_settings` ni tablas de plantillas institucionales compartidas que puedan copiarse con seguridad. Las claves `branding`, `timetable_templates`, `notification_templates` y `module_settings` siguen siendo categorías reservadas del registro, no se declaran como sincronizadas desde una tabla de origen inexistente. Las preferencias docentes de aula y las preferencias de notificaciones están vinculadas a membresías/personas y quedan fuera de la clonación.
+
+La política de lectura delegada de Administrador incluye `institution_profile`; los demás módulos conservan sus categorías explícitas. La guía de pruebas manuales está en `docs/testing/superadmin-integral-validation.md`.
