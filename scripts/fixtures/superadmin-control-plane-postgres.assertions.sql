@@ -176,6 +176,13 @@ BEGIN
     RAISE EXCEPTION 'expected module scope denial';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 
+  v_context:=public.platform_resolve_delegated_context_by_slug('colegio-sintetico-uno');
+  IF v_context->'institution'->>'slug'<>'colegio-sintetico-uno'
+    OR v_context->>'mode'<>'delegated_support_read_only' THEN
+    RAISE EXCEPTION 'delegated workspace must resolve through institution slug under RLS';
+  END IF;
+END $$;
+
 -- RLS defense-in-depth: a docentes grant can SELECT only academic_structure snapshots.
 GRANT USAGE ON SCHEMA private TO authenticated;
 GRANT SELECT ON private.platform_institution_clone_config TO authenticated;
@@ -194,12 +201,6 @@ BEGIN
 END $$;
 RESET ROLE;
 COMMIT;
-  v_context:=public.platform_resolve_delegated_context_by_slug('colegio-sintetico-uno');
-  IF v_context->'institution'->>'slug'<>'colegio-sintetico-uno'
-    OR v_context->>'mode'<>'delegated_support_read_only' THEN
-    RAISE EXCEPTION 'delegated workspace must resolve through institution slug under RLS';
-  END IF;
-END $$;
 
 -- An active support delegation can be revoked and the action is audited.
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
