@@ -125,10 +125,10 @@ DECLARE v_id uuid; v_delegation uuid;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
   v_delegation:=(public.platform_request_delegation_scoped_idempotent(v_id,'Asistencia técnica sintética solicitada',
-    now()+interval '15 minutes',ARRAY['docentes','administrador'],
+    now()+interval '15 minutes',ARRAY['docentes'],
     'synthetic-request-delegation-001','synthetic-delegation-idempotency-01')->>'delegation_id')::uuid;
   IF (public.platform_request_delegation_scoped_idempotent(v_id,'Asistencia técnica sintética solicitada',
-    (SELECT expires_at FROM private.platform_delegations WHERE id=v_delegation),ARRAY['administrador','docentes'],
+    (SELECT expires_at FROM private.platform_delegations WHERE id=v_delegation),ARRAY['docentes'],
     'synthetic-request-delegation-retry','synthetic-delegation-idempotency-01')->>'delegation_id')::uuid IS DISTINCT FROM v_delegation THEN
     RAISE EXCEPTION 'delegation idempotency key must return the original request';
   END IF;
@@ -160,7 +160,6 @@ BEGIN
   v_context:=public.platform_resolve_delegated_context(v_id);
   IF v_context->>'mode'<>'delegated_support_read_only'
     OR NOT (v_context->'module_scope' ? 'docentes')
-    OR NOT (v_context->'module_scope' ? 'administrador')
     OR (v_context->>'expires_at')::timestamptz<=now() THEN
     RAISE EXCEPTION 'delegated context must be scoped, read-only and unexpired';
   END IF;
