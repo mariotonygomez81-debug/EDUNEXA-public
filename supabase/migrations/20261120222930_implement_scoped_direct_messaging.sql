@@ -132,7 +132,7 @@ begin
 
   return false;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.create_direct_conversation_impl(p_institution_id uuid, p_recipient_membership_id uuid, p_subject text DEFAULT NULL::text)
@@ -213,7 +213,7 @@ begin
 
   return v_conversation_id;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.fanout_message_notification()
@@ -263,7 +263,7 @@ begin
 
   return new;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.is_staff_assigned_to_division(p_membership_id uuid, p_institution_id uuid, p_division_id uuid)
@@ -290,7 +290,7 @@ AS $function$
         )
       )
   );
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.list_conversation_messages_impl(p_institution_id uuid, p_conversation_id uuid, p_limit integer DEFAULT 50)
@@ -347,7 +347,7 @@ begin
   left join public.profiles p on p.id=sender.user_id
   order by latest.sent_at asc;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.list_messageable_contacts_impl(p_institution_id uuid)
@@ -394,7 +394,7 @@ begin
   order by 2
   limit 250;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.list_my_conversations_impl(p_institution_id uuid)
@@ -473,7 +473,7 @@ begin
   order by coalesce(latest.sent_at,c.created_at) desc
   limit 100;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.mark_conversation_read_impl(p_institution_id uuid, p_conversation_id uuid)
@@ -522,7 +522,7 @@ begin
 
   return v_count;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION private.send_conversation_message_impl(p_institution_id uuid, p_conversation_id uuid, p_body text)
@@ -573,7 +573,7 @@ begin
   returning id into v_message_id;
   return v_message_id;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.create_direct_conversation(p_institution_id uuid, p_recipient_membership_id uuid, p_subject text DEFAULT NULL::text)
@@ -584,7 +584,7 @@ AS $function$
   select private.create_direct_conversation_impl(
     p_institution_id,p_recipient_membership_id,p_subject
   );
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.list_conversation_messages(p_institution_id uuid, p_conversation_id uuid, p_limit integer DEFAULT 50)
@@ -596,7 +596,7 @@ AS $function$
   select * from private.list_conversation_messages_impl(
     p_institution_id,p_conversation_id,p_limit
   );
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.list_messageable_contacts(p_institution_id uuid)
@@ -606,7 +606,7 @@ CREATE OR REPLACE FUNCTION public.list_messageable_contacts(p_institution_id uui
  SET search_path TO ''
 AS $function$
   select * from private.list_messageable_contacts_impl(p_institution_id);
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.list_my_conversations(p_institution_id uuid)
@@ -616,7 +616,7 @@ CREATE OR REPLACE FUNCTION public.list_my_conversations(p_institution_id uuid)
  SET search_path TO ''
 AS $function$
   select * from private.list_my_conversations_impl(p_institution_id);
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.mark_conversation_read(p_institution_id uuid, p_conversation_id uuid)
@@ -625,7 +625,7 @@ CREATE OR REPLACE FUNCTION public.mark_conversation_read(p_institution_id uuid, 
  SET search_path TO ''
 AS $function$
   select private.mark_conversation_read_impl(p_institution_id,p_conversation_id);
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.send_conversation_message(p_institution_id uuid, p_conversation_id uuid, p_body text)
@@ -636,7 +636,7 @@ AS $function$
   select private.send_conversation_message_impl(
     p_institution_id,p_conversation_id,p_body
   );
-$function$
+$function$;
 
 
 revoke all on function private.is_staff_assigned_to_division(uuid,uuid,uuid) from public,anon,authenticated;
