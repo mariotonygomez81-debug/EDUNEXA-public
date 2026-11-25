@@ -55,8 +55,12 @@ DECLARE v_id uuid; v_version timestamptz;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
   SELECT updated_at INTO v_version FROM public.institutions WHERE id=v_id;
+  PERFORM public.platform_update_institution(v_id,'Colegio Sintético Uno Actualizado','Colegio Sintético Uno Actualizado S.A.','es-AR','America/Argentina/Buenos_Aires',v_version,
+    'Actualización sintética de los datos generales','synthetic-request-update-001','synthetic-update-key-00001');
+  SELECT updated_at INTO v_version FROM public.institutions WHERE id=v_id;
   PERFORM public.platform_set_institution_status(v_id,'active',v_version,
     'Activación sintética luego de verificar la ficha','synthetic-request-status-001','synthetic-status-key-0001');
+  IF NOT EXISTS(SELECT 1 FROM public.institutions WHERE id=v_id AND display_name='Colegio Sintético Uno Actualizado') THEN RAISE EXCEPTION 'institution profile update failed'; END IF;
   PERFORM public.platform_assign_institution_admin(v_id,'00000000-0000-4000-8000-000000000004',
     'Asignación sintética de administrador institucional','synthetic-request-admin-001','synthetic-admin-key-00001');
   PERFORM public.platform_assign_institution_admin(v_id,'00000000-0000-4000-8000-000000000005',
