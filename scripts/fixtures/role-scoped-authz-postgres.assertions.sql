@@ -137,3 +137,82 @@ end $$;
 
 reset role;
 select 'PASS: role-scoped authorization positive/negative PostgreSQL tests.' as result;
+
+
+-- Negative role matrix for the remaining institutional modules. Each identity
+-- has one contextual role only; permissions from another role must not leak.
+reset role;
+insert into public.memberships values
+ ('20000000-0000-0000-0000-000000000006','30000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000006','active'),
+ ('20000000-0000-0000-0000-000000000007','30000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000007','active'),
+ ('20000000-0000-0000-0000-000000000008','30000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000008','active'),
+ ('20000000-0000-0000-0000-000000000009','30000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000009','active'),
+ ('20000000-0000-0000-0000-000000000010','30000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000010','active');
+insert into public.membership_roles values
+ ('20000000-0000-0000-0000-000000000006','30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001'),
+ ('20000000-0000-0000-0000-000000000007','30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000002'),
+ ('20000000-0000-0000-0000-000000000008','30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000006'),
+ ('20000000-0000-0000-0000-000000000009','30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000005'),
+ ('20000000-0000-0000-0000-000000000010','30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000004');
+insert into public.staff_assignments(
+ id,institution_id,membership_id,division_id,assignment_type,starts_on,ends_on
+) values (
+ '54000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001',
+ '20000000-0000-0000-0000-000000000009','50000000-0000-0000-0000-000000000001',
+ 'prefect',current_date-1,null
+);
+
+-- Administrative: student records are in scope, but academic grade access is not.
+set role authenticated;
+select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000006',false);
+do $$ begin
+ if not private.can_access_student('60000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','students.read') then raise exception 'administrative student read should be allowed'; end if;
+ if private.can_access_student('60000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','grades.read') then raise exception 'administrative role borrowed grades.read'; end if;
+ if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.read') then raise exception 'administrative role accessed classroom without a contextual grant'; end if;
+end $$;
+
+-- Directivos: read academic information, but cannot grade or mutate classrooms.
+select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000007',false);
+do $$ begin
+ if not private.can_access_student('60000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','grades.read') then raise exception 'director grades.read should be allowed'; end if;
+ if private.can_access_student('60000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','grades.manage') then raise exception 'director unexpectedly received grades.manage'; end if;
+ if not private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.read') then raise exception 'director classroom read should be allowed'; end if;
+ if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.grade') then raise exception 'director unexpectedly graded classroom work'; end if;
+end $$;
+
+-- Secretaría: student management does not imply grade, attendance, or classroom access.
+select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000008',false);
+do $$ begin
+ if not private.can_access_student('60000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','students.manage') then raise exception 'secretary students.manage should be allowed'; end if;
+ if private.can_access_student('60000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','grades.read') then raise exception 'secretary unexpectedly received grades.read'; end if;
+ if private.can_manage_division('50000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','attendance.manage') then raise exception 'secretary unexpectedly managed attendance'; end if;
+end $$;
+
+-- Preceptor: assigned division only, and attendance authority is not grade authority.
+select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000009',false);
+do $$ begin
+ if not private.can_access_student('60000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','students.read') then raise exception 'assigned prefect could not read assigned student'; end if;
+ if private.can_access_student('60000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','students.read') then raise exception 'prefect read student outside assigned division'; end if;
+ if not private.can_manage_division('50000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','attendance.manage') then raise exception 'prefect attendance management should be allowed in assigned division'; end if;
+ if private.can_manage_division('50000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','attendance.manage') then raise exception 'prefect managed an unassigned division'; end if;
+ if private.can_manage_division('50000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','grades.manage') then raise exception 'prefect unexpectedly managed grades'; end if;
+end $$;
+
+-- Institution administrator: institution-wide management does not grant classroom grading.
+select set_config('request.jwt.claim.sub','40000000-0000-0000-0000-000000000010',false);
+do $$ begin
+ if not private.can_manage_division('50000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','attendance.manage') then raise exception 'institution admin should manage an institution division'; end if;
+ if not private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.read') then raise exception 'institution admin should read classroom'; end if;
+ if private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.grade') then raise exception 'institution admin unexpectedly graded through classroom scope'; end if;
+ if private.can_access_student('60000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000002','students.read') then raise exception 'institution admin crossed tenant boundary'; end if;
+end $$;
+
+-- Anonymous/no-subject requests must fail closed.
+select set_config('request.jwt.claim.sub','',false);
+do $$ begin
+ if private.can_access_student('60000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','students.read')
+ or private.can_access_classroom('57000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','classroom.read')
+ then raise exception 'request without authenticated subject retained access'; end if;
+end $$;
+reset role;
+select 'PASS: eight-role negative authorization matrix, tenant boundaries, inactive memberships and fail-closed anonymous access.' as result;
