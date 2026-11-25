@@ -189,17 +189,20 @@ GRANT SELECT ON private.platform_institution_clone_config TO authenticated;
 SELECT set_config('test.institution_id',(SELECT institution_id::text FROM synthetic_results),false);
 BEGIN;
 SET LOCAL ROLE authenticated;
-DO $$
-DECLARE v_structure integer; v_scales integer;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',true);
+DO $
+DECLARE v_structure integer; v_scales integer; v_scope boolean;
 BEGIN
+  v_scope:=private.has_active_delegated_module_scope(current_setting('test.institution_id')::uuid,'docentes');
   SELECT count(*) INTO v_structure FROM private.platform_institution_clone_config
     WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='academic_structure';
   SELECT count(*) INTO v_scales FROM private.platform_institution_clone_config
     WHERE institution_id=current_setting('test.institution_id')::uuid AND config_key='grading_scales';
-  IF v_structure<>1 OR v_scales<>0 THEN
-    RAISE EXCEPTION 'module RLS must allow only the categories assigned to docentes';
+  IF NOT v_scope OR v_structure<>1 OR v_scales<>0 THEN
+    RAISE EXCEPTION 'module RLS must allow only the categories assigned to docentes (scope %, structure %, scales %)',v_scope,v_structure,v_scales;
   END IF;
-END $$;
+END $;
 RESET ROLE;
 COMMIT;
 
