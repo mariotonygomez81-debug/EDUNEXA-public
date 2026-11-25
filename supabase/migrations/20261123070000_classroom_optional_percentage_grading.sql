@@ -41,7 +41,7 @@ begin
   if (select auth.uid()) is null then raise exception 'Authentication required' using errcode='28000'; end if;
   if p_title is null or length(btrim(p_title)) not between 3 and 160
     or coalesce(length(p_instructions),0)>20000
-    or (p_max_score is not null and (p_max_score<=0 or p_max_score>100)) then
+    or (p_max_score is not null and p_max_score <> 100) then
     raise exception 'Invalid assignment content' using errcode='22023';
   end if;
   select vc.institution_id into v_institution_id from public.virtual_classrooms vc where vc.id=p_classroom_id;
