@@ -1,7 +1,7 @@
 const baseUrl = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
 const routes = [
   { path: "/login", marker: "EDUNEXA" },
-  { path: "/demo", marker: "Panel de demostración" },
+  { path: "/demo", expectedStatus: 404 },
   { path: "/forgot-password" },
   { path: "/reset-password" },
 ];
@@ -28,15 +28,16 @@ for (const route of routes) {
   try {
     const response = await fetch(new URL(route.path, baseUrl));
     const html = await response.text();
-    if (!response.ok) {
-      failures.push(`${route.path}: HTTP ${response.status}`);
+    const expectedStatus = route.expectedStatus ?? 200;
+    if (response.status !== expectedStatus) {
+      failures.push(`${route.path}: expected HTTP ${expectedStatus}, got ${response.status}`);
       continue;
     }
     if (route.marker && !html.includes(route.marker)) {
       failures.push(`${route.path}: expected page marker "${route.marker}" was missing`);
       continue;
     }
-    process.stdout.write(`PASS ${route.path} (HTTP ${response.status})\n`);
+    process.stdout.write(`PASS ${route.path} (HTTP ${response.status})${expectedStatus === 404 ? " — route intentionally absent" : ""}\n`);
   } catch (error) {
     failures.push(`${route.path}: ${error instanceof Error ? error.message : String(error)}`);
   }
