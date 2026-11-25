@@ -6,6 +6,8 @@ const migration = read("../supabase/migrations/20261125190000_superadmin_global_
 const api = read("../src/app/api/platform/[...segments]/route.ts");
 const guard = read("../src/lib/auth/platform-api.ts");
 const consoleSource = read("../src/components/admin/platform-superadmin-console.tsx");
+const postgresFixture = read("../scripts/fixtures/superadmin-control-plane-postgres.sql");
+const postgresAssertions = read("../scripts/fixtures/superadmin-control-plane-postgres.assertions.sql");
 
 for (const token of [
   "private.platform_audit_events", "platform_audit_no_update_delete",
@@ -35,6 +37,9 @@ assert.ok(api.includes("updateUserById"), "Approved Superadmin role changes must
 assert.ok(guard.includes("isPlatformSuperAdmin(user)"));
 assert.ok(guard.includes('request.headers.get("origin")'));
 assert.ok(consoleSource.includes("Copiloto EDUNEXA"));
+assert.equal((postgresFixture.match(/DO \$\$/g) ?? []).length, (postgresFixture.match(/END \$\$;/g) ?? []).length, "PostgreSQL fixture DO blocks must be balanced");
+assert.equal((postgresAssertions.match(/DO \$\$/g) ?? []).length, (postgresAssertions.match(/END \$\$;/g) ?? []).length, "PostgreSQL assertion DO blocks must be balanced");
+assert.ok(!/DO \$(?!\$)/.test(postgresFixture + postgresAssertions), "Single-dollar DO delimiters are forbidden");
 
 const publicFunctions = [...migration.matchAll(/create or replace function public\.(platform_[a-z_]+)/g)].map((match) => match[1]);
 assert.equal(new Set(publicFunctions).size, publicFunctions.length, "Public platform RPCs must not be duplicated");
