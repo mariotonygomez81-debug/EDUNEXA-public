@@ -10,7 +10,7 @@ export type ExecutionResult = {
 };
 
 const INTEGRATION_BRANCH = "feature/EDUNEXA-MODELES";
-const REPOSITORY = process.env.EDUNEXA_GITHUB_REPOSITORY || "mariotonygomez81-debug/EDUNEXA-public";
+const REPOSITORY = "mariotonygomez81-debug/EDUNEXA-public";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -53,7 +53,7 @@ async function github(step: PlanStep, compensate: Array<() => Promise<void>>) {
   }
 
   if (step.action === "run_ci") {
-    const workflow = requiredEnv("EDUNEXA_CI_WORKFLOW_ID");
+    const workflow = process.env.EDUNEXA_CI_WORKFLOW_ID?.trim() || "ci.yml";
     await requestJson(`${root}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`, {
       method: "POST", headers, body: JSON.stringify({ ref: INTEGRATION_BRANCH }),
     });
