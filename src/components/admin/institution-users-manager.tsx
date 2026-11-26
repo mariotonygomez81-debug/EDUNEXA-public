@@ -168,11 +168,11 @@ export default function InstitutionUsersManager({ slug }: { slug: string }) {
                 <select multiple size={Math.min(roles.length, 4)} aria-label={`Perfiles de ${member.display_name}`}
                   value={draftRoles[member.membership_id] ?? (member.role_keys?.length ? member.role_keys : (member.role_key ? [member.role_key] : []))}
                   onChange={e=>setDraftRoles(prev=>({...prev,[member.membership_id]:Array.from(e.target.selectedOptions, option=>option.value)}))}
-                  disabled={member.status==="ended" || busy===member.membership_id}>
+                  disabled={member.status!=="active" || busy===member.membership_id}>
                   {roles.map(r=><option key={r.key} value={r.key}>{r.name}</option>)}
                 </select>
-                <button type="button" onClick={()=>void changeRoles(member)} disabled={busy===member.membership_id || !(draftRoles[member.membership_id]?.length)}>Guardar</button>
-                {(draftRoles[member.membership_id] ?? member.role_keys ?? [member.role_key]).includes("director") && <select aria-label={`Subperfil de ${member.display_name}`} value={draftSubprofiles[member.membership_id] ?? ""} onChange={e=>setDraftSubprofiles(prev=>({...prev,[member.membership_id]:e.target.value}))} disabled={member.status==="ended" || busy===member.membership_id}>
+                <button type="button" onClick={()=>void changeRoles(member)} disabled={member.status!=="active" || busy===member.membership_id || !(draftRoles[member.membership_id]?.length)}>Guardar</button>
+                {(draftRoles[member.membership_id] ?? member.role_keys ?? [member.role_key]).includes("director") && <select aria-label={`Subperfil de ${member.display_name}`} value={draftSubprofiles[member.membership_id] ?? ""} onChange={e=>setDraftSubprofiles(prev=>({...prev,[member.membership_id]:e.target.value}))} disabled={member.status!=="active" || busy===member.membership_id}>
                   <option value="">Seleccionar subperfil</option>
                   {directorSubprofiles.map(([value,label])=><option key={value} value={value}>{label}</option>)}
                 </select>}

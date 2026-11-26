@@ -373,6 +373,9 @@ Deno.serve(async (req: Request) => {
     }
 
     if (["update_role", "update_roles"].includes(action)) {
+      if (target.status !== "active") {
+        return response({ error: "Only active memberships can have their roles changed." }, 409, origin);
+      }
       const requestedRoleKeys = action === "update_roles" && Array.isArray(body.role_keys)
         ? body.role_keys.map((key: unknown) => clean(key, 40))
         : [clean(body.role_key, 40)];

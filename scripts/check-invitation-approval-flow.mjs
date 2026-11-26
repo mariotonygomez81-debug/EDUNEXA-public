@@ -16,4 +16,14 @@ assert.match(edge, /!\["active", "suspended"\]\.includes\(target\.status\)/);
 assert.match(panel, /action: "approve_invitation"/);
 assert.match(panel, /Aprobar acceso/);
 assert.match(panel, /Pendiente de aprobación/);
-console.log("PASS: invitation activation requires explicit institution approval after email confirmation.");
+
+const roleMutationBlock = edge.match(/if \(\["update_role", "update_roles"\]\.includes\(action\)\) \{([\\s\\S]*?)\\n    if \(action === "set_status"\)/);
+assert.ok(roleMutationBlock, "Role update handler must exist");
+assert.match(roleMutationBlock[1], /target\.status !== "active"/, "Role updates must reject every non-active membership");
+assert.ok(roleMutationBlock[1].indexOf('target.status !== "active"') < roleMutationBlock[1].indexOf('from("membership_roles").delete()'), "Status guard must run before deleting existing roles");
+assert.match(panel, /disabled=\{member\.status!==\"active\" \|\| busy===member\.membership_id\}/, "Role selector must be disabled unless membership is active");
+assert.match(panel, /disabled=\{member\.status!==\"active\" \|\| busy===member\.membership_id \|\| !\(draftRoles\[member\.membership_id\]\?\.length\)\}/, "Save button must be disabled unless membership is active");
+assert.match(panel, /disabled=\{member\.status!==\"active\" \|\| busy===member\.membership_id\}/, "Director subprofile selector must be disabled unless membership is active");
+assert.match(panel, /status===\"invited\" \? <button[^>]*Aprobar acceso/, "Invitation approval action must remain available for invited memberships");
+
+console.log("PASS: invitations require explicit approval; role assignments stay immutable until membership is active.");
