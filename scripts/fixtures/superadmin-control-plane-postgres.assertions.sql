@@ -149,7 +149,8 @@ DECLARE v_id uuid; v_version timestamptz;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
   SELECT updated_at INTO v_version FROM public.institutions WHERE id=v_id;
-  PERFORM public.platform_update_institution(v_id,'Colegio Sintético Uno Actualizado','Colegio Sintético Uno Actualizado S.A.','es-AR','America/Argentina/Buenos_Aires',v_version,
+  PERFORM public.platform_update_institution(v_id,'Colegio Sintético Uno Actualizado','Colegio Sintético Uno Actualizado S.A.','es-AR','America/Argentina/Buenos_Aires',
+    null,null,null,null,null,null,'Argentina',null,null,v_version,
     'Actualización sintética de los datos generales','synthetic-request-update-001','synthetic-update-key-00001');
   SELECT updated_at INTO v_version FROM public.institutions WHERE id=v_id;
   PERFORM public.platform_set_institution_status(v_id,'active',v_version,
