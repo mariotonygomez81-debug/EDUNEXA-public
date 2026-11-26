@@ -153,36 +153,55 @@ export async function POST(request: Request, route: RouteContext) {
     const admin = createSupabaseAdminClient(supabaseUrl, adminSecret, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+    const { data: institution, error: institutionError } = await admin.from("institutions")
+      .select("id,status").eq("id", segments[1]).maybeSingle();
+    if (institutionError || !institution) return json({ error: "La institución no existe." }, 404);
+    if (institution.status !== "active") return json({ error: "La institución debe estar activa para recibir administradores." }, 409);
+
+    let targetUserId = "";
+    let inviteEmailSent = false;
     const invited = await admin.auth.admin.inviteUserByEmail(email, {
       data: { first_name: firstName, last_name: lastName, display_name: `${firstName} ${lastName}` },
       redirectTo,
     });
-    if (invited.error || !invited.data.user) {
-      const message = invited.error?.message ?? "";
-      if (/already registered|already exists|user already/i.test(message)) {
-        return json({ error: "Ya existe una cuenta con ese correo. Asigná el usuario existente desde su UUID." }, 409);
+    if (!invited.error && invited.data.user) {
+      targetUserId = invited.data.user.id;
+      inviteEmailSent = true;
+    } else if (/already registered|already exists|user already/i.test(invited.error?.message ?? "")) {
+      // Supports safe retries after the Auth invite succeeded but the HTTP response was lost.
+      for (let page = 1; page <= 10 && !targetUserId; page++) {
+        const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error) return json({ error: "No se pudo verificar la cuenta Auth existente." }, 502);
+        targetUserId = data.users.find((user) => user.email?.toLowerCase() === email)?.id ?? "";
+        if (data.users.length < 1000) break;
       }
+      if (!targetUserId) return json({ error: "Ya existe una cuenta con ese correo. No se pudo resolver su identidad Auth." }, 409);
+    } else {
       return json({ error: "No se pudo enviar la invitación de correo." }, 502);
     }
 
     result = await platformRpc(auth.supabase, "platform_invite_institution_admin", {
-      p_institution_id: segments[1], p_user_id: invited.data.user.id,
+      p_institution_id: segments[1], p_user_id: targetUserId,
       p_reason: text(body.reason), p_request_id: requestIdValue, p_idempotency_key: key,
     });
     if (result.error) {
-      const rollback = await admin.auth.admin.deleteUser(invited.data.user.id);
-      if (rollback.error) {
-        console.error("[platform-admin-invite] Auth compensation failed", {
-          requestId: requestIdValue, userId: invited.data.user.id,
-        });
-        return json({ error: "La asignación institucional falló y no se pudo compensar la invitación Auth. Requiere revisión administrativa." }, 500);
+      if (inviteEmailSent) {
+        const rollback = await admin.auth.admin.deleteUser(targetUserId);
+        if (rollback.error) {
+          console.error("[platform-admin-invite] Auth compensation failed", {
+            requestId: requestIdValue, userId: targetUserId,
+          });
+          return json({ error: "La asignación institucional falló y no se pudo compensar la invitación Auth. Requiere revisión administrativa." }, 500);
+        }
       }
       return rpcErrorResponse(result.error);
     }
     return json({
       invitation: result.data,
       email,
-      message: "Invitación enviada. La membresía queda pendiente hasta que un administrador institucional apruebe el acceso.",
+      message: inviteEmailSent
+        ? "Invitación enviada. La membresía queda pendiente hasta que un administrador institucional apruebe el acceso."
+        : "La cuenta Auth ya existía. Se creó la membresía pendiente; el acceso requiere aprobación institucional y no se reenvió correo.",
     }, 201);
   }
 
