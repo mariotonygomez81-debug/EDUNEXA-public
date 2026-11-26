@@ -440,9 +440,10 @@ export async function PATCH(request: Request, route: RouteContext) {
     if (!form) return json({ error: "El formulario institucional no es válido." }, 400);
     const value = (key: string) => text(form.get(key));
     const reason = value("reason");
-    const expected = new Date(value("expectedUpdatedAt"));
+    const expectedUpdatedAt = value("expectedUpdatedAt");
+    const expected = new Date(expectedUpdatedAt);
     if (!requiredReason(reason) || !value("displayName") || !value("legalName")
-      || !value("locale") || !value("timezone") || Number.isNaN(expected.getTime())
+      || !value("locale") || !value("timezone") || !expectedUpdatedAt || Number.isNaN(expected.getTime())
       || !idempotencyKey(request)) {
       return json({ error: "Completá nombre, razón social, idioma, zona horaria, versión y motivo (mínimo 12 caracteres)." }, 400);
     }
@@ -485,7 +486,7 @@ export async function PATCH(request: Request, route: RouteContext) {
           p_address_line: value("addressLine") || null, p_city: value("city") || null,
           p_province: value("province") || null, p_country: value("country") || "Argentina",
           p_website_url: value("websiteUrl") || null, p_logo_path: logoPath,
-          p_expected_updated_at: expected.toISOString(), p_reason: reason,
+          p_expected_updated_at: expectedUpdatedAt, p_reason: reason,
           p_request_id: saveRequestId, p_idempotency_key: idempotencyKey(request),
         }),
         new Promise<never>((_, reject) => {
