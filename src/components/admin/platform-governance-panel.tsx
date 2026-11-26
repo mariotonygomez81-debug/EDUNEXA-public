@@ -36,6 +36,13 @@ export default function PlatformGovernancePanel() {
   const [loading,setLoading] = useState(false);
   const [message,setMessage] = useState("");
   const [loadError,setLoadError] = useState("");
+  const [auditSearch,setAuditSearch] = useState("");
+  const [auditInstitution,setAuditInstitution] = useState("");
+  const [auditAction,setAuditAction] = useState("");
+  const [auditActor,setAuditActor] = useState("");
+  const [auditOutcome,setAuditOutcome] = useState("");
+  const [auditHasMore,setAuditHasMore] = useState(false);
+  const [selectedAuditEvent,setSelectedAuditEvent] = useState<AuditEvent|null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true); setLoadError("");
@@ -43,17 +50,27 @@ export default function PlatformGovernancePanel() {
       const responses = await Promise.all([
         fetch("/api/platform/superadmins",{cache:"no-store"}),
         fetch("/api/platform/superadmins/requests?limit=50",{cache:"no-store"}),
-        fetch("/api/platform/audit?limit=30",{cache:"no-store"}),
+        fetch(`/api/platform/audit?${new URLSearchParams({
+          limit:"30",
+          ...(auditSearch.trim()?{search:auditSearch.trim()}:{}),
+          ...(auditInstitution.trim()?{institutionId:auditInstitution.trim()}:{}),
+          ...(auditAction.trim()?{action:auditAction.trim()}:{}),
+          ...(auditActor.trim()?{actorUserId:auditActor.trim()}:{}),
+          ...(auditOutcome?{outcome:auditOutcome}:{}),
+        }).toString()}`,{cache:"no-store"}),
       ]);
       if(responses.some(response=>!response.ok)) throw new Error("No se pudo consultar el registro global. Verificá que las migraciones versionadas estén disponibles en el entorno.");
       const [adminsData,requestsData,auditData] = await Promise.all(responses.map(response=>response.json()));
       setSuperadmins(Array.isArray(adminsData.superadmins)?adminsData.superadmins:[]);
       setRequests(Array.isArray(requestsData.requests)?requestsData.requests:[]);
-      setEvents(Array.isArray(auditData.events)?auditData.events:[]);
+      const auditRows=Array.isArray(auditData.events)?auditData.events:[];
+      setEvents(auditRows);
+      setAuditHasMore(auditRows.length===30);
+      setSelectedAuditEvent(null);
     } catch(error) {
       setLoadError(error instanceof Error?error.message:"No se pudo actualizar la consola.");
     } finally { setLoading(false); }
-  },[]);
+  },[auditSearch,auditInstitution,auditAction,auditActor,auditOutcome]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void refresh(); }, 0);
@@ -126,12 +143,35 @@ export default function PlatformGovernancePanel() {
 
     <section id="global-audit" className="scroll-mt-6 space-y-4 rounded-2xl border border-cyan-200/15 bg-cyan-950/15 p-5">
       <div className="flex items-center gap-3"><Activity size={20} className="text-cyan-200"/><div><p className="text-[11px] font-bold tracking-[.16em] text-cyan-200">TRAZABILIDAD INTEGRAL</p><h2 className="text-xl font-bold text-white">Auditoría global</h2><p className="mt-1 text-sm text-slate-400">Registro append-only de operaciones privilegiadas, con actor, motivo, resultado y correlación.</p></div></div>
-      {events.length===0?<p className="rounded-xl border border-white/10 p-4 text-sm text-slate-500">No hay eventos disponibles para mostrar.</p>:<div className="space-y-2">{events.map(event=><article key={event.id} className="grid gap-2 rounded-xl border border-white/10 bg-slate-950/40 p-3 md:grid-cols-[170px_1fr_auto]">
+      <div className="grid gap-2 rounded-xl border border-white/10 bg-slate-950/40 p-3 md:grid-cols-5">
+        <input aria-label="Buscar en auditoría" placeholder="Buscar texto…" value={auditSearch} onChange={e=>setAuditSearch(e.target.value)} className={inputClass}/>
+        <input aria-label="Filtrar institución" placeholder="UUID institución" value={auditInstitution} onChange={e=>setAuditInstitution(e.target.value)} className={inputClass}/>
+        <input aria-label="Filtrar acción" placeholder="Acción exacta" value={auditAction} onChange={e=>setAuditAction(e.target.value)} className={inputClass}/>
+        <input aria-label="Filtrar actor" placeholder="UUID actor" value={auditActor} onChange={e=>setAuditActor(e.target.value)} className={inputClass}/>
+        <select aria-label="Filtrar resultado" value={auditOutcome} onChange={e=>setAuditOutcome(e.target.value)} className={inputClass}>
+          <option value="">Todos los resultados</option><option value="success">Correcto</option><option value="rejected">Rechazado</option><option value="started">Iniciado</option><option value="failed">Fallido</option>
+        </select>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] text-slate-500">{events.length} eventos cargados · Aplicá filtros para acotar la búsqueda</p>
+        <button type="button" onClick={()=>void refresh()} disabled={loading||!!busy} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 disabled:opacity-50">Aplicar filtros</button>
+      </div>
+      {events.length===0?<p className="rounded-xl border border-white/10 p-4 text-sm text-slate-500">No hay eventos para esos filtros.</p>:<div className="space-y-2">{events.map(event=><article key={event.id} className="grid gap-2 rounded-xl border border-white/10 bg-slate-950/40 p-3 md:grid-cols-[170px_1fr_auto]">
         <div><p className="text-xs font-semibold text-white">{dateLabel(event.occurred_at)}</p><p className="mt-1 text-[10px] text-slate-500">{event.outcome}</p></div>
         <div><p className="text-sm font-semibold text-cyan-100">{event.action}</p><p className="mt-1 text-xs text-slate-300">{event.reason}</p><p className="mt-1 break-all font-mono text-[10px] text-slate-600">Actor {event.actor_user_id} · {event.target_type} {event.target_id||""}</p></div>
-        <span className="self-start rounded-full border border-white/10 px-2 py-1 text-[10px] text-slate-400">{event.institution_id?"Institucional":"Global"}</span>
+        <div className="flex flex-wrap items-start gap-2">
+          <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-slate-400">{event.institution_id?"Institucional":"Global"}</span>
+          <button type="button" onClick={async()=>{const response=await fetch(`/api/platform/audit/${event.id}`,{cache:"no-store"});const data=await response.json().catch(()=>({}));if(response.ok)setSelectedAuditEvent(data.event as AuditEvent);else setMessage(typeof data.error==="string"?data.error:"No se pudo abrir el detalle.");}} className="rounded-lg border border-cyan-200/20 px-2 py-1 text-[10px] text-cyan-100">Ver detalle</button>
+        </div>
       </article>)}</div>}
-      <p className="text-[11px] text-slate-500">Se muestran hasta 30 eventos recientes. La lectura de la bitácora también queda auditada.</p>
+      {selectedAuditEvent&&<div className="rounded-xl border border-cyan-200/20 bg-slate-950/70 p-4">
+        <div className="flex items-center justify-between gap-2"><h3 className="text-sm font-semibold text-white">Detalle del evento</h3><button type="button" onClick={()=>setSelectedAuditEvent(null)} className="text-xs text-slate-400">Cerrar</button></div>
+        <p className="mt-2 break-all font-mono text-[10px] text-slate-400">{selectedAuditEvent.id} · {selectedAuditEvent.request_id}</p>
+        <p className="mt-2 text-xs text-slate-200">{selectedAuditEvent.action} · {selectedAuditEvent.outcome}</p>
+        <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words text-[11px] text-slate-400">{JSON.stringify(selectedAuditEvent.metadata_redacted,null,2)}</pre>
+      </div>}
+      {auditHasMore&&events.length>0&&<button type="button" onClick={async()=>{const last=events[events.length-1];const params=new URLSearchParams({limit:"30",before:last.occurred_at,beforeId:last.id,...(auditSearch.trim()?{search:auditSearch.trim()}:{}),...(auditInstitution.trim()?{institutionId:auditInstitution.trim()}:{}),...(auditAction.trim()?{action:auditAction.trim()}:{}),...(auditActor.trim()?{actorUserId:auditActor.trim()}:{}),...(auditOutcome?{outcome:auditOutcome}:{})});const response=await fetch(`/api/platform/audit?${params.toString()}`,{cache:"no-store"});const data=await response.json().catch(()=>({}));if(response.ok){const rows=Array.isArray(data.events)?data.events:[];setEvents(current=>[...current,...rows]);setAuditHasMore(rows.length===30);}}} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200">Cargar más</button>}
+      <p className="text-[11px] text-slate-500">La lectura de la bitácora también queda auditada. El detalle expone únicamente metadata previamente redactada.</p>
     </section>
   </div>;
 }
