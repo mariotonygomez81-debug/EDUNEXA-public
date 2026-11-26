@@ -627,7 +627,8 @@ export async function PATCH(request: Request, route: RouteContext) {
   if (Number.isNaN(expected.getTime())) return json({ error: "Versión de institución inválida." }, 400);
   const result = await platformRpc(auth.supabase, "platform_set_institution_status", {
     p_institution_id: segments[1], p_status: text(body.status),
-    p_expected_updated_at: expected.toISOString(), p_reason: text(body.reason),
+    // Preserve the database timestamp's full fractional precision for optimistic concurrency.
+    p_expected_updated_at: text(body.expectedUpdatedAt), p_reason: text(body.reason),
     p_request_id: requestId(), p_idempotency_key: idempotencyKey(request),
   });
   if (result.error) return rpcErrorResponse(result.error);
