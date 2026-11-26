@@ -120,7 +120,7 @@ export default function PlatformOperationsPanel({ institutions }: { institutions
   }
 
   return (
-    <section className="space-y-5">
+    <section id="operations-panel" className="space-y-5 scroll-mt-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div><p className="text-[11px] font-bold tracking-[0.18em] text-cyan-200">OPERACIONES CON CONTROL</p>
           <h2 className="mt-1 text-xl font-bold text-white">Clonación y acceso delegado</h2>
