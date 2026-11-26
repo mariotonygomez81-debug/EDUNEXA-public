@@ -340,8 +340,8 @@ export default function PlatformSuperadminConsole({ institutions, loadError }: P
     <section className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
       <article className="rounded-2xl border border-cyan-200/15 bg-gradient-to-br from-cyan-950/60 to-slate-900 p-6">
         <div className="flex items-center gap-3"><Bot className="text-cyan-200" size={22}/><div><p className="text-[10px] font-bold tracking-[0.18em] text-cyan-200">ASISTENTE DE OPERACIONES</p><h2 className="mt-1 text-lg font-bold text-white">Copiloto EDUNEXA</h2></div></div>
-        <p className="mt-3 text-sm leading-6 text-slate-300">El panel de operaciones permite generar planes con Groq, revisarlos, aprobarlos por un segundo Superadministrador y ejecutar únicamente las acciones allowlisted. Supabase y Render continúan en modo de solo lectura/planificación.</p>
-        <div className="mt-5 flex flex-wrap gap-2 text-xs text-slate-300"><span className="rounded-lg border border-white/10 px-3 py-2">GitHub · PR y CI</span><span className="rounded-lg border border-white/10 px-3 py-2">Supabase · migraciones y RLS</span><span className="rounded-lg border border-white/10 px-3 py-2">Render · servicios y deploys</span></div>
+        <p className="mt-3 text-sm leading-6 text-slate-300">El panel de operaciones permite generar planes con Groq, revisarlos, aprobarlos por un segundo Superadministrador y ejecutar únicamente las acciones allowlisted. Supabase alojado y Render están completamente fuera de alcance; no se crean PR ni ramas.</p>
+        <div className="mt-5 flex flex-wrap gap-2 text-xs text-slate-300"><span className="rounded-lg border border-white/10 px-3 py-2">GitHub · CI en rama autorizada</span><span className="rounded-lg border border-white/10 px-3 py-2">Supabase · fuera de alcance</span><span className="rounded-lg border border-white/10 px-3 py-2">Render · fuera de alcance</span></div>
       </article>
       <article className="rounded-2xl border border-amber-200/15 bg-amber-200/[0.045] p-6">
         <div className="flex items-center gap-3"><ShieldAlert className="text-amber-200" size={22}/><h2 className="font-bold text-white">Protecciones obligatorias</h2></div>
