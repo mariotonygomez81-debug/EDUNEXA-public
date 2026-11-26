@@ -17,13 +17,14 @@ assert.match(panel, /action: "approve_invitation"/);
 assert.match(panel, /Aprobar acceso/);
 assert.match(panel, /Pendiente de aprobación/);
 
-const roleMutationBlock = edge.match(/if \(\["update_role", "update_roles"\]\.includes\(action\)\) \{([\\s\\S]*?)\\n    if \(action === "set_status"\)/);
-assert.ok(roleMutationBlock, "Role update handler must exist");
-assert.match(roleMutationBlock[1], /target\.status !== "active"/, "Role updates must reject every non-active membership");
-assert.ok(roleMutationBlock[1].indexOf('target.status !== "active"') < roleMutationBlock[1].indexOf('from("membership_roles").delete()'), "Status guard must run before deleting existing roles");
-assert.match(panel, /disabled=\{member\.status!==\"active\" \|\| busy===member\.membership_id\}/, "Role selector must be disabled unless membership is active");
-assert.match(panel, /disabled=\{member\.status!==\"active\" \|\| busy===member\.membership_id \|\| !\(draftRoles\[member\.membership_id\]\?\.length\)\}/, "Save button must be disabled unless membership is active");
-assert.match(panel, /disabled=\{member\.status!==\"active\" \|\| busy===member\.membership_id\}/, "Director subprofile selector must be disabled unless membership is active");
-assert.match(panel, /status===\"invited\" \? <button[^>]*Aprobar acceso/, "Invitation approval action must remain available for invited memberships");
+const roleHandlerStart = edge.indexOf('if (["update_role", "update_roles"].includes(action)) {');
+const statusHandlerStart = edge.indexOf('if (action === "set_status")', roleHandlerStart);
+assert.ok(roleHandlerStart >= 0 && statusHandlerStart > roleHandlerStart, "Role update handler must exist");
+const roleMutationBlock = edge.slice(roleHandlerStart, statusHandlerStart);
+assert.ok(roleMutationBlock.includes('target.status !== "active"'), "Role updates must reject every non-active membership");
+assert.ok(roleMutationBlock.indexOf('target.status !== "active"') < roleMutationBlock.indexOf('from("membership_roles").delete()'), "Status guard must run before deleting existing roles");
+assert.ok(panel.includes('disabled={member.status!=="active" || busy===member.membership_id}'), "Role and subprofile selectors must be disabled unless membership is active");
+assert.ok(panel.includes('disabled={member.status!=="active" || busy===member.membership_id || !(draftRoles[member.membership_id]?.length)}'), "Save button must be disabled unless membership is active");
+assert.ok(panel.includes('member.status==="invited" ? <button') && panel.includes("Aprobar acceso"), "Invitation approval action must remain available for invited memberships");
 
 console.log("PASS: invitations require explicit approval; role assignments stay immutable until membership is active.");
