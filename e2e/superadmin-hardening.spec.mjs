@@ -242,7 +242,7 @@ test("Administradores: edición, suspensión, reactivación, idempotencia y sesi
   await expect(page.getByText("Administradores institucionales", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Editar", exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Cerrar sesión", exact: true }).click();
-  await expect(page).toHaveURL(/\\/login/);
+  await expect(page).toHaveURL(/\/login/);
   expectStatus(await api(page, "/api/platform/superadmins"), 401, "signed-out browser session cannot access platform APIs");
 
   await context.close();
