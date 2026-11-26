@@ -207,54 +207,62 @@ END $$;
 
 -- An authenticated, active administrator of the same institution approves the pending invite.
 -- The invitee cannot approve their own membership and another tenant cannot use this approval.
-DO $
-DECLARE v_institution uuid; v_membership uuid; v_result jsonb;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000004","app_metadata":{},"role":"authenticated"}',false);
+SET ROLE authenticated;
+SELECT public.platform_approve_institution_admin(
+  (SELECT institution_id FROM synthetic_results),
+  (SELECT id FROM public.memberships WHERE institution_id=(SELECT institution_id FROM synthetic_results)
+    AND user_id='00000000-0000-4000-8000-000000000006'),
+  'synthetic-admin-approve-001'
+);
+RESET ROLE;
+DO $$
+DECLARE v_institution uuid; v_membership uuid;
 BEGIN
   SELECT institution_id INTO v_institution FROM synthetic_results;
   SELECT id INTO v_membership FROM public.memberships
    WHERE institution_id=v_institution AND user_id='00000000-0000-4000-8000-000000000006';
-
-  SET LOCAL ROLE authenticated;
-  PERFORM set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',true);
-  PERFORM set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000004","app_metadata":{},"role":"authenticated"}',true);
-  v_result:=public.platform_approve_institution_admin(v_institution,v_membership,'synthetic-admin-approve-001');
-  RESET ROLE;
-
-  IF v_result->>'status'<>'active'
-    OR NOT EXISTS(SELECT 1 FROM public.memberships WHERE id=v_membership AND status='active')
+  IF NOT EXISTS(SELECT 1 FROM public.memberships WHERE id=v_membership AND status='active')
     OR NOT EXISTS(SELECT 1 FROM private.platform_audit_events
       WHERE action='platform.institution.admin.approve'
         AND target_id=v_membership::text
         AND actor_user_id='00000000-0000-4000-8000-000000000004') THEN
     RAISE EXCEPTION 'institution admin approval must activate the invited membership and append an audit event';
   END IF;
-END $;
+END $$;
 
-DO $
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000006',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000006","app_metadata":{},"role":"authenticated"}',false);
+SET ROLE authenticated;
+DO $$
+DECLARE v_institution uuid; v_membership uuid;
+BEGIN
+  SELECT institution_id INTO v_institution FROM synthetic_results;
+  SELECT id INTO v_membership FROM public.memberships
+   WHERE institution_id=v_institution AND user_id='00000000-0000-4000-8000-000000000006';
+  BEGIN
+    PERFORM public.platform_approve_institution_admin(v_institution,v_membership,'synthetic-admin-self-approve-001');
+    RAISE EXCEPTION 'expected invitee self-approval denial';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+RESET ROLE;
+
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000005","app_metadata":{},"role":"authenticated"}',false);
+SET ROLE authenticated;
+DO $$
 DECLARE v_institution uuid; v_second uuid; v_membership uuid;
 BEGIN
   SELECT institution_id,second_institution_id INTO v_institution,v_second FROM synthetic_results;
   SELECT id INTO v_membership FROM public.memberships
    WHERE institution_id=v_institution AND user_id='00000000-0000-4000-8000-000000000006';
-
-  SET LOCAL ROLE authenticated;
-  PERFORM set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000006',true);
-  PERFORM set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000006","app_metadata":{},"role":"authenticated"}',true);
-  BEGIN
-    PERFORM public.platform_approve_institution_admin(v_institution,v_membership,'synthetic-admin-self-approve-001');
-    RAISE EXCEPTION 'expected invitee self-approval denial';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  RESET ROLE;
-
-  SET LOCAL ROLE authenticated;
-  PERFORM set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',true);
-  PERFORM set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000005","app_metadata":{},"role":"authenticated"}',true);
   BEGIN
     PERFORM public.platform_approve_institution_admin(v_second,v_membership,'synthetic-admin-cross-tenant-001');
     RAISE EXCEPTION 'expected cross-tenant invitation approval denial';
   EXCEPTION WHEN no_data_found THEN NULL; END;
-  RESET ROLE;
-END $;
+END $$;
+RESET ROLE;
 
 -- Activate a second synthetic institution and assign the same user there.
 -- A membership in one tenant must never be revocable through another tenant.
