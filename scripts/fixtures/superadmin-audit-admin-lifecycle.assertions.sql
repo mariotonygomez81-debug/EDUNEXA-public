@@ -102,12 +102,22 @@ BEGIN
   );
   IF v_events<1 THEN RAISE EXCEPTION 'audit text/action/institution filters did not return matching event'; END IF;
 
+  INSERT INTO private.platform_audit_events(
+    id,occurred_at,actor_user_id,action,target_type,target_id,institution_id,reason,request_id,outcome,metadata_redacted
+  ) VALUES
+    ('20000000-0000-4000-8000-000000000002','2020-01-01T00:00:00Z',
+      '00000000-0000-4000-8000-000000000002','audit.cursor.synthetic','synthetic','cursor-two',v_institution,
+      'Evento sintético de cursor compuesto','synthetic-cursor-event-0002','success','{}'::jsonb),
+    ('20000000-0000-4000-8000-000000000001','2020-01-01T00:00:00Z',
+      '00000000-0000-4000-8000-000000000002','audit.cursor.synthetic','synthetic','cursor-one',v_institution,
+      'Evento sintético de cursor compuesto','synthetic-cursor-event-0001','success','{}'::jsonb);
   SELECT occurred_at,id INTO v_cursor,v_cursor_id
-  FROM public.platform_list_audit_events(1,null,v_institution,null,null,null,null,null);
-  IF NOT EXISTS(
-    SELECT 1 FROM public.platform_list_audit_events(100,v_cursor,v_institution,v_cursor_id,null,null,null,null)
-    WHERE (occurred_at,id)<(v_cursor,v_cursor_id)
-  ) THEN RAISE EXCEPTION 'composite audit cursor failed to advance'; END IF;
+  FROM public.platform_list_audit_events(1,null,v_institution,null,'audit.cursor.synthetic',null,'success',null);
+  IF v_cursor_id<>'20000000-0000-4000-8000-000000000002' OR NOT EXISTS(
+    SELECT 1 FROM public.platform_list_audit_events(100,v_cursor,v_institution,v_cursor_id,'audit.cursor.synthetic',null,'success',null)
+    WHERE id='20000000-0000-4000-8000-000000000001'
+      AND (occurred_at,id)<(v_cursor,v_cursor_id)
+  ) THEN RAISE EXCEPTION 'composite audit cursor failed to advance across equal timestamps'; END IF;
 
   IF NOT EXISTS(SELECT 1 FROM private.platform_audit_events
     WHERE action='platform.institution.admin.status' AND target_id=v_membership::text)
