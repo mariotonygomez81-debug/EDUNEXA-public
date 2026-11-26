@@ -53,36 +53,50 @@ test("Auditoría: filtro institucional y paginación por cursor before", async (
   const firstPage = await api(page, "/api/platform/audit?limit=3");
   expectStatus(firstPage, 200, "first audit page");
   expect(firstPage.payload.events).toHaveLength(3);
-  const cursor = firstPage.payload.events[2].occurred_at;
-  const secondPage = await api(page, `/api/platform/audit?limit=3&before=${encodeURIComponent(cursor)}`);
-  expectStatus(secondPage, 200, "second audit page");
+  const cursorEvent = firstPage.payload.events[2];
+  const secondPage = await api(page, `/api/platform/audit?limit=3&before=${encodeURIComponent(cursorEvent.occurred_at)}&beforeId=${cursorEvent.id}`);
+  expectStatus(secondPage, 200, "second audit page with composite cursor");
   expect(secondPage.payload.events.length).toBeGreaterThan(0);
-  expect(secondPage.payload.events.every(event => new Date(event.occurred_at) < new Date(cursor))).toBe(true);
+  expect(secondPage.payload.events.every(event =>
+    event.occurred_at < cursorEvent.occurred_at
+      || (event.occurred_at === cursorEvent.occurred_at && event.id < cursorEvent.id)
+  )).toBe(true);
+
+  const sample = all.payload.events.find(event => event.institution_id === institutionOne);
+  expect(sample).toBeTruthy();
+  const filtered = await api(page, `/api/platform/audit?limit=100&institutionId=${institutionOne}&action=${encodeURIComponent(sample.action)}&actorUserId=${sample.actor_user_id}&outcome=${sample.outcome}&search=${encodeURIComponent(sample.request_id)}`);
+  expectStatus(filtered, 200, "combined audit filters");
+  expect(filtered.payload.events.length).toBeGreaterThan(0);
+  expect(filtered.payload.events.every(event => event.institution_id === institutionOne
+    && event.action === sample.action && event.actor_user_id === sample.actor_user_id
+    && event.outcome === sample.outcome && event.request_id === sample.request_id)).toBe(true);
 
   await operator.context.close();
 });
 
-test("Auditoría: búsqueda textual y detalle individual no están implementados en el contrato actual", async ({ browser }) => {
+test("Auditoría: búsqueda textual, detalle individual y controles de navegador", async ({ browser }) => {
   const operator = await signIn(browser, process.env.E2E_SUPERADMIN_A_EMAIL);
   const { page } = operator;
-
-  await page.goto("/dashboard/platform");
-  const audit = page.locator("#global-audit");
-  await expect(audit).toBeVisible();
-  await expect(audit.getByText("Auditoría global", { exact: true })).toBeVisible();
-
-  const unsupportedSearch = await api(page, "/api/platform/audit?limit=100&search=__edunexa_no_match__");
-  expectStatus(unsupportedSearch, 200, "audit endpoint currently ignores unsupported search parameter");
-  expect(unsupportedSearch.payload.events.some(event =>
-    !JSON.stringify(event).includes("__edunexa_no_match__")
-  )).toBe(true);
 
   const listed = await api(page, "/api/platform/audit?limit=10");
   expectStatus(listed, 200, "audit listing for detail lookup");
   const eventId = listed.payload.events[0]?.id;
   expect(eventId).toBeTruthy();
   const detail = await api(page, `/api/platform/audit/${eventId}`);
-  expectStatus(detail, 404, "individual audit detail route is not implemented");
+  expectStatus(detail, 200, "individual audit detail");
+  expect(detail.payload.event.id).toBe(eventId);
+  expect(detail.payload.event.metadata_redacted).toBeTruthy();
+
+  const exactSearch = await api(page, `/api/platform/audit?limit=100&search=${encodeURIComponent(detail.payload.event.request_id)}`);
+  expectStatus(exactSearch, 200, "audit textual search");
+  expect(exactSearch.payload.events.some(event => event.id === eventId)).toBe(true);
+
+  await page.goto("/dashboard/platform");
+  const audit = page.locator("#global-audit");
+  await expect(audit).toBeVisible();
+  await expect(audit.getByText("Auditoría global", { exact: true })).toBeVisible();
+  await expect(audit.getByRole("textbox", { name: "Buscar en auditoría" })).toBeVisible();
+  await expect(audit.getByRole("button", { name: "Ver detalle" }).first()).toBeVisible();
 
   await operator.context.close();
 });
@@ -161,35 +175,65 @@ test("Instituciones: solicitudes concurrentes con la misma clave crean un único
   await operator.context.close();
 });
 
-test("Administradores: PATCH de edición/suspensión no existe y una sesión cerrada pierde acceso", async ({ browser }) => {
+test("Administradores: edición, suspensión, reactivación, idempotencia y sesión cerrada", async ({ browser }) => {
+  expect(targetUserId).toBeTruthy();
   const operator = await signIn(browser, process.env.E2E_SUPERADMIN_A_EMAIL);
   const { page, context } = operator;
-  const roster = await api(page, `/api/platform/institutions/${institutionOne}/administrators`);
+  const assignment = await api(page, `/api/platform/institutions/${institutionOne}/administrators`, "POST", {
+    userId: targetUserId, reason: "Asignación sintética para ciclo de vida de administrador",
+  }, { "Idempotency-Key": `admin-lifecycle-${randomUUID()}` });
+  expectStatus(assignment, 201, "synthetic lifecycle administrator assignment");
+  const membershipId = assignment.payload.administrator.membership_id;
+
+  let roster = await api(page, `/api/platform/institutions/${institutionOne}/administrators`);
   expectStatus(roster, 200, "institution administrator roster");
-  const membershipId = roster.payload.administrators[0]?.membership_id;
-  expect(membershipId).toBeTruthy();
+  let admin = roster.payload.administrators.find(item => item.membership_id === membershipId);
+  expect(admin?.updated_at).toBeTruthy();
 
-  const unsupportedEdit = await api(
-    page,
-    `/api/platform/institutions/${institutionOne}/administrators/${membershipId}`,
-    "PATCH",
-    { displayName: "Nombre editado", reason: "Edición sintética no disponible" },
-    { "Idempotency-Key": `admin-edit-${randomUUID()}` },
-  );
-  expectStatus(unsupportedEdit, 404, "administrator edit route is not implemented");
+  const editKey = `admin-edit-${randomUUID()}`;
+  const editBody = { displayName: "Administrador E2E Editado", expectedUpdatedAt: admin.updated_at,
+    reason: "Edición sintética de nombre institucional" };
+  const editPath = `/api/platform/institutions/${institutionOne}/administrators/${membershipId}`;
+  const edited = await api(page, editPath, "PATCH", editBody, { "Idempotency-Key": editKey });
+  expectStatus(edited, 200, "administrator display name edit");
+  expect(edited.payload.administrator.display_name).toBe(editBody.displayName);
+  const replay = await api(page, editPath, "PATCH", editBody, { "Idempotency-Key": editKey });
+  expectStatus(replay, 200, "idempotent administrator edit replay");
+  expect(replay.payload.administrator.updated_at).toBe(edited.payload.administrator.updated_at);
 
-  const unsupportedSuspend = await api(
-    page,
-    `/api/platform/institutions/${institutionOne}/administrators/${membershipId}/status`,
-    "PATCH",
-    { status: "suspended", reason: "Suspensión sintética no disponible" },
-    { "Idempotency-Key": `admin-suspend-${randomUUID()}` },
-  );
-  expectStatus(unsupportedSuspend, 404, "administrator suspension route is not implemented");
+  const stale = await api(page, editPath, "PATCH", { ...editBody, displayName: "Nombre obsoleto" },
+    { "Idempotency-Key": `admin-stale-${randomUUID()}` });
+  expectStatus(stale, 409, "optimistic concurrency rejects stale administrator version");
+
+  const statusPath = `${editPath}/status`;
+  const suspendKey = `admin-suspend-${randomUUID()}`;
+  const suspendBody = { status: "suspended", expectedUpdatedAt: edited.payload.administrator.updated_at,
+    reason: "Suspensión sintética de administrador institucional" };
+  const suspended = await api(page, statusPath, "PATCH", suspendBody, { "Idempotency-Key": suspendKey });
+  expectStatus(suspended, 200, "administrator suspension");
+  expect(suspended.payload.administrator.status).toBe("suspended");
+  const suspendReplay = await api(page, statusPath, "PATCH", suspendBody, { "Idempotency-Key": suspendKey });
+  expectStatus(suspendReplay, 200, "idempotent suspension replay");
+
+  roster = await api(page, `/api/platform/institutions/${institutionOne}/administrators`);
+  const remainingActive = roster.payload.administrators.find(item => item.status === "active" && item.membership_id !== membershipId);
+  expect(remainingActive).toBeTruthy();
+  const lastAdmin = await api(page, `/api/platform/institutions/${institutionOne}/administrators/${remainingActive.membership_id}/status`, "PATCH", {
+    status: "suspended", expectedUpdatedAt: remainingActive.updated_at,
+    reason: "Intento de suspender al último administrador activo",
+  }, { "Idempotency-Key": `admin-last-${randomUUID()}` });
+  expectStatus(lastAdmin, 409, "last active administrator protection");
+
+  const reactivated = await api(page, statusPath, "PATCH", {
+    status: "active", expectedUpdatedAt: suspended.payload.administrator.updated_at,
+    reason: "Reactivación sintética del administrador institucional",
+  }, { "Idempotency-Key": `admin-reactivate-${randomUUID()}` });
+  expectStatus(reactivated, 200, "administrator reactivation");
+  expect(reactivated.payload.administrator.status).toBe("active");
 
   await page.goto("/dashboard/platform");
   await page.getByRole("button", { name: "Cerrar sesión", exact: true }).click();
-  await expect(page).toHaveURL(/\/login/);
+  await expect(page).toHaveURL(/\\/login/);
   expectStatus(await api(page, "/api/platform/superadmins"), 401, "signed-out browser session cannot access platform APIs");
 
   await context.close();
