@@ -41,7 +41,13 @@ export async function POST(request: Request, context: RouteContext) {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return json({ error: "Autenticación requerida." }, 401);
 
-  const { data, error } = await supabase.rpc("platform_approve_institution_admin", {
+  const rpcClient = supabase as unknown as {
+    rpc: (name: string, args: Record<string, unknown>) => Promise<{
+      data: unknown;
+      error: { code?: string; message: string } | null;
+    }>;
+  };
+  const { data, error } = await rpcClient.rpc("platform_approve_institution_admin", {
     p_institution_id: institutionId,
     p_membership_id: membershipId,
     p_request_id: crypto.randomUUID(),
