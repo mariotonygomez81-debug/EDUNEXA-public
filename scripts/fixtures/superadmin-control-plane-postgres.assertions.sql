@@ -896,6 +896,9 @@ DO $$ BEGIN
   RAISE EXCEPTION 'expected institutional admin/non-superadmin denial';
 EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
+
 -- Two independent synthetic identities execute both grant and revoke workflows.
 -- First, the requester cannot self-approve; a second Superadministrator approves and the
 -- authenticated executor records the external Auth metadata change in the same saga.
