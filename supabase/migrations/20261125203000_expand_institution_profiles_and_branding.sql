@@ -39,7 +39,7 @@ begin
  or i.legal_name ilike '%'||pg_catalog.replace(p_search,'%','')||'%' or i.slug ilike '%'||pg_catalog.replace(p_search,'%','')||'%')
  order by i.created_at desc,i.id desc limit p_limit;
 end; $$;
-grant execute on function public.platform_list_institutions(integer,timestamptz,text,text) to authenticated;
+revoke all on function public.platform_list_institutions(integer,timestamptz,text,text) from public,anon;\ngrant execute on function public.platform_list_institutions(integer,timestamptz,text,text) to authenticated;
 
 drop function if exists public.platform_update_institution(uuid,text,text,text,text,timestamptz,text,text,text);
 create function public.platform_update_institution(
@@ -88,4 +88,4 @@ begin
  perform private.platform_idempotency_complete(v_actor,p_idempotency_key,v_result);
  return v_result;
 end; $$;
-grant execute on function public.platform_update_institution(uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,timestamptz,text,text,text) to authenticated;
+revoke all on function public.platform_update_institution(uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,timestamptz,text,text,text) from public,anon;\ngrant execute on function public.platform_update_institution(uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,timestamptz,text,text,text) to authenticated;
