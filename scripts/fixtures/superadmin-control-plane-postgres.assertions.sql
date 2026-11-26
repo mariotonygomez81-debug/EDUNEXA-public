@@ -160,7 +160,32 @@ BEGIN
     'Asignación sintética de administrador institucional','synthetic-request-admin-001','synthetic-admin-key-00001');
   PERFORM public.platform_assign_institution_admin(v_id,'00000000-0000-4000-8000-000000000005',
     'Asignación sintética de segundo administrador','synthetic-request-admin-002','synthetic-admin-key-00002');
-END $$;
+END $;
+
+-- A global Superadministrator can send a pending institutional administrator invitation.
+DO $
+DECLARE v_institution uuid; v_first jsonb; v_repeat jsonb; v_membership uuid;
+BEGIN
+  SELECT institution_id INTO v_institution FROM synthetic_results;
+  v_first:=public.platform_invite_institution_admin(v_institution,
+    '00000000-0000-4000-8000-000000000006',
+    'Invitación sintética de administrador institucional','synthetic-admin-invite-001','synthetic-admin-invite-key-001');
+  v_repeat:=public.platform_invite_institution_admin(v_institution,
+    '00000000-0000-4000-8000-000000000006',
+    'Invitación sintética de administrador institucional','synthetic-admin-invite-001','synthetic-admin-invite-key-001');
+  IF v_first<>v_repeat OR v_first->>'status'<>'invited' THEN
+    RAISE EXCEPTION 'institution administrator invitation must be idempotent and remain pending';
+  END IF;
+  v_membership:=(v_first->>'membership_id')::uuid;
+  IF NOT EXISTS(SELECT 1 FROM public.memberships WHERE id=v_membership
+      AND institution_id=v_institution AND user_id='00000000-0000-4000-8000-000000000006' AND status='invited')
+    OR NOT EXISTS(SELECT 1 FROM public.membership_roles mr JOIN public.roles r ON r.id=mr.role_id
+      WHERE mr.membership_id=v_membership AND mr.institution_id=v_institution AND r.key='institution_admin')
+    OR NOT EXISTS(SELECT 1 FROM private.platform_audit_events
+      WHERE action='platform.institution.admin.invite' AND target_id=v_membership::text) THEN
+    RAISE EXCEPTION 'institution administrator invitation must create a pending role assignment and audit event';
+  END IF;
+END $;
 
 -- Activate a second synthetic institution and assign the same user there.
 -- A membership in one tenant must never be revocable through another tenant.
