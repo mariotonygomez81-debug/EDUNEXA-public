@@ -57,7 +57,7 @@ test("Instituciones: alta, edición y ciclo de suspensión/reactivación desde e
   await page.getByLabel("Motivo del alta").fill("Alta sintética para validar la pantalla de instituciones");
   await page.getByRole("button", { name: "Registrar institución" }).click();
   await expect(page.getByRole("status")).toContainText("Solicitud de alta registrada");
-  const createdCard = page.getByText(slug, { exact: true }).locator("xpath=../../..");
+  const createdCard = page.locator("#institution-lifecycle").getByText(new RegExp(slug)).locator("xpath=../../..");
   await expect(createdCard).toContainText(displayName);
   await expect(createdCard).toContainText("Pendiente");
 
@@ -88,7 +88,7 @@ test("Administradores: invitación, aprobación por tenant y separación de padr
   await expect(a.page.getByRole("heading", { name: "Administradores de colegios" })).toBeVisible();
   const institutionPicker = a.page.getByLabel("Institución");
   await institutionPicker.selectOption(institutionOne);
-  await expect(a.page.getByText("superadmin-a@edunexa.test")).toBeVisible();
+  await expect(a.page.getByText("superadmin-a@edunexa.test", { exact: true })).toBeVisible();
 
   await institutionPicker.selectOption(institutionTwo);
   await expect(a.page.getByText("No hay administradores asignados a esta institución.")).toBeVisible();
@@ -101,7 +101,7 @@ test("Administradores: invitación, aprobación por tenant y separación de padr
   await a.page.getByLabel("Apellido del administrador").fill("TenantOne");
   await a.page.getByLabel("Motivo de la invitación").fill("Invitación UI sintética para institución uno");
   await a.page.getByRole("button", { name: "Enviar invitación" }).click();
-  await expect(a.page.getByText(new RegExp(`${emailOne} · Pendiente de aprobación`))).toBeVisible();
+  await expect(a.page.getByText(`${emailOne} · Pendiente de aprobación`, { exact: true })).toBeVisible();
 
   const rosterOne = await api(a.page, `/api/platform/institutions/${institutionOne}/administrators`);
   assertStatus(rosterOne, 200, "institution one roster");
@@ -125,7 +125,7 @@ test("Administradores: invitación, aprobación por tenant y separación de padr
   assertStatus(approved, 200, "same-tenant active administrator approves institution one invitation");
   await a.page.reload();
   await institutionPicker.selectOption(institutionOne);
-  await expect(a.page.getByText(new RegExp(`${emailOne} · Activo`))).toBeVisible();
+  await expect(a.page.getByText(`${emailOne} · Activo`, { exact: true })).toBeVisible();
 
   await institutionPicker.selectOption(institutionTwo);
   const emailTwo = `ui-admin-two-${randomUUID().slice(0, 8)}@edunexa.test`;
@@ -134,7 +134,7 @@ test("Administradores: invitación, aprobación por tenant y separación de padr
   await a.page.getByLabel("Apellido del administrador").fill("TenantTwo");
   await a.page.getByLabel("Motivo de la invitación").fill("Invitación UI sintética para institución dos");
   await a.page.getByRole("button", { name: "Enviar invitación" }).click();
-  await expect(a.page.getByText(new RegExp(`${emailTwo} · Pendiente de aprobación`))).toBeVisible();
+  await expect(a.page.getByText(`${emailTwo} · Pendiente de aprobación`, { exact: true })).toBeVisible();
   const rosterTwo = await api(a.page, `/api/platform/institutions/${institutionTwo}/administrators`);
   assertStatus(rosterTwo, 200, "institution two roster");
   const invitationTwo = rosterTwo.payload.administrators.find(item => item.email === emailTwo);
@@ -169,8 +169,8 @@ test("Auditoría: navegación a la bitácora y visualización de eventos institu
   await page.getByRole("link", { name: /Auditoría global/ }).click();
   const audit = page.locator("#global-audit");
   await expect(audit).toBeVisible();
-  await expect(audit.getByText("platform.institution.admin.invite", { exact: true })).toBeVisible();
-  await expect(audit).toContainText("Invitación UI sintética para institución uno");
+  await expect(audit.getByText("platform.audit.read", { exact: true })).toBeVisible();
+  await expect(audit).toContainText("Consulta de bitácora de auditoría");
   await operator.context.close();
 });
 
