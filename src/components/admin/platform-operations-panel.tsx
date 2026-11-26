@@ -134,7 +134,7 @@ export default function PlatformOperationsPanel({ institutions }: { institutions
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <form onSubmit={createCopilotPlan} className="space-y-3 rounded-2xl border border-cyan-200/15 bg-cyan-950/30 p-5">
           <div className="flex items-center gap-2 text-white"><ShieldCheck size={18} className="text-cyan-200"/><h3 className="font-semibold">Copiloto EDUNEXA · Groq</h3></div>
-          <p className="text-xs leading-5 text-slate-400">Genera planes revisables. No se envían claves ni datos personales. GitHub se limita a acciones allowlisted; Supabase y Render permanecen en lectura/planificación.</p>
+          <p className="text-xs leading-5 text-slate-400">Genera planes revisables. Solo puede inspeccionar el repositorio y despachar CI en feature/EDUNEXA-MODELES. No crea PR ni ramas y no accede a Supabase alojado o Render.</p>
           <textarea value={instruction} onChange={(event) => setInstruction(event.target.value)} minLength={12} maxLength={4000} rows={3} required placeholder="Describí qué cambio querés planificar…" className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white"/>
           <button disabled={!!busy || instruction.trim().length < 12} className="rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-bold text-slate-950 disabled:opacity-50">
             {busy === "/api/platform/copilot/plans" ? "Generando con Groq…" : "Generar plan revisable"}
