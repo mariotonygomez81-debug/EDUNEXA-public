@@ -50,11 +50,11 @@ BEGIN
     RAISE EXCEPTION 'administrator list did not return institution-scoped override/version';
   END IF;
 
-  BEGIN
-    PERFORM public.platform_update_institution_admin(v_institution,v_membership,'Nombre obsoleto',
-      v_version,'Intento de edición con versión antigua','synthetic-admin-edit-stale-001','synthetic-admin-edit-stale-key');
-    RAISE EXCEPTION 'expected optimistic version conflict';
-  EXCEPTION WHEN serialization_failure THEN NULL; END;
+  v_repeat:=public.platform_update_institution_admin(v_institution,v_membership,'Nombre obsoleto',
+    v_version,'Intento de edición con versión antigua','synthetic-admin-edit-stale-001','synthetic-admin-edit-stale-key');
+  IF v_repeat->>'conflict'<>'true' OR v_repeat->>'code'<>'institution_admin_version_conflict' THEN
+    RAISE EXCEPTION 'expected auditable optimistic version conflict';
+  END IF;
 
   v_version:=(v_result->>'updated_at')::timestamptz;
   v_result:=public.platform_set_institution_admin_status(v_institution,v_membership,'suspended',
