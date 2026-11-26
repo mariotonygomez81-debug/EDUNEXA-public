@@ -890,7 +890,7 @@ EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 -- Two independent synthetic identities execute both grant and revoke workflows.
 -- First, the requester cannot self-approve; a second Superadministrator approves and the
 -- authenticated executor records the external Auth metadata change in the same saga.
-DO $
+DO $$
 DECLARE v_id uuid; v_claim jsonb;
 BEGIN
   v_id:=public.platform_create_superadmin_change('00000000-0000-4000-8000-000000000003','revoke',
@@ -900,14 +900,14 @@ BEGIN
     RAISE EXCEPTION 'expected self-approval denial for Superadmin revocation';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   UPDATE synthetic_results SET superadmin_change_id=v_id;
-END $;
+END $$;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","app_metadata":{"platform_role":"superadmin"}}',false);
 SELECT public.platform_approve_superadmin_change(superadmin_change_id,'synthetic-request-superadmin-revoke-approve-001')
 FROM synthetic_results;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
-DO $
+DO $$
 DECLARE v_id uuid; v_claim jsonb;
 BEGIN
   SELECT superadmin_change_id INTO v_id FROM synthetic_results;
@@ -915,8 +915,8 @@ BEGIN
   IF v_claim->>'action'<>'revoke' THEN RAISE EXCEPTION 'revocation executor received the wrong action'; END IF;
   UPDATE auth.users SET raw_app_meta_data='{}'::jsonb WHERE id='00000000-0000-4000-8000-000000000003';
   PERFORM public.platform_finish_superadmin_change(v_id,true,null,'synthetic-request-superadmin-revoke-finish-001');
-END $;
-DO $ BEGIN
+END $$;
+DO $$ BEGIN
   IF EXISTS(SELECT 1 FROM auth.users WHERE id='00000000-0000-4000-8000-000000000003'
     AND raw_app_meta_data->>'platform_role'='superadmin')
     OR NOT EXISTS(SELECT 1 FROM private.platform_superadmin_change_requests
@@ -925,40 +925,40 @@ DO $ BEGIN
         AND executed_by='00000000-0000-4000-8000-000000000001') THEN
     RAISE EXCEPTION 'independently approved Superadmin revocation did not complete';
   END IF;
-END $;
+END $$;
 
 -- A second revocation proves the workflow remains available after a grant and an earlier revoke.
 -- Requester 2, approver 4 and executor 2 are three distinct identities.
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","app_metadata":{"platform_role":"superadmin"}}',false);
-DO $
+DO $$
 DECLARE v_id uuid;
 BEGIN
   v_id:=public.platform_create_superadmin_change('00000000-0000-4000-8000-000000000001','revoke',
     'Revocación sintética del Superadministrador inicial','synthetic-request-superadmin-revoke-002');
   UPDATE synthetic_results SET superadmin_change_id=v_id;
-END $;
+END $$;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000004","app_metadata":{"platform_role":"superadmin"}}',false);
 SELECT public.platform_approve_superadmin_change(superadmin_change_id,'synthetic-request-superadmin-revoke-approve-002')
 FROM synthetic_results;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","app_metadata":{"platform_role":"superadmin"}}',false);
-DO $
+DO $$
 DECLARE v_id uuid; v_claim jsonb;
 BEGIN
   SELECT superadmin_change_id INTO v_id FROM synthetic_results;
   v_claim:=public.platform_claim_superadmin_change(v_id,'synthetic-request-superadmin-revoke-claim-002');
   UPDATE auth.users SET raw_app_meta_data='{}'::jsonb WHERE id='00000000-0000-4000-8000-000000000001';
   PERFORM public.platform_finish_superadmin_change(v_id,true,null,'synthetic-request-superadmin-revoke-finish-002');
-END $;
-DO $
+END $$;
+DO $$
 BEGIN
   IF EXISTS(SELECT 1 FROM auth.users WHERE id='00000000-0000-4000-8000-000000000001'
     AND raw_app_meta_data->>'platform_role'='superadmin')
     OR (SELECT count(*) FROM auth.users WHERE raw_app_meta_data->>'platform_role'='superadmin')<>2 THEN
     RAISE EXCEPTION 'second Superadmin revocation failed or changed the remaining global operators';
   END IF;
-END $;
+END $$;
 
 SELECT 'PASS: authenticated synthetic Superadmin grant/revoke, institution-admin invitation approval, denials, tenant isolation and append-only audit' AS result;
