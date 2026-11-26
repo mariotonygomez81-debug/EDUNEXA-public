@@ -3,6 +3,11 @@ DO $$ BEGIN CREATE ROLE anon NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL;
 DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE ROLE service_role NOLOGIN BYPASSRLS; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE SCHEMA IF NOT EXISTS auth;
+CREATE SCHEMA IF NOT EXISTS storage;
+CREATE TABLE IF NOT EXISTS storage.buckets (
+  id text PRIMARY KEY, name text NOT NULL, public boolean NOT NULL DEFAULT false,
+  file_size_limit bigint, allowed_mime_types text[]
+);
 CREATE TABLE IF NOT EXISTS auth.users (
   id uuid PRIMARY KEY,
   raw_app_meta_data jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -27,6 +32,7 @@ CREATE TABLE IF NOT EXISTS public.institutions (
   status text NOT NULL DEFAULT 'pending',
   locale text NOT NULL DEFAULT 'es-AR',
   timezone text NOT NULL DEFAULT 'America/Argentina/Buenos_Aires',
+  tax_id text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
