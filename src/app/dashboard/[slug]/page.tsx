@@ -14,6 +14,11 @@ const modules: { name: string; detail: string; icon: string; href: string; permi
   { name: "Comunicaciones", detail: "Anuncios para la comunidad educativa", icon: "announcements", href: "announcements", permission: "institution.read", category: "Comunidad" as const },
   { name: "Mensajes", detail: "Conversaciones privadas por perfil", icon: "messages", href: "messages", permission: "institution.read", category: "Comunidad" as const },
   { name: "Notificaciones", detail: "Avisos y preferencias personales", icon: "notifications", href: "notifications", permission: "institution.read", category: "Comunidad" as const },
+  { name: "Citaciones", detail: "Solicitudes y respuestas entre docentes y tutores", icon: "appointments", href: "appointments", permission: "institution.read", roles: ["teacher", "guardian"], category: "Comunidad" as const },
+  { name: "Preceptoría", detail: "Divisiones asignadas, nóminas y seguimiento", icon: "prefect", href: "prefect", permission: "attendance.read", roles: ["prefect"], category: "Académico" as const },
+  { name: "Usuarios y accesos", detail: "Perfiles y permisos institucionales", icon: "users", href: "users", permission: "memberships.manage", category: "Gestión" as const },
+  { name: "Calendario académico", detail: "Ciclos lectivos y períodos de evaluación", icon: "calendar", href: "settings/academic-calendar", permission: "institution.manage", roles: ["institution_admin"], category: "Gestión" as const },
+  { name: "Ayuda y soporte", detail: "Consultas y seguimiento de solicitudes", icon: "support", href: "support", permission: "support.create", category: "Comunidad" as const },
   { name: "Mi portal", detail: "Seguimiento académico personal y familiar", icon: "portal", href: "portal", permission: "institution.read", roles: ["student", "guardian"], category: "Comunidad" as const },
 ];
 
