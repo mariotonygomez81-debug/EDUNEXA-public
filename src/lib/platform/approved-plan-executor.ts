@@ -23,11 +23,6 @@ function safeString(value: unknown, max = 3000): string {
   return value.trim().slice(0, max);
 }
 
-function allowedRenderService(serviceId: string): boolean {
-  const allowlist = (process.env.EDUNEXA_RENDER_SERVICE_IDS || "").split(",").map((item) => item.trim()).filter(Boolean);
-  return Boolean(serviceId) && allowlist.includes(serviceId);
-}
-
 async function requestJson(url: string, init: RequestInit = {}): Promise<{ response: Response; payload: Json }> {
   const response = await fetch(url, { ...init, signal: AbortSignal.timeout(20000), cache: "no-store" });
   const raw = await response.text();
@@ -37,7 +32,7 @@ async function requestJson(url: string, init: RequestInit = {}): Promise<{ respo
   return { response, payload };
 }
 
-async function github(step: PlanStep, compensate: Array<() => Promise<void>>) {
+async function github(step: PlanStep) {
   const token = requiredEnv("GITHUB_TOKEN");
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -60,81 +55,7 @@ async function github(step: PlanStep, compensate: Array<() => Promise<void>>) {
     return { system: step.system, action: step.action, status: "dispatched", reference: INTEGRATION_BRANCH };
   }
 
-  if (step.action === "create_pull_request") {
-    const input = step.input ?? {};
-    const title = safeString(input.title, 160);
-    const body = safeString(input.body, 5000);
-    const head = safeString(input.head, 120);
-    const base = safeString(input.base, 120);
-    if (!title || !body || !head.startsWith("feature/EDUNEXA-") || head === INTEGRATION_BRANCH
-      || base !== INTEGRATION_BRANCH || head === "main") {
-      throw new Error("github_pull_request_scope_rejected");
-    }
-    const { payload } = await requestJson(`${root}/pulls`, {
-      method: "POST", headers, body: JSON.stringify({ title, body, head, base, draft: true }),
-    });
-    const number = Number(payload.number);
-    if (!Number.isInteger(number) || number < 1) throw new Error("github_pull_request_reference_missing");
-    compensate.push(async () => {
-      await requestJson(`${root}/pulls/${number}`, {
-        method: "PATCH", headers, body: JSON.stringify({ state: "closed" }),
-      });
-    });
-    return { system: step.system, action: step.action, status: "created_as_draft", reference: String(number) };
-  }
-
   throw new Error("github_action_not_allowlisted");
-}
-
-async function supabase(step: PlanStep) {
-  const token = requiredEnv("SUPABASE_ACCESS_TOKEN");
-  const projectRef = requiredEnv("SUPABASE_PROJECT_REF");
-  if (!/^[a-z0-9]{20}$/.test(projectRef)) throw new Error("supabase_project_ref_invalid");
-
-  if (step.action === "inspect_schema" || step.action === "review_rls") {
-    const query = step.action === "review_rls"
-      ? "select n.nspname as schema_name, c.relname as table_name, c.relrowsecurity as rls_enabled, c.relforcerowsecurity as rls_forced from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid=c.relnamespace where c.relkind='r' and n.nspname='public' order by c.relname limit 250"
-      : "select table_schema, table_name from information_schema.tables where table_schema='public' and table_type='BASE TABLE' order by table_name limit 250";
-    const { payload } = await requestJson(`https://api.supabase.com/v1/projects/${projectRef}/database/query/read-only`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
-    });
-    return { system: step.system, action: step.action, status: "read_only_inspection_completed", reference: `${Array.isArray(payload) ? payload.length : "result"} rows` };
-  }
-
-  // Applying migrations, changing Auth, or mutating a hosted project is intentionally
-  // unavailable until the owner explicitly authorizes that live operation.
-  throw new Error("supabase_live_mutation_not_authorized");
-}
-
-async function render(step: PlanStep) {
-  const token = requiredEnv("RENDER_API_KEY");
-  const serviceId = safeString(step.input?.serviceId, 128);
-  if (!allowedRenderService(serviceId)) throw new Error("render_service_outside_allowlist");
-  const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
-  const { payload } = await requestJson(`https://api.render.com/v1/services/${encodeURIComponent(serviceId)}`, { headers });
-  const service = (payload.service && typeof payload.service === "object" ? payload.service : payload) as Json;
-
-  if (step.action === "inspect_service" || step.action === "plan_deploy") {
-    return {
-      system: step.system, action: step.action,
-      status: step.action === "plan_deploy" ? "plan_only_no_deploy_triggered" : "inspected",
-      reference: safeString(service.name || service.id, 160),
-    };
-  }
-
-  if (step.action === "inspect_logs") {
-    const ownerId = requiredEnv("RENDER_OWNER_ID");
-    const endTime = new Date().toISOString();
-    const startTime = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const query = new URLSearchParams({ ownerId, resource: serviceId, startTime, endTime, limit: "50" });
-    const logs = await requestJson(`https://api.render.com/v1/logs?${query.toString()}`, { headers });
-    const count = Array.isArray(logs.payload.logs) ? logs.payload.logs.length : 0;
-    return { system: step.system, action: step.action, status: "logs_inspected", reference: `${count} entries` };
-  }
-
-  throw new Error("render_action_not_allowlisted");
 }
 
 export async function executeApprovedPlan(plan: ApprovedPlan): Promise<ExecutionResult> {
@@ -179,5 +100,28 @@ export async function executeApprovedPlan(plan: ApprovedPlan): Promise<Execution
       }
       return { attempted, failed };
     },
+  };
+}
+export async function executeApprovedPlan(plan: ApprovedPlan): Promise<ExecutionResult> {
+  if (plan.provider !== "groq" || plan.executionMode !== "review_only"
+    || !Array.isArray(plan.steps) || plan.steps.length < 1 || plan.steps.length > 10) {
+    throw new Error("approved_plan_contract_invalid");
+  }
+
+  // Validate the complete plan before any external call. No PRs, hosted Supabase,
+  // Render APIs, deployments, migrations, or arbitrary repository writes are allowed.
+  if (plan.steps.some((step) => step.system !== "github"
+    || !["review_repository", "run_ci"].includes(step.action))) {
+    throw new Error("plan_step_outside_current_platform_scope");
+  }
+
+  const actions: Array<{ system: string; action: string; status: string; reference?: string }> = [];
+  for (const step of plan.steps) actions.push(await github(step));
+
+  return {
+    summary: { completed: actions.length, actions },
+    // CI dispatch cannot be undone after GitHub accepts it. The audit saga records
+    // the result and surfaces reconciliation if its finalization fails.
+    rollback: async () => ({ attempted: 0, failed: 0 }),
   };
 }
