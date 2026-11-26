@@ -55,7 +55,8 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
 
   const { count: unreadNotificationCount } = permissions.has("institution.read")
     ? await supabase.from("notifications").select("id", { count: "exact", head: true })
-      .eq("institution_id", institution.id).is("read_at", null)
+      .eq("institution_id", institution.id)
+      .eq("recipient_membership_id", membership.id).is("read_at", null)
     : { count: 0 };
   const modulesWithUnread = visibleModules.map((module) => ({ ...module, unread: module.href.endsWith("/notifications") ? unreadNotificationCount ?? 0 : undefined }));
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
