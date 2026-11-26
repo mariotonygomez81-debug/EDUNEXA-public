@@ -123,7 +123,8 @@ jobs:
             20261126160000_platform_superadmin_change_request_listing.sql \
             20261126170000_platform_admin_invitation.sql \
             20261126180000_platform_admin_invitation_approval.sql \
-            20261126190000_platform_auth_email_return_types.sql; do
+            20261126190000_platform_auth_email_return_types.sql \\
+            20261126200000_superadmin_audit_and_admin_lifecycle.sql; do
             psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "supabase/migrations/$migration"
           done
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema';"
