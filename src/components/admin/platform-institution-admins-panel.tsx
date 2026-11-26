@@ -12,6 +12,7 @@ type Administrator = {
   display_name: string | null;
   status: string;
   assigned_at: string;
+  updated_at: string;
 };
 
 type Props = { institutions: PlatformInstitution[] };
@@ -153,6 +154,54 @@ export default function PlatformInstitutionAdminsPanel({ institutions }: Props) 
     } finally { setBusy(""); }
   }
 
+  async function editAdministrator(admin: Administrator) {
+    const displayName = window.prompt("Nombre visible para esta institución:", admin.display_name || "");
+    if (displayName === null) return;
+    const reasonText = window.prompt("Motivo de la edición (mínimo 12 caracteres):");
+    if (!reasonText || !reasonRequired(reasonText)) {
+      setMessage("La edición requiere un motivo de al menos 12 caracteres.");
+      return;
+    }
+    setBusy(admin.membership_id); setMessage("");
+    try {
+      const response = await fetch(`/api/platform/institutions/${institutionId}/administrators/${admin.membership_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+        body: JSON.stringify({ displayName: displayName.trim(), expectedUpdatedAt: admin.updated_at, reason: reasonText.trim() }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "No se pudo editar el administrador.");
+      setMessage("Nombre institucional actualizado y registrado en auditoría.");
+      await loadAdministrators(); router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error al editar administrador.");
+    } finally { setBusy(""); }
+  }
+
+  async function setAdministratorStatus(admin: Administrator, status: "active" | "suspended") {
+    const actionLabel = status === "suspended" ? "suspender" : "reactivar";
+    if (!window.confirm(`¿Querés ${actionLabel} a ${admin.email || admin.user_id} en esta institución?`)) return;
+    const reasonText = window.prompt(`Motivo para ${actionLabel} (mínimo 12 caracteres):`);
+    if (!reasonText || !reasonRequired(reasonText)) {
+      setMessage("La operación requiere un motivo de al menos 12 caracteres.");
+      return;
+    }
+    setBusy(admin.membership_id); setMessage("");
+    try {
+      const response = await fetch(`/api/platform/institutions/${institutionId}/administrators/${admin.membership_id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+        body: JSON.stringify({ status, expectedUpdatedAt: admin.updated_at, reason: reasonText.trim() }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "No se pudo cambiar el estado.");
+      setMessage(status === "suspended" ? "Administrador suspendido en esta institución." : "Administrador reactivado en esta institución.");
+      await loadAdministrators(); router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error al cambiar el estado.");
+    } finally { setBusy(""); }
+  }
+
   async function revokeAdministrator(admin: Administrator) {
     if (!window.confirm(`¿Revocar el acceso de ${admin.email || admin.user_id} a esta institución? Esta acción queda auditada.`)) return;
     const reasonText = window.prompt("Motivo de la revocación (mínimo 12 caracteres):");
@@ -236,10 +285,13 @@ export default function PlatformInstitutionAdminsPanel({ institutions }: Props) 
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-white">{admin.display_name || admin.email || "Usuario sin nombre"}</p>
                       <p className="mt-1 break-all text-xs text-slate-400">{admin.email || "Correo no disponible"} · {admin.status === "active" ? "Activo" : admin.status === "invited" ? "Pendiente de aprobación" : admin.status === "suspended" ? "Suspendido" : "Inactivo"}</p>
-                      <p className="mt-1 font-mono text-[10px] text-slate-600">{admin.user_id}</p>
+                      <p className="mt-1 font-mono text-[10px] text-slate-600">{admin.user_id} · versión {new Date(admin.updated_at).toLocaleString("es-AR")}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {admin.status === "active" ? <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-200"><ShieldCheck size={12}/> Activo</span> : <span className="text-xs text-slate-500">Inactivo</span>}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {admin.status === "active" ? <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-200"><ShieldCheck size={12}/> Activo</span> : <span className="text-xs text-slate-500">{admin.status === "suspended" ? "Suspendido" : "Inactivo"}</span>}
+                      {["active","suspended"].includes(admin.status) && <button type="button" onClick={() => void editAdministrator(admin)} disabled={!!busy} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 disabled:opacity-50">Editar</button>}
+                      {admin.status === "active" && <button type="button" onClick={() => void setAdministratorStatus(admin,"suspended")} disabled={!!busy} className="rounded-lg border border-amber-300/20 px-3 py-2 text-xs text-amber-100 disabled:opacity-50">Suspender</button>}
+                      {admin.status === "suspended" && <button type="button" onClick={() => void setAdministratorStatus(admin,"active")} disabled={!!busy} className="rounded-lg border border-emerald-300/20 px-3 py-2 text-xs text-emerald-100 disabled:opacity-50">Reactivar</button>}
                       {admin.status === "active" && <button type="button" onClick={() => void revokeAdministrator(admin)} disabled={!!busy} className="inline-flex items-center gap-1 rounded-lg border border-rose-300/20 px-3 py-2 text-xs font-semibold text-rose-200 disabled:opacity-50"><UserRoundX size={14}/>{busy === admin.membership_id ? "Revocando…" : "Revocar"}</button>}
                     </div>
                   </div>
