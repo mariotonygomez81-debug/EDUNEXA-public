@@ -128,7 +128,7 @@ export async function POST(request: Request, route: RouteContext) {
     const email = text(body.email).toLowerCase();
     const firstName = text(body.firstName);
     const lastName = text(body.lastName);
-    if (!validUuid(segments[1]) || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)
+    if (!validUuid(segments[1]) || email.length > 254 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)
       || firstName.length < 2 || firstName.length > 80 || lastName.length < 2 || lastName.length > 80
       || !requiredReason(body.reason) || !key) {
       return json({ error: "Institución, correo, nombre, apellido, motivo e Idempotency-Key son obligatorios." }, 400);
