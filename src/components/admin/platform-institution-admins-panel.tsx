@@ -248,7 +248,7 @@ export default function PlatformInstitutionAdminsPanel({ institutions }: Props) 
         <>
           <label className="block max-w-xl space-y-1.5">
             <span className="text-xs font-semibold text-slate-300">Institución</span>
-            <select value={institutionId} onChange={(event) => setInstitutionId(event.target.value)} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white">
+            <select aria-label="Institución" value={institutionId} onChange={(event) => setInstitutionId(event.target.value)} className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white">
               {institutions.map((item) => <option key={item.id} value={item.id}>{item.display_name} · {item.status}</option>)}
             </select>
           </label>
