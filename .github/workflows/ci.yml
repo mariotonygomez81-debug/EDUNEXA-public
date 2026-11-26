@@ -16,7 +16,7 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder_for_build_only
@@ -89,6 +89,46 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder_for_build_only
         run: npx playwright test --config=e2e/local-playwright.config.mjs
+
+      - name: Start disposable local Supabase stack
+        run: npx --yes supabase@2.34.3 start -x studio,edge-runtime,logflare,vector,analytics,pooler
+
+      - name: Apply repository migrations to local Supabase only
+        run: npx --yes supabase@2.34.3 db reset --local
+
+      - name: Export local Supabase connection details for this job
+        shell: bash
+        run: |
+          npx --yes supabase@2.34.3 status -o env > /tmp/edunexa-supabase.env
+          set -a
+          source /tmp/edunexa-supabase.env
+          set +a
+          {
+            echo "SUPABASE_URL=$API_URL"
+            echo "SUPABASE_DB_URL=$DB_URL"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+            echo "EDUNEXA_APP_URL=http://127.0.0.1:3101"
+          } >> "$GITHUB_ENV"
+
+      - name: Create two independent Superadmins and an ordinary synthetic Auth identity
+        run: node scripts/fixtures/seed-superadmin-authenticated-e2e.mjs
+
+      - name: Seed synthetic institutions and same-tenant administrator membership
+        run: psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f scripts/fixtures/superadmin-authenticated-e2e.sql
+
+      - name: Build application against disposable local Supabase
+        run: npm run build
+
+      - name: Run authenticated Superadmin HTTP and browser E2E
+        env:
+          CI: "true"
+        run: npx playwright test --config=e2e/superadmin-local-playwright.config.mjs
+
+      - name: Stop disposable local Supabase stack
+        if: always()
+        run: npx --yes supabase@2.34.3 stop --no-backup || true
 
 
   guardian-progress-postgres:
