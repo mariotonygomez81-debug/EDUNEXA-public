@@ -82,17 +82,27 @@ export async function GET(request: Request, route: RouteContext) {
     const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? "50") || 50));
     const institutionId = url.searchParams.get("institutionId");
     const actorUserId = url.searchParams.get("actorUserId");
+    const before = url.searchParams.get("before");
+    const beforeId = url.searchParams.get("beforeId");
+    const action = url.searchParams.get("action");
+    const outcome = url.searchParams.get("outcome");
+    const search = url.searchParams.get("search");
     if (institutionId && !validUuid(institutionId)) return json({ error: "Identificador de institución inválido." }, 400);
     if (actorUserId && !validUuid(actorUserId)) return json({ error: "Identificador de actor inválido." }, 400);
+    if (before && Number.isNaN(new Date(before).getTime())) return json({ error: "Cursor temporal inválido." }, 400);
+    if (beforeId && (!validUuid(beforeId) || !before)) return json({ error: "Cursor compuesto inválido." }, 400);
+    if (action && action.length > 160) return json({ error: "Filtro de acción demasiado extenso." }, 400);
+    if (search && search.length > 120) return json({ error: "La búsqueda admite hasta 120 caracteres." }, 400);
+    if (outcome && !["success", "rejected", "started", "failed"].includes(outcome)) return json({ error: "Resultado de auditoría inválido." }, 400);
     const result = await platformRpc(auth.supabase, "platform_list_audit_events", {
       p_limit: limit,
-      p_before: url.searchParams.get("before") || null,
-      p_before_id: url.searchParams.get("beforeId") || null,
+      p_before: before || null,
+      p_before_id: beforeId || null,
       p_institution_id: institutionId || null,
-      p_action: url.searchParams.get("action") || null,
+      p_action: action || null,
       p_actor_user_id: actorUserId || null,
-      p_outcome: url.searchParams.get("outcome") || null,
-      p_search: url.searchParams.get("search") || null,
+      p_outcome: outcome || null,
+      p_search: search || null,
     });
     if (result.error) return rpcErrorResponse(result.error);
     return json({ events: result.data ?? [] });
