@@ -223,36 +223,6 @@ BEGIN
 END $$;
 RESET ROLE;
 
--- An authenticated, active administrator of the same institution approves the pending invite.
--- The invitee cannot approve their own membership and another tenant cannot use this approval.
-SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',false);
-SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000004","app_metadata":{},"role":"authenticated"}',false);
-SET ROLE authenticated;
-SELECT public.platform_approve_institution_admin(
-  (SELECT institution_id FROM synthetic_results),
-  (SELECT invited_membership_id FROM synthetic_results),
-  'synthetic-admin-approve-001'
-);
-RESET ROLE;
-DO $$
-DECLARE v_institution uuid; v_membership uuid;
-BEGIN
-  SELECT institution_id INTO v_institution FROM synthetic_results;
-  SELECT invited_membership_id INTO v_membership FROM synthetic_results;
-  IF NOT EXISTS(SELECT 1 FROM public.memberships WHERE id=v_membership AND status='active')
-    OR NOT EXISTS(SELECT 1 FROM private.platform_audit_events
-      WHERE action='platform.institution.admin.approve'
-        AND target_id=v_membership::text
-        AND actor_user_id='00000000-0000-4000-8000-000000000004') THEN
-    RAISE EXCEPTION 'institution admin approval must activate the invited membership and append an audit event';
-  END IF;
-END $$;
-
-
-
-SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
-SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
-
 -- Activate a second synthetic institution and assign the same user there.
 -- A membership in one tenant must never be revocable through another tenant.
 DO $$
@@ -292,8 +262,8 @@ BEGIN
   SELECT count(*),count(*) FILTER (WHERE status='active'),count(*) FILTER (WHERE status='invited')
     INTO v_count,v_active,v_invited
   FROM public.platform_list_institution_admins(v_id);
-  IF v_count<>3 OR v_active<>3 OR v_invited<>0 THEN
-    RAISE EXCEPTION 'institution administrator registry must show all three active after independent approval';
+  IF v_count<>3 OR v_active<>2 OR v_invited<>1 THEN
+    RAISE EXCEPTION 'institution administrator registry must distinguish two active administrators and one pending invitation';
   END IF;
 END $$;
 
@@ -329,6 +299,36 @@ BEGIN
     RAISE EXCEPTION 'expected last institution administrator protection';
   EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;
+
+-- An authenticated, active administrator of the same institution approves the pending invite.
+-- The invitee cannot approve their own membership and another tenant cannot use this approval.
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000005","app_metadata":{},"role":"authenticated"}',false);
+SET ROLE authenticated;
+SELECT public.platform_approve_institution_admin(
+  (SELECT institution_id FROM synthetic_results),
+  (SELECT invited_membership_id FROM synthetic_results),
+  'synthetic-admin-approve-after-revoke-001'
+);
+RESET ROLE;
+DO $
+DECLARE v_institution uuid; v_membership uuid;
+BEGIN
+  SELECT institution_id INTO v_institution FROM synthetic_results;
+  SELECT invited_membership_id INTO v_membership FROM synthetic_results;
+  IF NOT EXISTS(SELECT 1 FROM public.memberships WHERE id=v_membership AND status='active')
+    OR NOT EXISTS(SELECT 1 FROM private.platform_audit_events
+      WHERE action='platform.institution.admin.approve'
+        AND target_id=v_membership::text
+        AND actor_user_id='00000000-0000-4000-8000-000000000005') THEN
+    RAISE EXCEPTION 'institution admin approval must activate the invited membership and append an audit event';
+  END IF;
+END $;
+
+
+
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","app_metadata":{"platform_role":"superadmin"}}',false);
 
 -- Delegation requires a distinct second Superadministrator and expires within 30 minutes.
 DO $$
