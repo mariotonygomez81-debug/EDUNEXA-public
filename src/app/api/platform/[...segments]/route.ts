@@ -351,7 +351,7 @@ export async function POST(request: Request, route: RouteContext) {
     const previousMetadata = targetResult.data.user.app_metadata ?? {};
     const nextMetadata: Record<string, unknown> = { ...previousMetadata };
     if (change.action === "grant") nextMetadata.platform_role = "superadmin";
-    else delete nextMetadata.platform_role;
+    else nextMetadata.platform_role = null; // Auth metadata updates may merge keys; null explicitly revokes the trusted role.
     const updated = await admin.auth.admin.updateUserById(change.target_user_id, { app_metadata: nextMetadata });
     if (updated.error) {
       const finished = await platformRpc(auth.supabase, "platform_finish_superadmin_change", {
