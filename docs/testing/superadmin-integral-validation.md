@@ -43,6 +43,19 @@ Para comprobar exclusión de datos de contacto, cargar únicamente valores ficti
 
 Resultado esperado: ninguna persona aprueba su propia operación; los claims editables por el usuario no elevan privilegios.
 
+### 1 bis. Invitación de administradores institucionales
+
+1. Como SA-A, seleccionar una institución activa e invitar una dirección sintética bajo un dominio de prueba reservado, con nombre, apellido y motivo.
+2. Confirmar que Auth crea la identidad y que la ruta envía el enlace al origen configurado del entorno de pruebas.
+3. Verificar que la membresía queda en estado `invited` y recibe únicamente el rol `institution_admin`.
+4. Intentar abrir el espacio institucional con esa cuenta antes de la aprobación; debe denegarse el acceso.
+5. Como administrador institucional activo, abrir Usuarios y accesos y aprobar la invitación.
+6. Verificar que la membresía pasa a `active`, se registra la aprobación y el usuario puede ingresar únicamente a esa institución.
+7. Repetir la solicitud con la misma clave de idempotencia y payload desde la API de pruebas; debe devolver el resultado original sin crear otra membresía.
+8. Intentar invitar a un usuario que ya tenga membresía en la institución y al propio Superadministrador; ambas operaciones deben rechazarse.
+
+Resultado esperado: el correo confirma identidad, pero nunca activa por sí solo la membresía; la habilitación institucional requiere aprobación explícita. Usar exclusivamente direcciones de prueba y cuentas sintéticas.
+
 ### 2. Aislamiento de las dos instituciones
 
 1. Abrir A y verificar Sede Central y sus parámetros académicos.
