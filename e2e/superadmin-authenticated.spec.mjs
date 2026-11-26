@@ -89,6 +89,10 @@ test("two independent authenticated Superadmins govern privileges, invitations a
   assertStatus(afterGrant, 200, "Superadmin inventory after grant");
   expect(afterGrant.payload.superadmins.some((item) => item.user_id === targetUserId)).toBe(true);
 
+  // A fresh Auth session must observe the newly granted trusted app_metadata role.
+  await ordinary.context.close();
+  const targetGranted = await signIn(browser, baseURL, process.env.E2E_TARGET_EMAIL, 200);
+
   // Revoke: B requests; B cannot approve its own request; A approves; B executes.
   const revokeRequest = await api(b.page, "/api/platform/superadmins/requests", "POST", {
     targetUserId,
@@ -113,8 +117,10 @@ test("two independent authenticated Superadmins govern privileges, invitations a
   assertStatus(afterRevoke, 200, "Superadmin inventory after revocation");
   expect(afterRevoke.payload.superadmins.some((item) => item.user_id === targetUserId)).toBe(false);
 
-  const targetAfterRevoke = await api(ordinary.page, "/api/platform/superadmins");
-  assertStatus(targetAfterRevoke, 403, "revoked identity no longer has global access");
+  await targetGranted.context.close();
+  const targetRevoked = await signIn(browser, baseURL, process.env.E2E_TARGET_EMAIL, 403);
+  const targetAfterRevoke = await api(targetRevoked.page, "/api/platform/superadmins");
+  assertStatus(targetAfterRevoke, 403, "fresh Auth session after revocation no longer has global access");
 
   // The two independent Superadmins remain able to administer the platform.
   const remaining = await api(a.page, "/api/platform/superadmins");
@@ -179,7 +185,7 @@ test("two independent authenticated Superadmins govern privileges, invitations a
     expect(actions.has(action), `audit event ${action} must be visible`).toBe(true);
   }
 
-  await ordinary.context.close();
+  await targetRevoked.context.close();
   await b.context.close();
   await a.context.close();
 });

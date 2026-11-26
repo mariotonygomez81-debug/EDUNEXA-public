@@ -25,7 +25,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "npm run start -- --hostname 127.0.0.1 --port 3101",
+    command: "npm run start -- --hostname localhost --port 3101",
     url: `${process.env.EDUNEXA_APP_URL}/login`,
     reuseExistingServer: false,
     timeout: 120_000,
