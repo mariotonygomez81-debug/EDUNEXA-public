@@ -69,6 +69,7 @@ export default async function NotificationsPage({
     supabase.from("notifications")
       .select("id,notification_type,title,body,resource_type,resource_id,created_at,read_at")
       .eq("institution_id", institution.id)
+      .eq("recipient_membership_id", membership.id)
       .order("created_at", { ascending: false })
       .limit(50),
     supabase.from("notification_preferences")
@@ -78,6 +79,7 @@ export default async function NotificationsPage({
     supabase.from("notifications")
       .select("id", { count: "exact", head: true })
       .eq("institution_id", institution.id)
+      .eq("recipient_membership_id", membership.id)
       .is("read_at", null),
   ]);
 
