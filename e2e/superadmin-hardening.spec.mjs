@@ -95,8 +95,12 @@ test("Auditoría: búsqueda textual, detalle individual y controles de navegador
   const audit = page.locator("#global-audit");
   await expect(audit).toBeVisible();
   await expect(audit.getByText("Auditoría global", { exact: true })).toBeVisible();
-  await expect(audit.getByRole("textbox", { name: "Buscar en auditoría" })).toBeVisible();
+  const searchBox = audit.getByRole("textbox", { name: "Buscar en auditoría" });
+  await expect(searchBox).toBeVisible();
+  await searchBox.fill(detail.payload.event.request_id);
   await expect(audit.getByRole("button", { name: "Ver detalle" }).first()).toBeVisible();
+  await audit.getByRole("button", { name: "Ver detalle" }).first().click();
+  await expect(audit.getByText("Detalle del evento", { exact: true })).toBeVisible();
 
   await operator.context.close();
 });
