@@ -135,7 +135,20 @@ BEGIN
     'Asignación sintética de administrador institucional','synthetic-request-admin-001','synthetic-admin-key-00001');
   PERFORM public.platform_assign_institution_admin(v_id,'00000000-0000-4000-8000-000000000005',
     'Asignación sintética de segundo administrador','synthetic-request-admin-002','synthetic-admin-key-00002');
-END $$;
+END $;
+
+-- Activate a second synthetic institution and assign the same user there.
+-- A membership in one tenant must never be revocable through another tenant.
+DO $
+DECLARE v_first uuid; v_second uuid; v_version timestamptz;
+BEGIN
+  SELECT institution_id,second_institution_id INTO v_first,v_second FROM synthetic_results;
+  SELECT updated_at INTO v_version FROM public.institutions WHERE id=v_second;
+  PERFORM public.platform_set_institution_status(v_second,'active',v_version,
+    'Activación sintética para probar aislamiento entre instituciones','synthetic-request-status-002','synthetic-status-key-0002');
+  PERFORM public.platform_assign_institution_admin(v_second,'00000000-0000-4000-8000-000000000004',
+    'Asignación sintética del mismo usuario en una segunda institución','synthetic-request-admin-003','synthetic-admin-key-00003');
+END $;
 
 -- Administrator list is scoped to one institution and reflects active and inactive memberships.
 DO $$
@@ -153,8 +166,25 @@ BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
   SELECT id INTO v_membership FROM public.memberships WHERE institution_id=v_id AND user_id='00000000-0000-4000-8000-000000000004';
   SELECT id INTO v_last FROM public.memberships WHERE institution_id=v_id AND user_id='00000000-0000-4000-8000-000000000005';
+  IF (SELECT count(*) FROM public.platform_list_institution_admins((SELECT second_institution_id FROM synthetic_results)))<>1 THEN
+    RAISE EXCEPTION 'administrator list leaked or omitted records across institutions';
+  END IF;
+  BEGIN
+    PERFORM public.platform_revoke_institution_admin((SELECT second_institution_id FROM synthetic_results),v_membership,
+      'Intento sintético de revocación cruzada entre instituciones','synthetic-request-cross-revoke-001','synthetic-cross-revoke-key-001');
+    RAISE EXCEPTION 'expected cross-institution membership revocation denial';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  IF NOT EXISTS(SELECT 1 FROM public.memberships WHERE id=v_membership AND institution_id=v_id AND status='active')
+    OR NOT EXISTS(SELECT 1 FROM public.memberships WHERE institution_id=(SELECT second_institution_id FROM synthetic_results)
+      AND user_id='00000000-0000-4000-8000-000000000004' AND status='active') THEN
+    RAISE EXCEPTION 'cross-institution revocation attempt changed a membership';
+  END IF;
   PERFORM public.platform_revoke_institution_admin(v_id,v_membership,
     'Revocación sintética de un administrador','synthetic-request-revoke-001','synthetic-revoke-key-0001');
+  IF NOT EXISTS(SELECT 1 FROM public.memberships WHERE institution_id=(SELECT second_institution_id FROM synthetic_results)
+      AND user_id='00000000-0000-4000-8000-000000000004' AND status='active') THEN
+    RAISE EXCEPTION 'revoking an administrator in one institution affected their other institution membership';
+  END IF;
   BEGIN
     PERFORM public.platform_revoke_institution_admin(v_id,v_last,
       'Intento sintético de revocar al último administrador','synthetic-request-revoke-002','synthetic-revoke-key-0002');
