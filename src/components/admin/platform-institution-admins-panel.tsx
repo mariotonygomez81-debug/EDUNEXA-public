@@ -25,6 +25,10 @@ export default function PlatformInstitutionAdminsPanel({ institutions }: Props) 
   const [administrators, setAdministrators] = useState<Administrator[]>([]);
   const [userId, setUserId] = useState("");
   const [reason, setReason] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteFirstName, setInviteFirstName] = useState("");
+  const [inviteLastName, setInviteLastName] = useState("");
+  const [inviteReason, setInviteReason] = useState("");
   const [busy, setBusy] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -116,6 +120,39 @@ export default function PlatformInstitutionAdminsPanel({ institutions }: Props) 
     }
   }
 
+  async function inviteAdministrator(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedInstitution || selectedInstitution.status !== "active") {
+      setMessage("Solo se pueden invitar administradores a instituciones activas.");
+      return;
+    }
+    if (!reasonRequired(inviteReason)) {
+      setMessage("El motivo de la invitación debe contener al menos 12 caracteres.");
+      return;
+    }
+    setBusy("invite"); setMessage("");
+    try {
+      const response = await fetch(`/api/platform/institutions/${institutionId}/administrators/invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+        body: JSON.stringify({
+          email: inviteEmail.trim().toLowerCase(),
+          firstName: inviteFirstName.trim(),
+          lastName: inviteLastName.trim(),
+          reason: inviteReason.trim(),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "No se pudo enviar la invitación.");
+      setInviteEmail(""); setInviteFirstName(""); setInviteLastName(""); setInviteReason("");
+      setMessage(typeof data.message === "string" ? data.message : "Invitación enviada y pendiente de aprobación.");
+      await loadAdministrators();
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error al invitar administrador.");
+    } finally { setBusy(""); }
+  }
+
   async function revokeAdministrator(admin: Administrator) {
     if (!window.confirm(`¿Revocar el acceso de ${admin.email || admin.user_id} a esta institución? Esta acción queda auditada.`)) return;
     const reasonText = window.prompt("Motivo de la revocación (mínimo 12 caracteres):");
@@ -149,7 +186,7 @@ export default function PlatformInstitutionAdminsPanel({ institutions }: Props) 
         <div>
           <p className="text-[11px] font-bold tracking-[0.16em] text-violet-200">GESTIÓN DE RESPONSABLES</p>
           <h3 className="mt-1 text-lg font-bold text-white">Administradores institucionales</h3>
-          <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-400">Asigná o revocá responsables por institución. Cada operación requiere un motivo y queda auditada; no se crean cuentas de acceso desde este panel.</p>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-400">Asigná o revocá responsables por institución. Cada operación requiere un motivo y queda auditada; también podés invitar por correo; la habilitación requiere aprobación institucional.</p>
         </div>
         <button type="button" onClick={() => void loadAdministrators()} disabled={!institutionId || loading || !!busy} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 disabled:opacity-50">
           <RefreshCw size={14} className={loading ? "animate-spin" : ""}/> Actualizar
@@ -174,6 +211,15 @@ export default function PlatformInstitutionAdminsPanel({ institutions }: Props) 
               <UserPlus size={15}/>{busy === "assign" ? "Asignando…" : "Asignar"}
             </button>
             {selectedInstitution?.status !== "active" && <p className="text-xs text-amber-200 md:col-span-3">La institución seleccionada no está activa; la asignación está deshabilitada.</p>}
+          </form>
+
+          <form onSubmit={inviteAdministrator} className="grid gap-2 rounded-xl border border-cyan-200/15 bg-cyan-950/15 p-4 md:grid-cols-2">
+            <div className="md:col-span-2"><p className="text-xs font-bold text-cyan-100">Invitar nuevo administrador por correo</p><p className="mt-1 text-[11px] text-slate-400">Se crea la cuenta Auth y una membresía pendiente. El administrador del colegio debe aprobar el acceso.</p></div>
+            <input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="Correo electrónico" aria-label="Correo del nuevo administrador" maxLength={254} required className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder:text-slate-600"/>
+            <input value={inviteFirstName} onChange={(event) => setInviteFirstName(event.target.value)} placeholder="Nombre" aria-label="Nombre del administrador" minLength={2} maxLength={80} required className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder:text-slate-600"/>
+            <input value={inviteLastName} onChange={(event) => setInviteLastName(event.target.value)} placeholder="Apellido" aria-label="Apellido del administrador" minLength={2} maxLength={80} required className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder:text-slate-600"/>
+            <input value={inviteReason} onChange={(event) => setInviteReason(event.target.value)} placeholder="Motivo de la invitación (mínimo 12 caracteres)" aria-label="Motivo de la invitación" minLength={12} maxLength={1000} required className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder:text-slate-600 md:col-span-2"/>
+            <div className="md:col-span-2"><button type="submit" disabled={!!busy || !selectedInstitution || selectedInstitution.status !== "active"} className="inline-flex items-center gap-2 rounded-lg bg-cyan-300 px-4 py-2.5 text-sm font-bold text-slate-950 disabled:opacity-50"><UserPlus size={15}/>{busy === "invite" ? "Enviando invitación…" : "Enviar invitación"}</button></div>
           </form>
 
           {message && <p role="status" className="rounded-lg border border-cyan-200/20 bg-cyan-200/[0.06] px-3 py-2 text-sm text-cyan-100">{message}</p>}
