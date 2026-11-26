@@ -139,7 +139,7 @@ test("two independent authenticated Superadmins govern privileges, invitations a
     firstName: "Synthetic",
     lastName: "AdminOne",
     reason: "Invitación sintética para probar aprobación institucional",
-  }, { "Idempotency-Key": "synthetic-invite-institution-one-0001" });
+  }, { "idempotency-key": "synthetic-invite-institution-one-0001" });
   assertStatus(invitation, 201, "Superadmin A creates a real Auth email invitation and pending membership");
   const membershipOne = invitation.payload.invitation?.membership_id;
   expect(membershipOne).toBeTruthy();
@@ -162,7 +162,7 @@ test("two independent authenticated Superadmins govern privileges, invitations a
     firstName: "Synthetic",
     lastName: "AdminTwo",
     reason: "Invitación sintética para validar aislamiento entre instituciones",
-  }, { "Idempotency-Key": "synthetic-invite-institution-two-0001" });
+  }, { "idempotency-key": "synthetic-invite-institution-two-0001" });
   assertStatus(crossTenantInvitation, 201, "Superadmin A creates a pending invitation in institution 2");
   const membershipTwo = crossTenantInvitation.payload.invitation?.membership_id;
   expect(membershipTwo).toBeTruthy();
