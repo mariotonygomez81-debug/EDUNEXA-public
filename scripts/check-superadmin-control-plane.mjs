@@ -105,6 +105,8 @@ assert.ok(api.includes("platform_approve_clone_job"), "Clone execution must requ
 
 const scopedMigration = read("../supabase/migrations/20261125200000_superadmin_module_scoped_support_and_config_sync.sql");
 const operationsPanel = read("../src/components/admin/platform-operations-panel.tsx");
+const governancePanel = read("../src/components/admin/platform-governance-panel.tsx");
+const privilegeQueueMigration = read("../supabase/migrations/20261126160000_platform_superadmin_change_request_listing.sql");
 for (const token of [
   "platform_delegations_module_scope_check", "platform_request_delegation_scoped_idempotent",
   "platform_read_delegated_module", "platform_list_delegations", "platform_list_clone_jobs",
@@ -153,6 +155,17 @@ assert.ok(postgresAssertions.includes("synchronized academic settings were not c
 assert.ok(postgresAssertions.includes("configuration-only clone must materialize academic settings"));
 assert.ok(postgresAssertions.includes("transient worker failure must requeue the approved job"));
 assert.ok(postgresAssertions.includes("expected expired delegation denial"));
+assert.ok(privilegeQueueMigration.includes("public.platform_list_superadmin_change_requests"), "Superadmin privilege requests need an audited listing RPC");
+assert.ok(privilegeQueueMigration.includes("private.require_platform_superadmin()"), "Privilege request listing must revalidate the trusted global role");
+assert.ok(privilegeQueueMigration.includes("private.platform_audit_append("), "Privilege request listing must itself be audited");
+assert.ok(privilegeQueueMigration.includes("revoke all on function public.platform_list_superadmin_change_requests(integer) from public,anon"));
+assert.ok(privilegeQueueMigration.includes("grant execute on function public.platform_list_superadmin_change_requests(integer) to authenticated"));
+assert.ok(api.includes("platform_list_superadmin_change_requests"), "API must expose the approved privilege request queue");
+assert.ok(governancePanel.includes("/api/platform/superadmins/requests") && governancePanel.includes("Aprobar como segundo responsable"));
+assert.ok(governancePanel.includes("Ejecutar cambio aprobado") && governancePanel.includes("/api/platform/audit"));
+assert.ok(consoleSource.includes("PlatformGovernancePanel") && consoleSource.includes('href="#superadmin-governance"'));
+assert.ok(consoleSource.includes('href="#global-audit"'), "Audit card must navigate to its functional panel");
+
 assert.equal((scopedMigration.split("as " + String.fromCharCode(36,36)).length - 1) + (scopedMigration.split("do " + String.fromCharCode(36,36)).length - 1), (scopedMigration.split(String.fromCharCode(36,36) + ";").length - 1), "Scoped support migration dollar quotes must be balanced");
 const scopedFunctions = [...scopedMigration.matchAll(/create or replace function public\.(platform_[a-z_]+)/g)].map((match) => match[1]);
 for (const name of scopedFunctions) {
