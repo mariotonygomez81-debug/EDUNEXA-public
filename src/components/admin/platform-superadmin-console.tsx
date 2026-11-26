@@ -297,7 +297,6 @@ export default function PlatformSuperadminConsole({ institutions, loadError }: P
       </div>
     </section>
 
-    <InstitutionLifecyclePanel institutions={institutions} />
 
     <PlatformInstitutionAdminsPanel institutions={institutions} />
 
