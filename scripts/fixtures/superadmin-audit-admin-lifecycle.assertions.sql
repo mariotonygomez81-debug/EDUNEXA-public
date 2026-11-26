@@ -114,5 +114,26 @@ BEGIN
     OR NOT EXISTS(SELECT 1 FROM private.platform_institution_admin_overrides WHERE membership_id=v_membership) THEN
     RAISE EXCEPTION 'admin lifecycle changes or scoped display-name override were not persisted/audited';
   END IF;
-END $$;
+END $;
+
+DO $
+BEGIN
+  IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid='private.platform_institution_admin_overrides'::regclass)
+    OR has_table_privilege('authenticated','private.platform_institution_admin_overrides','SELECT') THEN
+    RAISE EXCEPTION 'institution admin override table must be RLS-protected and inaccessible to authenticated clients';
+  END IF;
+END $;
+
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000005","app_metadata":{},"role":"authenticated"}',false);
+DO $
+DECLARE v_event uuid;
+BEGIN
+  SELECT id INTO v_event FROM private.platform_audit_events LIMIT 1;
+  BEGIN
+    PERFORM public.platform_get_audit_event(v_event);
+    RAISE EXCEPTION 'expected ordinary identity audit detail denial';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $;
+
 SELECT 'PASS: Superadmin audit filters/detail/composite cursor and institution admin edit/suspend/idempotency/optimistic locking/tenant isolation' AS result;
