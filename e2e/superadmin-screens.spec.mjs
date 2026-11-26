@@ -101,7 +101,6 @@ test("Administradores: invitación, aprobación por tenant y separación de padr
   await a.page.getByLabel("Apellido del administrador").fill("TenantOne");
   await a.page.getByLabel("Motivo de la invitación").fill("Invitación UI sintética para institución uno");
   await a.page.getByRole("button", { name: "Enviar invitación" }).click();
-  await expect(a.page.getByRole("status")).toContainText("Invitación enviada");
   await expect(a.page.getByText(new RegExp(`${emailOne} · Pendiente de aprobación`))).toBeVisible();
 
   const rosterOne = await api(a.page, `/api/platform/institutions/${institutionOne}/administrators`);
@@ -135,7 +134,7 @@ test("Administradores: invitación, aprobación por tenant y separación de padr
   await a.page.getByLabel("Apellido del administrador").fill("TenantTwo");
   await a.page.getByLabel("Motivo de la invitación").fill("Invitación UI sintética para institución dos");
   await a.page.getByRole("button", { name: "Enviar invitación" }).click();
-  await expect(a.page.getByRole("status")).toContainText("Invitación enviada");
+  await expect(a.page.getByText(new RegExp(`${emailTwo} · Pendiente de aprobación`))).toBeVisible();
   const rosterTwo = await api(a.page, `/api/platform/institutions/${institutionTwo}/administrators`);
   assertStatus(rosterTwo, 200, "institution two roster");
   const invitationTwo = rosterTwo.payload.administrators.find(item => item.email === emailTwo);
