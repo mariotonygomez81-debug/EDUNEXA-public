@@ -64,50 +64,6 @@ export async function executeApprovedPlan(plan: ApprovedPlan): Promise<Execution
     throw new Error("approved_plan_contract_invalid");
   }
 
-  const compensations: Array<() => Promise<void>> = [];
-  const actions: Array<{ system: string; action: string; status: string; reference?: string }> = [];
-  try {
-    for (const step of plan.steps) {
-      if (step.system === "github" && ["review_repository", "create_pull_request", "run_ci"].includes(step.action)) {
-        actions.push(await github(step, compensations));
-      } else if (step.system === "supabase" && ["inspect_schema", "review_rls"].includes(step.action)) {
-        actions.push(await supabase(step));
-      } else if (step.system === "render" && ["inspect_service", "plan_deploy", "inspect_logs"].includes(step.action)) {
-        actions.push(await render(step));
-      } else {
-        throw new Error("plan_step_not_allowlisted_or_live_write_not_authorized");
-      }
-    }
-  } catch (error) {
-    let rollbackFailures = 0;
-    for (const compensate of [...compensations].reverse()) {
-      try { await compensate(); } catch { rollbackFailures += 1; }
-    }
-    if (rollbackFailures > 0) {
-      throw new Error(`rollback_incomplete:${rollbackFailures}:${error instanceof Error ? error.message : "external_action_failed"}`);
-    }
-    throw error;
-  }
-
-  return {
-    summary: { completed: actions.length, actions },
-    rollback: async () => {
-      let failed = 0;
-      let attempted = 0;
-      for (const compensate of [...compensations].reverse()) {
-        attempted += 1;
-        try { await compensate(); } catch { failed += 1; }
-      }
-      return { attempted, failed };
-    },
-  };
-}
-export async function executeApprovedPlan(plan: ApprovedPlan): Promise<ExecutionResult> {
-  if (plan.provider !== "groq" || plan.executionMode !== "review_only"
-    || !Array.isArray(plan.steps) || plan.steps.length < 1 || plan.steps.length > 10) {
-    throw new Error("approved_plan_contract_invalid");
-  }
-
   // Validate the complete plan before any external call. No PRs, hosted Supabase,
   // Render APIs, deployments, migrations, or arbitrary repository writes are allowed.
   if (plan.steps.some((step) => step.system !== "github"
