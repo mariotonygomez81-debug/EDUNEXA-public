@@ -56,7 +56,7 @@ begin
   end if;
   perform private.platform_audit_append(
     'platform.audit.read','audit_collection',null,p_institution_id,
-    'Consulta filtrada de bitácora de auditoría',
+    'Consulta de bitácora de auditoría',
     'audit-list-'||pg_catalog.gen_random_uuid()::text,'success',
     pg_catalog.jsonb_build_object('limit',p_limit,'institution_filter',p_institution_id is not null,
       'action_filter',p_action is not null,'actor_filter',p_actor_user_id is not null,
@@ -205,7 +205,12 @@ begin
     raise exception using errcode='23514',message='administrator_not_editable_in_current_status';
   end if;
   if v_updated is distinct from p_expected_updated_at then
-    raise exception using errcode='40001',message='institution_admin_version_conflict';
+    v_result:=pg_catalog.jsonb_build_object('conflict',true,'code','institution_admin_version_conflict');
+    perform private.platform_audit_append('platform.institution.admin.update.conflict','membership',p_membership_id::text,
+      p_institution_id,p_reason,p_request_id,'rejected',
+      pg_catalog.jsonb_build_object('target_user_id',v_target,'conflict','stale_version'));
+    perform private.platform_idempotency_complete(v_actor,p_idempotency_key,v_result);
+    return v_result;
   end if;
 
   v_updated:=pg_catalog.clock_timestamp();
@@ -275,7 +280,12 @@ begin
     raise exception using errcode='23514',message='administrator_not_transitionable_in_current_status';
   end if;
   if v_updated is distinct from p_expected_updated_at then
-    raise exception using errcode='40001',message='institution_admin_version_conflict';
+    v_result:=pg_catalog.jsonb_build_object('conflict',true,'code','institution_admin_version_conflict');
+    perform private.platform_audit_append('platform.institution.admin.status.conflict','membership',p_membership_id::text,
+      p_institution_id,p_reason,p_request_id,'rejected',
+      pg_catalog.jsonb_build_object('target_user_id',v_target,'conflict','stale_version'));
+    perform private.platform_idempotency_complete(v_actor,p_idempotency_key,v_result);
+    return v_result;
   end if;
   if v_old_status='active' and p_status='suspended' then
     select count(*) into v_active_count
