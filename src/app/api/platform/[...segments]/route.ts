@@ -73,14 +73,26 @@ export async function GET(request: Request, route: RouteContext) {
     if (result.error) return rpcErrorResponse(result.error);
     return json({ administrators: result.data ?? [] });
   }
+  if (segments.length === 2 && segments[0] === "audit" && validUuid(segments[1])) {
+    const result = await platformRpc(auth.supabase, "platform_get_audit_event", { p_event_id: segments[1] });
+    if (result.error) return rpcErrorResponse(result.error);
+    return json({ event: result.data });
+  }
   if (segments.length === 1 && segments[0] === "audit") {
     const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? "50") || 50));
     const institutionId = url.searchParams.get("institutionId");
+    const actorUserId = url.searchParams.get("actorUserId");
     if (institutionId && !validUuid(institutionId)) return json({ error: "Identificador de institución inválido." }, 400);
+    if (actorUserId && !validUuid(actorUserId)) return json({ error: "Identificador de actor inválido." }, 400);
     const result = await platformRpc(auth.supabase, "platform_list_audit_events", {
       p_limit: limit,
       p_before: url.searchParams.get("before") || null,
+      p_before_id: url.searchParams.get("beforeId") || null,
       p_institution_id: institutionId || null,
+      p_action: url.searchParams.get("action") || null,
+      p_actor_user_id: actorUserId || null,
+      p_outcome: url.searchParams.get("outcome") || null,
+      p_search: url.searchParams.get("search") || null,
     });
     if (result.error) return rpcErrorResponse(result.error);
     return json({ events: result.data ?? [] });
@@ -615,6 +627,41 @@ export async function PATCH(request: Request, route: RouteContext) {
   }
   const body = await readJson(request);
   if (!body) return json({ error: "El cuerpo JSON no es válido." }, 400);
+
+  if (segments.length === 4 && segments[0] === "institutions" && segments[2] === "administrators"
+    && validUuid(segments[1]) && validUuid(segments[3])) {
+    if (!requiredReason(body.reason) || !text(body.expectedUpdatedAt) || !idempotencyKey(request)
+      || text(body.displayName).length < 2 || text(body.displayName).length > 120) {
+      return json({ error: "Nombre, versión, motivo e Idempotency-Key son obligatorios." }, 400);
+    }
+    const expected = new Date(text(body.expectedUpdatedAt));
+    if (Number.isNaN(expected.getTime())) return json({ error: "Versión de administrador inválida." }, 400);
+    const updated = await platformRpc(auth.supabase, "platform_update_institution_admin", {
+      p_institution_id: segments[1], p_membership_id: segments[3],
+      p_display_name: text(body.displayName), p_expected_updated_at: text(body.expectedUpdatedAt),
+      p_reason: text(body.reason), p_request_id: requestId(),
+      p_idempotency_key: idempotencyKey(request),
+    });
+    if (updated.error) return rpcErrorResponse(updated.error);
+    return json({ administrator: updated.data });
+  }
+  if (segments.length === 5 && segments[0] === "institutions" && segments[2] === "administrators"
+    && segments[4] === "status" && validUuid(segments[1]) && validUuid(segments[3])) {
+    if (!["active", "suspended"].includes(text(body.status)) || !requiredReason(body.reason)
+      || !text(body.expectedUpdatedAt) || !idempotencyKey(request)) {
+      return json({ error: "Estado, versión, motivo e Idempotency-Key son obligatorios." }, 400);
+    }
+    const expected = new Date(text(body.expectedUpdatedAt));
+    if (Number.isNaN(expected.getTime())) return json({ error: "Versión de administrador inválida." }, 400);
+    const changed = await platformRpc(auth.supabase, "platform_set_institution_admin_status", {
+      p_institution_id: segments[1], p_membership_id: segments[3],
+      p_status: text(body.status), p_expected_updated_at: text(body.expectedUpdatedAt),
+      p_reason: text(body.reason), p_request_id: requestId(),
+      p_idempotency_key: idempotencyKey(request),
+    });
+    if (changed.error) return rpcErrorResponse(changed.error);
+    return json({ administrator: changed.data });
+  }
 
   if (segments.length !== 3 || segments[0] !== "institutions" || segments[2] !== "status" || !validUuid(segments[1])) {
     return json({ error: "Recurso no encontrado." }, 404);
