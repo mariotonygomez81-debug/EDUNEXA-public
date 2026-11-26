@@ -48,6 +48,7 @@ declare
   v_search text := nullif(pg_catalog.btrim(coalesce(p_search,'')),'');
 begin
   if p_limit is null or p_limit < 1 or p_limit > 100
+    or (p_before_id is not null and p_before is null)
     or (p_action is not null and pg_catalog.length(p_action)>160)
     or (p_outcome is not null and p_outcome not in ('success','rejected','started','failed'))
     or (v_search is not null and pg_catalog.length(v_search)>120) then
@@ -247,7 +248,7 @@ declare
   v_result jsonb;
 begin
   if p_institution_id is null or p_membership_id is null
-    or p_status not in ('active','suspended')
+    or p_status is null or p_status not in ('active','suspended')
     or pg_catalog.length(pg_catalog.btrim(coalesce(p_reason,'')))<12
     or p_expected_updated_at is null then
     raise exception using errcode='22023',message='invalid_institution_admin_status';
