@@ -135,14 +135,27 @@ export function InstitutionLifecyclePanel({ institutions }: { institutions: Plat
       form.set("existingLogoPath",editing.logo_path??"");
       form.set("removeLogo",removeLogo?"true":"false");
       if (logoFile) form.set("logo",logoFile);
-      const response=await fetch(`/api/platform/institutions/${editing.id}`,{
-        method:"PATCH",headers:{"Idempotency-Key":crypto.randomUUID()},body:form,
-      });
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 30000);
+      let response: Response;
+      try {
+        response = await fetch(`/api/platform/institutions/${editing.id}`,{
+          method:"PATCH",headers:{"Idempotency-Key":crypto.randomUUID()},body:form,
+          signal: controller.signal,
+        });
+      } finally {
+        window.clearTimeout(timeout);
+      }
       const data=await response.json().catch(()=>({}));
       if(!response.ok) throw new Error(typeof data.error==="string"?data.error:"No se pudo actualizar la institución.");
       setEditing(null);setLogoFile(null);setRemoveLogo(false);
       setMessage("Ficha institucional actualizada correctamente.");router.refresh();
-    } catch(error) { setMessage(error instanceof Error?error.message:"Error al editar la institución."); }
+    } catch(error) {
+      const timedOut = error instanceof DOMException && error.name === "AbortError";
+      setMessage(timedOut
+        ? "El servidor no respondió en 30 segundos. No se recibió confirmación; actualizá la ficha antes de volver a intentar."
+        : error instanceof Error ? error.message : "Error al editar la institución.");
+    }
     finally { setBusy(""); }
   }
 
