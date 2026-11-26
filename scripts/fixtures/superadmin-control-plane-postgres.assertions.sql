@@ -29,7 +29,7 @@ SELECT (public.platform_create_institution(
 )->>'id')::uuid;
 
 -- The global institution profile form must persist every exposed field and return it to the console.
-DO $
+DO $$
 DECLARE v_id uuid; v_updated timestamptz; v_result jsonb; v_tax_id text; v_contact text;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
@@ -50,7 +50,7 @@ BEGIN
   IF v_tax_id<>'30-12345678-9' OR v_contact<>'contacto@synthetic.test' THEN
     RAISE EXCEPTION 'institution inventory did not return the complete profile to the console';
   END IF;
-END $;
+END $$;
 
 -- Seed real, synthetic institution settings; triggers must mirror only safe configuration.
 DO $$
@@ -665,8 +665,8 @@ BEGIN
   v_id:=public.platform_create_superadmin_change('00000000-0000-4000-8000-000000000004','grant',
     'Alta sintética de Superadministrador para prueba','synthetic-request-superadmin-001');
   UPDATE synthetic_results SET superadmin_change_id=v_id;
-END $;
-DO $
+END $$;
+DO $$
 DECLARE v_id uuid;
 BEGIN
   SELECT superadmin_change_id INTO v_id FROM synthetic_results;
@@ -680,7 +680,7 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Superadmin privilege request inventory did not expose the pending synthetic request';
   END IF;
-END $;
+END $$;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","app_metadata":{"platform_role":"superadmin"}}',false);
 SELECT public.platform_approve_superadmin_change(superadmin_change_id,'synthetic-request-superadmin-approve-001')
