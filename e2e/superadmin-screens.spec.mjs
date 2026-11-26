@@ -6,19 +6,21 @@ const institutionTwo = "10000000-0000-4000-8000-000000000002";
 const targetUserId = process.env.E2E_TARGET_USER_ID;
 const password = process.env.E2E_SYNTHETIC_PASSWORD;
 
-async function api(page, path, method = "GET", body = null) {
-  return page.evaluate(async ({ path, method, body }) => {
+async function api(page, path, method = "GET", body = null, extraHeaders = {}) {
+  return page.evaluate(async ({ path, method, body, extraHeaders }) => {
+    const headers = new Headers(extraHeaders);
+    if (body !== null) headers.set("Content-Type", "application/json");
     const response = await fetch(path, {
       method,
       credentials: "same-origin",
-      headers: body === null ? {} : { "Content-Type": "application/json" },
+      headers,
       ...(body === null ? {} : { body: JSON.stringify(body) }),
     });
     return {
       status: response.status,
       payload: await response.json().catch(() => ({})),
     };
-  }, { path, method, body });
+  }, { path, method, body, extraHeaders });
 }
 
 async function signIn(browser, email, expectedStatus = 200) {
@@ -96,7 +98,7 @@ test("Administradores: invitación, aprobación por tenant y separación de padr
     firstName: "UI Synthetic",
     lastName: "TenantTwo",
     reason: "Invitación sintética para comprobar padrón pendiente",
-  });
+  }, { "Idempotency-Key": `ui-invite-two-${randomUUID()}` });
   assertStatus(pendingInvitation, 201, "create pending invitation for institution two");
   expect(pendingInvitation.payload.invitation?.status).toBe("invited");
 
