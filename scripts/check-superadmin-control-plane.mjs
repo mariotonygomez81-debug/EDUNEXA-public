@@ -195,3 +195,18 @@ for (const name of scopedFunctions) {
   assert.ok(scopedMigration.includes("revoke all on function public." + name + "("), name + " must revoke default PUBLIC execution");
   assert.ok(scopedMigration.includes("grant execute on function public." + name + "("), name + " must grant explicit authenticated execution");
 }
+
+const adminApprovalMigration = read("../supabase/migrations/20261126180000_platform_admin_invitation_approval.sql");
+const adminApprovalRoute = read("../src/app/api/institution/administrator-invitations/[membershipId]/approve/route.ts");
+assert.ok(adminApprovalMigration.includes("active_institution_admin_required"), "Invitation approval must require an active institution admin");
+assert.ok(adminApprovalMigration.includes("self_approval_forbidden"), "Invitees must not approve their own memberships");
+assert.ok(adminApprovalMigration.includes("platform.institution.admin.approve"), "Institutional approval must append an audit event");
+assert.ok(adminApprovalMigration.includes("grant execute on function public.platform_approve_institution_admin(uuid,uuid,text) to authenticated"));
+assert.ok(adminApprovalRoute.includes('supabase.rpc("platform_approve_institution_admin"'), "Authenticated API must call the institution-scoped approval RPC");
+assert.ok(adminApprovalRoute.includes('request.headers.get("origin")'), "Invitation approval writes must enforce same-origin requests");
+assert.ok(runner.includes("20261126180000_platform_admin_invitation_approval.sql"), "Ephemeral PostgreSQL suite must apply invitation approval migration");
+assert.ok(postgresAssertions.includes("institution admin approval must activate the invited membership and append an audit event"));
+assert.ok(postgresAssertions.includes("expected invitee self-approval denial"));
+assert.ok(postgresAssertions.includes("expected cross-tenant invitation approval denial"));
+assert.ok(postgresAssertions.includes("independently approved Superadmin revocation did not complete"));
+assert.ok(postgresAssertions.includes("second Superadmin revocation failed or changed the remaining global operators"));
