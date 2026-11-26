@@ -248,21 +248,6 @@ BEGIN
 END $$;
 RESET ROLE;
 
-SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',false);
-SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000004","app_metadata":{},"role":"authenticated"}',false);
-SET ROLE authenticated;
-DO $
-DECLARE v_institution uuid; v_second uuid; v_membership uuid;
-BEGIN
-  SELECT institution_id,second_institution_id INTO v_institution,v_second FROM synthetic_results;
-  SELECT id INTO v_membership FROM public.memberships
-   WHERE institution_id=v_institution AND user_id='00000000-0000-4000-8000-000000000006';
-  BEGIN
-    PERFORM public.platform_approve_institution_admin(v_second,v_membership,'synthetic-admin-cross-tenant-001');
-    RAISE EXCEPTION 'expected cross-tenant invitation approval denial';
-  EXCEPTION WHEN no_data_found THEN NULL; END;
-END $$;
-RESET ROLE;
 
 -- Activate a second synthetic institution and assign the same user there.
 -- A membership in one tenant must never be revocable through another tenant.
@@ -276,6 +261,21 @@ BEGIN
   PERFORM public.platform_assign_institution_admin(v_second,'00000000-0000-4000-8000-000000000004',
     'Asignación sintética del mismo usuario en una segunda institución','synthetic-request-admin-003','synthetic-admin-key-00003');
 END $$;
+
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000004","app_metadata":{},"role":"authenticated"}',false);
+SET ROLE authenticated;
+DO $
+DECLARE v_second uuid; v_membership uuid;
+BEGIN
+  SELECT second_institution_id INTO v_second FROM synthetic_results;
+  SELECT invited_membership_id INTO v_membership FROM synthetic_results;
+  BEGIN
+    PERFORM public.platform_approve_institution_admin(v_second,v_membership,'synthetic-admin-cross-tenant-001');
+    RAISE EXCEPTION 'expected cross-tenant invitation approval denial';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+END $;
+RESET ROLE;
 
 -- Administrator list is scoped to one institution and includes active plus pending invitations.
 DO $$
