@@ -641,7 +641,22 @@ BEGIN
   v_id:=public.platform_create_superadmin_change('00000000-0000-4000-8000-000000000004','grant',
     'Alta sintética de Superadministrador para prueba','synthetic-request-superadmin-001');
   UPDATE synthetic_results SET superadmin_change_id=v_id;
-END $$;
+END $;
+DO $
+DECLARE v_id uuid;
+BEGIN
+  SELECT superadmin_change_id INTO v_id FROM synthetic_results;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.platform_list_superadmin_change_requests(20) r
+    WHERE r.request_id=v_id
+      AND r.target_user_id='00000000-0000-4000-8000-000000000004'
+      AND r.requested_action='grant'
+      AND r.status='pending'
+      AND r.requested_by='00000000-0000-4000-8000-000000000001'
+  ) THEN
+    RAISE EXCEPTION 'Superadmin privilege request inventory did not expose the pending synthetic request';
+  END IF;
+END $;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","app_metadata":{"platform_role":"superadmin"}}',false);
 SELECT public.platform_approve_superadmin_change(superadmin_change_id,'synthetic-request-superadmin-approve-001')
