@@ -39,7 +39,7 @@ assert.ok(guard.includes('request.headers.get("origin")'));
 assert.ok(consoleSource.includes("Copiloto EDUNEXA"));
 assert.equal((postgresFixture.match(/DO \$\$/g) ?? []).length, (postgresFixture.match(/END \$\$;/g) ?? []).length, "PostgreSQL fixture DO blocks must be balanced");
 assert.equal((postgresAssertions.match(/DO \$\$/g) ?? []).length, (postgresAssertions.match(/END \$\$;/g) ?? []).length, "PostgreSQL assertion DO blocks must be balanced");
-assert.ok(!/DO \$(?!\$)/.test(postgresFixture + postgresAssertions), "Single-dollar DO delimiters are forbidden");
+assert.ok(!/DO \$(?!\$)\s/.test(postgresFixture + postgresAssertions), "Bare single-dollar DO delimiters are forbidden; tagged dollar quotes are valid");
 
 const publicFunctions = [...migration.matchAll(/create or replace function public\.(platform_[a-z_]+)/g)].map((match) => match[1]);
 assert.equal(new Set(publicFunctions).size, publicFunctions.length, "Public platform RPCs must not be duplicated");
