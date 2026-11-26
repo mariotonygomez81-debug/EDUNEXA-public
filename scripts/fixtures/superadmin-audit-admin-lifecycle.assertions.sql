@@ -98,7 +98,7 @@ BEGIN
   END IF;
 
   SELECT count(*) INTO v_events FROM public.platform_list_audit_events(
-    100,null,null,v_institution,'platform.institution.admin.update',null,'success','Nombre local sintético'
+    100,null,null,v_institution,'platform.institution.admin.update',null,'success','synthetic-admin-edit-00001'
   );
   IF v_events<1 THEN RAISE EXCEPTION 'audit text/action/institution filters did not return matching event'; END IF;
 
@@ -111,7 +111,7 @@ BEGIN
 
   IF NOT EXISTS(SELECT 1 FROM private.platform_audit_events
     WHERE action='platform.institution.admin.status' AND target_id=v_membership::text)
-    OR NOT EXISTS(SELECT 1 FROM private.platform.platform_institution_admin_overrides WHERE membership_id=v_membership) THEN
+    OR NOT EXISTS(SELECT 1 FROM private.platform_institution_admin_overrides WHERE membership_id=v_membership) THEN
     RAISE EXCEPTION 'admin lifecycle changes or scoped display-name override were not persisted/audited';
   END IF;
 END $$;
