@@ -446,25 +446,31 @@ export async function PATCH(request: Request, route: RouteContext) {
       || !idempotencyKey(request)) {
       return json({ error: "Completá nombre, razón social, idioma, zona horaria, versión y motivo (mínimo 12 caracteres)." }, 400);
     }
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const adminSecret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !adminSecret) return json({ error: "El almacenamiento institucional requiere una clave administrativa configurada solo en el servidor." }, 503);
-    const admin = createSupabaseAdminClient(supabaseUrl, adminSecret, { auth: { autoRefreshToken: false, persistSession: false } });
+    const logo = form.get("logo");
+    const hasNewLogo = logo instanceof File && logo.size > 0;
+    const removeExistingLogo = form.get("removeLogo") === "true";
+    const logoOperation = hasNewLogo || removeExistingLogo;
+    let admin: ReturnType<typeof createSupabaseAdminClient> | null = null;
+    if (logoOperation) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const adminSecret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !adminSecret) return json({ error: "Para subir o quitar un logo se requiere configurar SUPABASE_SECRET_KEY o SUPABASE_SERVICE_ROLE_KEY en Render Preview." }, 503);
+      admin = createSupabaseAdminClient(supabaseUrl, adminSecret, { auth: { autoRefreshToken: false, persistSession: false } });
+    }
     let logoPath = value("existingLogoPath") || null;
     let uploadedPath: string | null = null;
-    const logo = form.get("logo");
-    if (logo instanceof File && logo.size > 0) {
+    if (hasNewLogo) {
       const allowed = new Map([["image/png","png"],["image/jpeg","jpg"],["image/webp","webp"]]);
       const extension = allowed.get(logo.type);
       if (!extension || logo.size > 2 * 1024 * 1024) return json({ error: "El logo debe ser PNG, JPG o WEBP y no superar 2 MB." }, 400);
       uploadedPath = `${segments[1]}/${crypto.randomUUID()}.${extension}`;
-      const upload = await admin.storage.from("institution-logos").upload(uploadedPath, logo, {
+      const upload = await admin!.storage.from("institution-logos").upload(uploadedPath, logo as File, {
         contentType: logo.type, upsert: false, cacheControl: "3600",
       });
       if (upload.error) return json({ error: "No se pudo almacenar el logo institucional." }, 502);
       logoPath = uploadedPath;
     }
-    if (form.get("removeLogo") === "true") logoPath = null;
+    if (removeExistingLogo) logoPath = null;
     const updated = await platformRpc(auth.supabase, "platform_update_institution", {
       p_institution_id: segments[1], p_display_name: value("displayName"), p_legal_name: value("legalName"),
       p_locale: value("locale"), p_timezone: value("timezone"), p_tax_id: value("taxId") || null,
@@ -476,12 +482,12 @@ export async function PATCH(request: Request, route: RouteContext) {
       p_request_id: requestId(), p_idempotency_key: idempotencyKey(request),
     });
     if (updated.error) {
-      if (uploadedPath) await admin.storage.from("institution-logos").remove([uploadedPath]);
+      if (uploadedPath && admin) await admin.storage.from("institution-logos").remove([uploadedPath]);
       return rpcErrorResponse(updated.error);
     }
     const oldLogo = value("existingLogoPath");
     if (oldLogo.startsWith(`${segments[1]}/`) && (form.get("removeLogo") === "true" || (uploadedPath && oldLogo))) {
-      await admin.storage.from("institution-logos").remove([oldLogo]);
+      if (admin) await admin.storage.from("institution-logos").remove([oldLogo]);
     }
     return json({ institution: updated.data });
   }
