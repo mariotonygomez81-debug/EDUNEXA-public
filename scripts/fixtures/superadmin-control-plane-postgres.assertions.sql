@@ -219,7 +219,7 @@ BEGIN
 END $$;
 
 -- Administrator list is scoped to one institution and includes active plus pending invitations.
-DO $
+DO $$
 DECLARE v_id uuid; v_count integer; v_active integer; v_invited integer;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
@@ -229,7 +229,7 @@ BEGIN
   IF v_count<>3 OR v_active<>2 OR v_invited<>1 THEN
     RAISE EXCEPTION 'institution administrator registry must distinguish two active administrators and one pending invitation';
   END IF;
-END $;
+END $$;
 
 -- Revoking one administrator is allowed; revoking the last one is rejected.
 DO $$
