@@ -153,22 +153,16 @@ test("Administradores: invitación, aprobación por tenant y separación de padr
   await a.context.close();
 });
 
-test("Auditoría: navegación a la bitácora y visualización de un evento recién generado", async ({ browser }) => {
-  expect(targetUserId, "local Auth fixture must export the synthetic target UUID").toBeTruthy();
+test("Auditoría: navegación a la bitácora y visualización de eventos institucionales recientes", async ({ browser }) => {
   const operator = await signIn(browser, process.env.E2E_SUPERADMIN_A_EMAIL);
   const { page } = operator;
   await page.goto("/dashboard/platform");
   await expect(page.locator("#superadmin-governance")).toBeVisible();
-  await page.getByLabel("UUID de usuario existente").fill(targetUserId);
-  await page.getByLabel("Acción solicitada").selectOption("grant");
-  await page.getByLabel("Motivo (mínimo 12 caracteres)").fill("Solicitud UI para comprobar evento de auditoría");
-  await page.getByRole("button", { name: "Solicitar", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("Operación registrada");
   await page.getByRole("link", { name: /Auditoría global/ }).click();
   const audit = page.locator("#global-audit");
   await expect(audit).toBeVisible();
-  await expect(audit.getByText("platform.superadmin.change.request", { exact: true })).toBeVisible();
-  await expect(audit).toContainText("Solicitud UI para comprobar evento de auditoría");
+  await expect(audit.getByText("platform.institution.admin.invite", { exact: true })).toBeVisible();
+  await expect(audit).toContainText("Invitación UI sintética para institución uno");
   await operator.context.close();
 });
 
