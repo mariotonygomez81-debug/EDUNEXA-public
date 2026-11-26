@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PlatformOperationsPanel from "@/components/admin/platform-operations-panel";
+import PlatformGovernancePanel from "@/components/admin/platform-governance-panel";
 import PlatformInstitutionAdminsPanel from "@/components/admin/platform-institution-admins-panel";
 import {
   Activity, AlertTriangle, ArrowUpRight, Bot, Building2, CheckCircle2, CircleHelp,
@@ -61,7 +62,7 @@ function ToolCard({ title, description, icon: Icon, status, tone = "cyan", href 
   const content = <>
     <div className="flex items-start justify-between gap-3">
       <span className={`flex h-10 w-10 items-center justify-center rounded-xl border ${tones[tone]}`}><Icon size={19}/></span>
-      <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-semibold text-slate-400">{status ?? (href ? "Ir a sección" : "Preparado para siguiente etapa")}</span>
+      <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-semibold text-slate-400">{status ?? (href ? "Abrir sección" : "No habilitado")}</span>
     </div>
     <h3 className="mt-4 font-bold text-white">{title}</h3>
     <p className="mt-1 text-sm leading-6 text-slate-400">{description}</p>
@@ -314,6 +315,8 @@ export default function PlatformSuperadminConsole({ institutions, loadError }: P
 
     <PlatformInstitutionAdminsPanel institutions={institutions} />
 
+    <PlatformGovernancePanel />
+
     <PlatformOperationsPanel institutions={institutions} />
 
     <section className="space-y-4">
@@ -321,11 +324,11 @@ export default function PlatformSuperadminConsole({ institutions, loadError }: P
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         <ToolCard title="ABM de plataformas" description="Crear, editar, activar y suspender instituciones, con historial de cambios." icon={Building2} tone="cyan" href="/dashboard/platform/institutions"/>
         <ToolCard title="Administradores de colegios" description="Asignar administradores existentes, revocar accesos y revisar responsables por institución." icon={Users} tone="violet" href="/dashboard/platform/administrators"/>
-        <ToolCard title="Superadministradores" description="Alta, baja, modificación, recuperación de acceso y control de privilegios globales." icon={KeyRound} tone="amber"/>
-        <ToolCard title="Acceso delegado a colegios" description="Entrar en modo de asistencia administrativa, con motivo obligatorio, alcance temporal y registro visible." icon={Network} tone="cyan"/>
-        <ToolCard title="Clonación de plataformas" description="Crear una nueva institución desde una plantilla, con configuración aislada y datos de prueba opcionales." icon={Layers3} tone="violet"/>
-        <ToolCard title="Auditoría global" description="Bitácora inmutable de acciones, actor, institución, motivo, resultado y correlación de solicitudes." icon={ClipboardCheck} tone="amber"/>
-        <ToolCard title="Copiloto EDUNEXA (Groq)" description="Convertir instrucciones en planes revisables para GitHub, Supabase y Render; aplicar solo tras aprobación." icon={Bot} tone="violet"/>
+        <ToolCard title="Superadministradores" description="Solicitar y aprobar altas o revocaciones con dos responsables, ejecución controlada y registro de resultado." icon={KeyRound} tone="amber" href="#superadmin-governance"/>
+        <ToolCard title="Acceso delegado a colegios" description="Solicitar, aprobar y revocar acceso temporal de solo lectura con alcance por módulo." icon={Network} tone="cyan" href="#operations-panel"/>
+        <ToolCard title="Clonación de plataformas" description="Clonar únicamente configuración institucional permitida; nunca copia alumnos ni expedientes." icon={Layers3} tone="violet" href="#operations-panel"/>
+        <ToolCard title="Auditoría global" description="Consultar eventos append-only con actor, institución, motivo y resultado." icon={ClipboardCheck} tone="amber" href="#global-audit"/>
+        <ToolCard title="Copiloto EDUNEXA (Groq)" description="Generar, revisar y aprobar planes allowlisted. Las operaciones remotas siguen limitadas por sus permisos." icon={Bot} tone="violet" href="#operations-panel"/>
         <ToolCard title="Infraestructura y despliegues" description="Estado de servicios, bases, builds, despliegues, errores, consumo y alertas operativas." icon={Cloud} tone="cyan"/>
         <ToolCard title="Seguridad y accesos" description="Sesiones, políticas, roles, accesos anómalos, MFA y revisiones periódicas de privilegios." icon={ShieldCheck} tone="amber"/>
         <ToolCard title="Backups y recuperación" description="Estado de respaldos, puntos de restauración y simulacros de recuperación por institución." icon={Database} tone="cyan"/>
