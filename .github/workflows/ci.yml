@@ -114,7 +114,7 @@ jobs:
 
       - name: Apply Superadmin fixture and versioned control-plane migrations to local Supabase only
         run: |
-          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f scripts/fixtures/superadmin-control-plane-postgres.sql
+          PGOPTIONS="-c edunexa.local_auth=true" psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f scripts/fixtures/superadmin-control-plane-postgres.sql
           for migration in \
             20261125190000_superadmin_global_control_plane.sql \
             20261125193000_superadmin_execution_layer.sql \

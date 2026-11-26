@@ -20,21 +20,45 @@ BEGIN
   END IF;
 END;
 $storage$;
-CREATE TABLE IF NOT EXISTS auth.users (
-  id uuid PRIMARY KEY,
-  raw_app_meta_data jsonb NOT NULL DEFAULT '{}'::jsonb,
-  email text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  last_sign_in_at timestamptz
-);
-CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
-LANGUAGE sql STABLE AS $$
-  SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
-$$;
-CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb
-LANGUAGE sql STABLE AS $$
-  SELECT coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb, '{}'::jsonb)
-$$;
+DO $auth_users$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'auth' AND c.relname = 'users'
+  ) THEN
+    CREATE TABLE auth.users (
+      id uuid PRIMARY KEY,
+      raw_app_meta_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+      email text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      last_sign_in_at timestamptz
+    );
+  END IF;
+END;
+$auth_users$;
+
+DO $auth_functions$
+BEGIN
+  IF pg_catalog.to_regprocedure('auth.uid()') IS NULL THEN
+    EXECUTE $fn$
+      CREATE FUNCTION auth.uid() RETURNS uuid
+      LANGUAGE sql STABLE AS $body$
+        SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+      $body$
+    $fn$;
+  END IF;
+  IF pg_catalog.to_regprocedure('auth.jwt()') IS NULL THEN
+    EXECUTE $fn$
+      CREATE FUNCTION auth.jwt() RETURNS jsonb
+      LANGUAGE sql STABLE AS $body$
+        SELECT coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb, '{}'::jsonb)
+      $body$
+    $fn$;
+  END IF;
+END;
+$auth_functions$;
 
 CREATE TABLE IF NOT EXISTS public.institutions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -69,14 +93,22 @@ CREATE TABLE IF NOT EXISTS public.membership_roles (
   PRIMARY KEY(membership_id,role_id)
 );
 
-INSERT INTO auth.users(id,raw_app_meta_data) VALUES
- ('00000000-0000-4000-8000-000000000001','{"platform_role":"superadmin"}'),
- ('00000000-0000-4000-8000-000000000002','{"platform_role":"superadmin"}'),
- ('00000000-0000-4000-8000-000000000003','{"platform_role":"superadmin"}'),
- ('00000000-0000-4000-8000-000000000004','{}'),
- ('00000000-0000-4000-8000-000000000005','{}'),
- ('00000000-0000-4000-8000-000000000006','{}')
-ON CONFLICT(id) DO NOTHING;
+DO $auth_seed$
+BEGIN
+  -- Local Auth users are created through GoTrue's Admin API by the browser E2E seed.
+  -- The plain PostgreSQL suite has no GoTrue service and uses these synthetic rows instead.
+  IF current_setting('edunexa.local_auth', true) IS DISTINCT FROM 'true' THEN
+    INSERT INTO auth.users(id,raw_app_meta_data) VALUES
+     ('00000000-0000-4000-8000-000000000001','{"platform_role":"superadmin"}'),
+     ('00000000-0000-4000-8000-000000000002','{"platform_role":"superadmin"}'),
+     ('00000000-0000-4000-8000-000000000003','{"platform_role":"superadmin"}'),
+     ('00000000-0000-4000-8000-000000000004','{}'),
+     ('00000000-0000-4000-8000-000000000005','{}'),
+     ('00000000-0000-4000-8000-000000000006','{}')
+    ON CONFLICT(id) DO NOTHING;
+  END IF;
+END;
+$auth_seed$;
 INSERT INTO public.roles(key,name) VALUES('institution_admin','Administrador institucional')
 ON CONFLICT(key) DO NOTHING;
 
