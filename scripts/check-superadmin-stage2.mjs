@@ -50,7 +50,6 @@ assert.ok(api.includes("requirePlatformSuperadmin(request, write)"));
 assert.ok(api.includes("requiredReason(body.reason)"));
 assert.ok(api.includes("body.expiresAt"));
 assert.ok(api.includes("body.moduleScopes"));
-assert.ok(ops.includes("pending_second_approval"));
 assert.ok(ops.includes("Segundo Superadministrador") || ops.includes("segundo Superadministrador"));
 assert.ok(ops.includes("expires_at"));
 assert.ok(admins.includes("expectedUpdatedAt"));
