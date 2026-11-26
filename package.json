@@ -13,7 +13,8 @@
     "check:classroom-scope": "node scripts/check-classroom-scope-migration.mjs",
     "check:admin-documents": "node scripts/check-admin-documents-migration.mjs",
     "check:secretary-scope": "node scripts/check-secretary-student-scope.mjs",
-    "check:academic-ai": "node scripts/check-academic-ai-modes.mjs"
+    "check:academic-ai": "node scripts/check-academic-ai-modes.mjs",
+    "check:superadmin-stage2": "node scripts/check-superadmin-stage2.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
