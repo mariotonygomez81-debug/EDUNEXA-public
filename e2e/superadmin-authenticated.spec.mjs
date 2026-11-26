@@ -28,7 +28,13 @@ async function signIn(browser, baseURL, email, expectedPlatformStatus) {
   await page.locator("#password").fill(password);
   await page.getByRole("button", { name: "Ingresar", exact: true }).click();
 
-  await expect.poll(async () => (await api(page, "/api/platform/superadmins")).status, {
+  await expect.poll(async () => {
+    const response = await api(page, "/api/platform/superadmins");
+    if (response.status >= 500) {
+      throw new Error(`Authenticated API route returned HTTP ${response.status}: ${JSON.stringify(response.payload)}`);
+    }
+    return response.status;
+  }, {
     message: `Auth session for ${email} must be accepted and role-checked by the real API route`,
     timeout: 30_000,
   }).toBe(expectedPlatformStatus);

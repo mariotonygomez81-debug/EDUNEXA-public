@@ -28,6 +28,8 @@ export default defineConfig({
     command: "npm run start -- --hostname localhost --port 3101",
     url: `${process.env.EDUNEXA_APP_URL}/login`,
     reuseExistingServer: false,
+    stdout: "pipe",
+    stderr: "pipe",
     timeout: 120_000,
     env: {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
