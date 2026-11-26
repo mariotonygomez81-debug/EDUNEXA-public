@@ -209,11 +209,14 @@ test("Administradores: edición, suspensión, reactivación, idempotencia y sesi
   const suspendKey = `admin-suspend-${randomUUID()}`;
   const suspendBody = { status: "suspended", expectedUpdatedAt: edited.payload.administrator.updated_at,
     reason: "Suspensión sintética de administrador institucional" };
-  const suspended = await api(page, statusPath, "PATCH", suspendBody, { "Idempotency-Key": suspendKey });
+  const [suspended, concurrentReplay] = await Promise.all([
+    api(page, statusPath, "PATCH", suspendBody, { "Idempotency-Key": suspendKey }),
+    api(page, statusPath, "PATCH", suspendBody, { "Idempotency-Key": suspendKey }),
+  ]);
   expectStatus(suspended, 200, "administrator suspension");
+  expectStatus(concurrentReplay, 200, "concurrent idempotent suspension replay");
   expect(suspended.payload.administrator.status).toBe("suspended");
-  const suspendReplay = await api(page, statusPath, "PATCH", suspendBody, { "Idempotency-Key": suspendKey });
-  expectStatus(suspendReplay, 200, "idempotent suspension replay");
+  expect(concurrentReplay.payload.administrator.updated_at).toBe(suspended.payload.administrator.updated_at);
 
   roster = await api(page, `/api/platform/institutions/${institutionOne}/administrators`);
   const remainingActive = roster.payload.administrators.find(item => item.status === "active" && item.membership_id !== membershipId);
@@ -232,6 +235,8 @@ test("Administradores: edición, suspensión, reactivación, idempotencia y sesi
   expect(reactivated.payload.administrator.status).toBe("active");
 
   await page.goto("/dashboard/platform");
+  await expect(page.getByText("Administradores institucionales", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Editar", exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Cerrar sesión", exact: true }).click();
   await expect(page).toHaveURL(/\\/login/);
   expectStatus(await api(page, "/api/platform/superadmins"), 401, "signed-out browser session cannot access platform APIs");
