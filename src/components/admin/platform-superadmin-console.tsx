@@ -18,6 +18,15 @@ export type PlatformInstitution = {
   status: string;
   locale: string;
   timezone: string;
+  tax_id?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  address_line?: string | null;
+  city?: string | null;
+  province?: string | null;
+  country?: string | null;
+  website_url?: string | null;
+  logo_path?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -64,6 +73,17 @@ function ToolCard({ title, description, icon: Icon, status, tone = "cyan", href 
 }
 
 
+type InstitutionEditForm = {
+  displayName: string; legalName: string; locale: string; timezone: string; taxId: string;
+  contactEmail: string; contactPhone: string; addressLine: string; city: string;
+  province: string; country: string; websiteUrl: string; reason: string;
+};
+const emptyEdit: InstitutionEditForm = {
+  displayName:"",legalName:"",locale:"es-AR",timezone:"America/Argentina/Buenos_Aires",
+  taxId:"",contactEmail:"",contactPhone:"",addressLine:"",city:"",province:"",
+  country:"Argentina",websiteUrl:"",reason:"",
+};
+
 export function InstitutionLifecyclePanel({ institutions }: { institutions: PlatformInstitution[] }) {
   const router = useRouter();
   const [displayName, setDisplayName] = useState("");
@@ -72,105 +92,138 @@ export function InstitutionLifecyclePanel({ institutions }: { institutions: Plat
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
+  const [editing, setEditing] = useState<PlatformInstitution | null>(null);
+  const [editForm, setEditForm] = useState<InstitutionEditForm>(emptyEdit);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [removeLogo, setRemoveLogo] = useState(false);
 
   async function createInstitution(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy("create"); setMessage("");
+    event.preventDefault(); setBusy("create"); setMessage("");
     try {
       const response = await fetch("/api/platform/institutions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({ displayName, legalName, slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, "-"), reason }),
+        method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":crypto.randomUUID()},
+        body:JSON.stringify({displayName,legalName,slug:slug.toLowerCase().replace(/[^a-z0-9-]/g,"-"),reason}),
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "No se pudo crear la institución.");
-      setDisplayName(""); setLegalName(""); setSlug(""); setReason("");
-      setMessage("Solicitud de alta registrada. La institución queda pendiente según la política del backend.");
-      router.refresh();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Error al crear la institución.");
-    } finally { setBusy(""); }
+      const data = await response.json().catch(()=>({}));
+      if (!response.ok) throw new Error(typeof data.error==="string"?data.error:"No se pudo crear la institución.");
+      setDisplayName("");setLegalName("");setSlug("");setReason("");
+      setMessage("Solicitud de alta registrada. La institución queda pendiente según la política del backend.");router.refresh();
+    } catch(error) { setMessage(error instanceof Error?error.message:"Error al crear la institución."); }
+    finally { setBusy(""); }
   }
 
-  async function editInstitution(institution: PlatformInstitution) {
-    const nextName = window.prompt("Nombre institucional:", institution.display_name);
-    if (nextName === null) return;
-    const nextLegal = window.prompt("Razón social:", institution.legal_name);
-    if (nextLegal === null) return;
-    const locale = window.prompt("Idioma / locale:", institution.locale);
-    if (locale === null) return;
-    const timezone = window.prompt("Zona horaria:", institution.timezone);
-    if (timezone === null) return;
-    const reasonText = window.prompt("Motivo del cambio (mínimo 12 caracteres):");
-    if (!reasonText || reasonText.trim().length < 12) {
-      setMessage("La edición requiere un motivo de al menos 12 caracteres.");
-      return;
-    }
-    setBusy(institution.id); setMessage("");
+  function beginEdit(institution: PlatformInstitution) {
+    setEditing(institution); setLogoFile(null); setRemoveLogo(false);
+    setEditForm({
+      displayName:institution.display_name,legalName:institution.legal_name,locale:institution.locale,
+      timezone:institution.timezone,taxId:institution.tax_id??"",contactEmail:institution.contact_email??"",
+      contactPhone:institution.contact_phone??"",addressLine:institution.address_line??"",
+      city:institution.city??"",province:institution.province??"",country:institution.country??"Argentina",
+      websiteUrl:institution.website_url??"",reason:"",
+    });
+    setMessage("");
+  }
+
+  async function saveInstitution(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!editing) return;
+    if (editForm.reason.trim().length<12) { setMessage("La edición requiere un motivo de al menos 12 caracteres."); return; }
+    setBusy(editing.id); setMessage("");
     try {
-      const response = await fetch(`/api/platform/institutions/${institution.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({
-          displayName: nextName.trim(), legalName: nextLegal.trim(), locale: locale.trim(),
-          timezone: timezone.trim(), expectedUpdatedAt: institution.updated_at, reason: reasonText.trim(),
-        }),
+      const form = new FormData();
+      Object.entries(editForm).forEach(([key,value])=>form.set(key,value));
+      form.set("expectedUpdatedAt",editing.updated_at);
+      form.set("existingLogoPath",editing.logo_path??"");
+      form.set("removeLogo",removeLogo?"true":"false");
+      if (logoFile) form.set("logo",logoFile);
+      const response=await fetch(`/api/platform/institutions/${editing.id}`,{
+        method:"PATCH",headers:{"Idempotency-Key":crypto.randomUUID()},body:form,
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "No se pudo editar la institución.");
-      setMessage("Datos institucionales actualizados.");
-      router.refresh();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Error al editar la institución.");
-    } finally { setBusy(""); }
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok) throw new Error(typeof data.error==="string"?data.error:"No se pudo actualizar la institución.");
+      setEditing(null);setLogoFile(null);setRemoveLogo(false);
+      setMessage("Ficha institucional actualizada correctamente.");router.refresh();
+    } catch(error) { setMessage(error instanceof Error?error.message:"Error al editar la institución."); }
+    finally { setBusy(""); }
   }
 
   async function changeStatus(institution: PlatformInstitution, nextStatus: "active" | "suspended") {
-    const reasonText = window.prompt(nextStatus === "suspended" ? "Motivo de suspensión (mínimo 12 caracteres):" : "Motivo de activación (mínimo 12 caracteres):");
-    if (!reasonText || reasonText.trim().length < 12) {
-      setMessage("La operación requiere un motivo de al menos 12 caracteres.");
-      return;
-    }
-    setBusy(institution.id); setMessage("");
-    try {
-      const response = await fetch(`/api/platform/institutions/${institution.id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({ status: nextStatus, expectedUpdatedAt: institution.updated_at, reason: reasonText.trim() }),
+    const reasonText=window.prompt(nextStatus==="suspended"?"Motivo de suspensión (mínimo 12 caracteres):":"Motivo de activación (mínimo 12 caracteres):");
+    if(!reasonText||reasonText.trim().length<12){setMessage("La operación requiere un motivo de al menos 12 caracteres.");return;}
+    setBusy(institution.id);setMessage("");
+    try{
+      const response=await fetch(`/api/platform/institutions/${institution.id}/status`,{
+        method:"PATCH",headers:{"Content-Type":"application/json","Idempotency-Key":crypto.randomUUID()},
+        body:JSON.stringify({status:nextStatus,expectedUpdatedAt:institution.updated_at,reason:reasonText.trim()}),
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "No se pudo cambiar el estado.");
-      setMessage(nextStatus === "active" ? "Institución activada." : "Institución suspendida.");
-      router.refresh();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Error al cambiar el estado.");
-    } finally { setBusy(""); }
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(typeof data.error==="string"?data.error:"No se pudo cambiar el estado.");
+      setMessage(nextStatus==="active"?"Institución activada.":"Institución suspendida.");router.refresh();
+    }catch(error){setMessage(error instanceof Error?error.message:"Error al cambiar el estado.");}
+    finally{setBusy("");}
   }
+
+  const fieldClass="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-cyan-300/50 focus:outline-none";
+  const setField=(key:keyof InstitutionEditForm,value:string)=>setEditForm(current=>({...current,[key]:value}));
+  const logoUrl=(path:string)=>`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/institution-logos/${path.split("/").map(encodeURIComponent).join("/")}`;
 
   return (
     <section id="institution-lifecycle" className="scroll-mt-6 space-y-4 rounded-2xl border border-cyan-200/15 bg-cyan-950/20 p-5">
-      <div>
-        <p className="text-[11px] font-bold tracking-[0.16em] text-cyan-200">ABM DE PLATAFORMAS · PRIMERA ETAPA</p>
-        <h3 className="mt-1 text-lg font-bold text-white">Altas, activación y suspensión</h3>
-        <p className="mt-1 text-xs leading-5 text-slate-400">Cada cambio requiere motivo, control de versión e idempotencia. Las altas quedan pendientes; no se habilita borrado físico.</p>
-      </div>
-      {message && <p role="status" className="rounded-lg border border-cyan-200/20 bg-cyan-200/[0.06] px-3 py-2 text-sm text-cyan-100">{message}</p>}
+      <div><p className="text-[11px] font-bold tracking-[0.16em] text-cyan-200">ABM DE PLATAFORMAS · FICHA INSTITUCIONAL</p>
+        <h3 className="mt-1 text-lg font-bold text-white">Altas, edición integral, activación y suspensión</h3>
+        <p className="mt-1 text-xs leading-5 text-slate-400">Gestioná identidad, datos legales, contacto, ubicación, configuración regional y logo. Cada cambio queda auditado.</p></div>
+      {message&&<p role="status" className="rounded-lg border border-cyan-200/20 bg-cyan-200/[0.06] px-3 py-2 text-sm text-cyan-100">{message}</p>}
       <form onSubmit={createInstitution} className="grid gap-2 md:grid-cols-2">
-        <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} minLength={2} maxLength={160} required placeholder="Nombre institucional" aria-label="Nombre institucional" className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white"/>
-        <input value={legalName} onChange={(e) => setLegalName(e.target.value)} minLength={2} maxLength={200} required placeholder="Razón social" aria-label="Razón social" className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white"/>
-        <input value={slug} onChange={(e) => setSlug(e.target.value)} minLength={2} maxLength={80} required placeholder="identificador-institucion" aria-label="Identificador de institución" className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white"/>
-        <input value={reason} onChange={(e) => setReason(e.target.value)} minLength={12} maxLength={1000} required placeholder="Motivo del alta (mínimo 12 caracteres)" aria-label="Motivo del alta" className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white"/>
-        <div className="md:col-span-2"><button disabled={!!busy} className="rounded-lg bg-cyan-500 px-4 py-2.5 text-sm font-bold text-slate-950 disabled:opacity-50">{busy === "create" ? "Registrando…" : "Registrar institución"}</button></div>
+        <input value={displayName} onChange={e=>setDisplayName(e.target.value)} minLength={2} maxLength={160} required placeholder="Nombre institucional" aria-label="Nombre institucional" className={fieldClass}/>
+        <input value={legalName} onChange={e=>setLegalName(e.target.value)} minLength={2} maxLength={200} required placeholder="Razón social" aria-label="Razón social" className={fieldClass}/>
+        <input value={slug} onChange={e=>setSlug(e.target.value)} minLength={2} maxLength={80} required placeholder="identificador-institucion" aria-label="Identificador" className={fieldClass}/>
+        <input value={reason} onChange={e=>setReason(e.target.value)} minLength={12} maxLength={1000} required placeholder="Motivo del alta (mínimo 12 caracteres)" aria-label="Motivo del alta" className={fieldClass}/>
+        <div className="md:col-span-2"><button disabled={!!busy} className="rounded-lg bg-cyan-500 px-4 py-2.5 text-sm font-bold text-slate-950 disabled:opacity-50">{busy==="create"?"Registrando…":"Registrar institución"}</button></div>
       </form>
       <div className="space-y-2">
-        {institutions.map((institution) => <div key={institution.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/50 p-3">
-          <div><p className="text-sm font-semibold text-white">{institution.display_name}</p><p className="text-xs text-slate-500">{institution.slug} · {statusLabel[institution.status] ?? institution.status}</p></div>
-          <div className="flex gap-2">
-            <button type="button" disabled={!!busy} onClick={() => void editInstitution(institution)} className="rounded-lg border border-cyan-300/20 px-3 py-2 text-xs font-semibold text-cyan-200 disabled:opacity-50">Editar</button>
-            {institution.status === "active" ? <button type="button" disabled={!!busy} onClick={() => void changeStatus(institution, "suspended")} className="rounded-lg border border-rose-300/20 px-3 py-2 text-xs font-semibold text-rose-200 disabled:opacity-50">Suspender</button> : institution.status === "suspended" ? <button type="button" disabled={!!busy} onClick={() => void changeStatus(institution, "active")} className="rounded-lg border border-emerald-300/20 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50">Activar</button> : <span className="text-xs text-slate-500">Pendiente de activación</span>}
+        {institutions.map(institution=><div key={institution.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/50 p-3">
+          <div className="flex items-center gap-3">
+            {institution.logo_path?<div aria-label="Logo institucional" className="h-12 w-12 shrink-0 rounded-lg border border-white/10 bg-contain bg-center bg-no-repeat" style={{backgroundImage:`url("${logoUrl(institution.logo_path)}")`}}/>:<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-xs font-bold text-cyan-200">{institution.display_name.slice(0,2).toUpperCase()}</div>}
+            <div><p className="text-sm font-semibold text-white">{institution.display_name}</p><p className="text-xs text-slate-500">{institution.slug} · {statusLabel[institution.status]??institution.status}</p></div>
+          </div>
+          <div className="flex gap-2"><button type="button" disabled={!!busy} onClick={()=>beginEdit(institution)} className="rounded-lg border border-cyan-300/20 px-3 py-2 text-xs font-semibold text-cyan-200 disabled:opacity-50">Editar ficha</button>
+            {institution.status==="active"?<button type="button" disabled={!!busy} onClick={()=>void changeStatus(institution,"suspended")} className="rounded-lg border border-rose-300/20 px-3 py-2 text-xs font-semibold text-rose-200 disabled:opacity-50">Suspender</button>:institution.status==="suspended"?<button type="button" disabled={!!busy} onClick={()=>void changeStatus(institution,"active")} className="rounded-lg border border-emerald-300/20 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50">Activar</button>:<span className="text-xs text-slate-500">Pendiente de activación</span>}
           </div>
         </div>)}
       </div>
+      {editing&&<div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 py-8" role="dialog" aria-modal="true" aria-labelledby="institution-edit-title">
+        <form onSubmit={saveInstitution} className="w-full max-w-4xl space-y-5 rounded-2xl border border-cyan-200/20 bg-slate-900 p-5 shadow-2xl">
+          <div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-bold tracking-[.16em] text-cyan-200">CONFIGURACIÓN INSTITUCIONAL</p><h3 id="institution-edit-title" className="mt-1 text-xl font-bold text-white">Editar ficha del colegio</h3><p className="mt-1 text-xs text-slate-400">Los campos opcionales pueden quedar vacíos.</p></div>
+            <button type="button" onClick={()=>setEditing(null)} className="rounded-lg border border-white/15 px-3 py-2 text-sm">Cerrar</button></div>
+          <div className="space-y-2"><h4 className="text-sm font-bold text-cyan-100">Identidad y datos legales</h4><div className="grid gap-3 md:grid-cols-2">
+            <input className={fieldClass} aria-label="Nombre institucional" placeholder="Nombre institucional" required maxLength={160} value={editForm.displayName} onChange={e=>setField("displayName",e.target.value)}/>
+            <input className={fieldClass} aria-label="Razón social" placeholder="Razón social" required maxLength={200} value={editForm.legalName} onChange={e=>setField("legalName",e.target.value)}/>
+            <input className={fieldClass} aria-label="CUIT o identificador fiscal" placeholder="CUIT / identificador fiscal" maxLength={40} value={editForm.taxId} onChange={e=>setField("taxId",e.target.value)}/>
+            <input className={fieldClass} aria-label="Sitio web" placeholder="https://www.colegio.edu.ar" type="url" value={editForm.websiteUrl} onChange={e=>setField("websiteUrl",e.target.value)}/>
+          </div></div>
+          <div className="space-y-2"><h4 className="text-sm font-bold text-cyan-100">Contacto institucional</h4><div className="grid gap-3 md:grid-cols-2">
+            <input className={fieldClass} aria-label="Correo institucional" placeholder="Correo institucional" type="email" value={editForm.contactEmail} onChange={e=>setField("contactEmail",e.target.value)}/>
+            <input className={fieldClass} aria-label="Teléfono institucional" placeholder="Teléfono institucional" type="tel" value={editForm.contactPhone} onChange={e=>setField("contactPhone",e.target.value)}/>
+          </div></div>
+          <div className="space-y-2"><h4 className="text-sm font-bold text-cyan-100">Ubicación</h4><div className="grid gap-3 md:grid-cols-2">
+            <input className={fieldClass} aria-label="Domicilio" placeholder="Domicilio / calle y número" value={editForm.addressLine} onChange={e=>setField("addressLine",e.target.value)}/>
+            <input className={fieldClass} aria-label="Localidad" placeholder="Localidad" value={editForm.city} onChange={e=>setField("city",e.target.value)}/>
+            <input className={fieldClass} aria-label="Provincia" placeholder="Provincia" value={editForm.province} onChange={e=>setField("province",e.target.value)}/>
+            <input className={fieldClass} aria-label="País" placeholder="País" required value={editForm.country} onChange={e=>setField("country",e.target.value)}/>
+          </div></div>
+          <div className="space-y-2"><h4 className="text-sm font-bold text-cyan-100">Configuración regional</h4><div className="grid gap-3 md:grid-cols-2">
+            <input className={fieldClass} aria-label="Idioma" placeholder="Locale (es-AR)" required value={editForm.locale} onChange={e=>setField("locale",e.target.value)}/>
+            <input className={fieldClass} aria-label="Zona horaria" placeholder="Zona horaria (America/Argentina/Buenos_Aires)" required value={editForm.timezone} onChange={e=>setField("timezone",e.target.value)}/>
+          </div></div>
+          <div className="space-y-3"><h4 className="text-sm font-bold text-cyan-100">Logo representativo</h4><div className="flex flex-wrap items-center gap-4">
+            {editing.logo_path&&!removeLogo?<div className="h-20 w-20 rounded-xl border border-white/10 bg-contain bg-center bg-no-repeat" style={{backgroundImage:`url("${logoUrl(editing.logo_path)}")`}}/>:<div className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-white/20 text-xs text-slate-500">Sin logo</div>}
+            <div className="min-w-[220px] flex-1"><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setLogoFile(e.target.files?.[0]??null)} className="block w-full text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-500 file:px-3 file:py-2 file:font-semibold file:text-slate-950"/>
+              <p className="mt-1 text-xs text-slate-500">PNG, JPG o WEBP · máximo 2 MB.</p>{logoFile&&<p className="mt-1 text-xs text-cyan-200">Nuevo archivo: {logoFile.name}</p>}
+              {editing.logo_path&&<label className="mt-2 flex items-center gap-2 text-xs text-rose-200"><input type="checkbox" checked={removeLogo} onChange={e=>setRemoveLogo(e.target.checked)}/> Quitar logo actual</label>}</div>
+          </div></div>
+          <div><label className="mb-1 block text-sm font-semibold text-cyan-100">Motivo del cambio (obligatorio)</label><textarea className={fieldClass} rows={2} minLength={12} maxLength={1000} required value={editForm.reason} onChange={e=>setField("reason",e.target.value)} placeholder="Describí por qué se actualiza la ficha institucional."/></div>
+          <div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={()=>setEditing(null)} className="rounded-lg border border-white/15 px-4 py-2.5 text-sm">Cancelar</button><button type="submit" disabled={!!busy} className="rounded-lg bg-cyan-500 px-5 py-2.5 text-sm font-bold text-slate-950 disabled:opacity-50">{busy===editing.id?"Guardando ficha…":"Guardar ficha completa"}</button></div>
+        </form>
+      </div>}
     </section>
   );
 }
