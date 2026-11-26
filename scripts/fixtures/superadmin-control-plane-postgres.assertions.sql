@@ -160,10 +160,10 @@ BEGIN
     'Asignación sintética de administrador institucional','synthetic-request-admin-001','synthetic-admin-key-00001');
   PERFORM public.platform_assign_institution_admin(v_id,'00000000-0000-4000-8000-000000000005',
     'Asignación sintética de segundo administrador','synthetic-request-admin-002','synthetic-admin-key-00002');
-END $;
+END $$;
 
 -- A global Superadministrator can send a pending institutional administrator invitation.
-DO $
+DO $$
 DECLARE v_institution uuid; v_first jsonb; v_repeat jsonb; v_membership uuid;
 BEGIN
   SELECT institution_id INTO v_institution FROM synthetic_results;
@@ -185,7 +185,25 @@ BEGIN
       WHERE action='platform.institution.admin.invite' AND target_id=v_membership::text) THEN
     RAISE EXCEPTION 'institution administrator invitation must create a pending role assignment and audit event';
   END IF;
-END $;
+END $$;
+
+DO $$
+DECLARE v_institution uuid;
+BEGIN
+  SELECT institution_id INTO v_institution FROM synthetic_results;
+  BEGIN
+    PERFORM public.platform_invite_institution_admin(v_institution,
+      '00000000-0000-4000-8000-000000000001',
+      'Intento sintético de autoasignación','synthetic-admin-invite-self-001','synthetic-admin-invite-self-key');
+    RAISE EXCEPTION 'expected self-invitation denial';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  BEGIN
+    PERFORM public.platform_invite_institution_admin(v_institution,
+      '00000000-0000-4000-8000-000000000004',
+      'Intento sintético de duplicar administrador','synthetic-admin-invite-duplicate','synthetic-admin-invite-duplicate-key');
+    RAISE EXCEPTION 'expected duplicate membership denial';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+END $$;
 
 -- Activate a second synthetic institution and assign the same user there.
 -- A membership in one tenant must never be revocable through another tenant.
