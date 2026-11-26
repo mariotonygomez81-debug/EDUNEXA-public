@@ -8,7 +8,8 @@ CREATE TEMP TABLE synthetic_results (
   clone_job_id uuid,
   clone_target_id uuid,
   superadmin_change_id uuid,
-  ai_plan_id uuid
+  ai_plan_id uuid,
+  invited_membership_id uuid
 );
 GRANT SELECT ON synthetic_results TO authenticated;
 
@@ -178,6 +179,7 @@ BEGIN
     RAISE EXCEPTION 'institution administrator invitation must be idempotent and remain pending';
   END IF;
   v_membership:=(v_first->>'membership_id')::uuid;
+  UPDATE synthetic_results SET invited_membership_id=v_membership;
   IF NOT EXISTS(SELECT 1 FROM public.memberships WHERE id=v_membership
       AND institution_id=v_institution AND user_id='00000000-0000-4000-8000-000000000006' AND status='invited')
     OR NOT EXISTS(SELECT 1 FROM public.membership_roles mr JOIN public.roles r ON r.id=mr.role_id
@@ -213,8 +215,7 @@ SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-00000000
 SET ROLE authenticated;
 SELECT public.platform_approve_institution_admin(
   (SELECT institution_id FROM synthetic_results),
-  (SELECT id FROM public.memberships WHERE institution_id=(SELECT institution_id FROM synthetic_results)
-    AND user_id='00000000-0000-4000-8000-000000000006'),
+  (SELECT invited_membership_id FROM synthetic_results),
   'synthetic-admin-approve-001'
 );
 RESET ROLE;
@@ -222,8 +223,7 @@ DO $$
 DECLARE v_institution uuid; v_membership uuid;
 BEGIN
   SELECT institution_id INTO v_institution FROM synthetic_results;
-  SELECT id INTO v_membership FROM public.memberships
-   WHERE institution_id=v_institution AND user_id='00000000-0000-4000-8000-000000000006';
+  SELECT invited_membership_id INTO v_membership FROM synthetic_results;
   IF NOT EXISTS(SELECT 1 FROM public.memberships WHERE id=v_membership AND status='active')
     OR NOT EXISTS(SELECT 1 FROM private.platform_audit_events
       WHERE action='platform.institution.admin.approve'
@@ -240,8 +240,7 @@ DO $$
 DECLARE v_institution uuid; v_membership uuid;
 BEGIN
   SELECT institution_id INTO v_institution FROM synthetic_results;
-  SELECT id INTO v_membership FROM public.memberships
-   WHERE institution_id=v_institution AND user_id='00000000-0000-4000-8000-000000000006';
+  SELECT invited_membership_id INTO v_membership FROM synthetic_results;
   BEGIN
     PERFORM public.platform_approve_institution_admin(v_institution,v_membership,'synthetic-admin-self-approve-001');
     RAISE EXCEPTION 'expected invitee self-approval denial';
