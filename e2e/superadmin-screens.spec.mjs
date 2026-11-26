@@ -92,9 +92,9 @@ test("Administradores: invitación, aprobación por tenant y separación de padr
   await institutionPicker.selectOption(institutionOne);
   await expect(a.page.getByText("superadmin-a@edunexa.test", { exact: true })).toBeVisible();
 
-  const emailTwo = `ui-pending-two-${randomUUID().slice(0, 8)}@edunexa.test`;
+  const pendingEmailTwo = `ui-pending-two-${randomUUID().slice(0, 8)}@edunexa.test`;
   const pendingInvitation = await api(a.page, `/api/platform/institutions/${institutionTwo}/administrators/invite`, "POST", {
-    email: emailTwo,
+    email: pendingEmailTwo,
     firstName: "UI Synthetic",
     lastName: "TenantTwo",
     reason: "Invitación sintética para comprobar padrón pendiente",
@@ -103,7 +103,7 @@ test("Administradores: invitación, aprobación por tenant y separación de padr
   expect(pendingInvitation.payload.invitation?.status).toBe("invited");
 
   await institutionPicker.selectOption(institutionTwo);
-  await expect(a.page.getByText(`${emailTwo} · Pendiente de aprobación`, { exact: true })).toBeVisible();
+  await expect(a.page.getByText(`${pendingEmailTwo} · Pendiente de aprobación`, { exact: true })).toBeVisible();
   await expect(a.page.getByText("superadmin-a@edunexa.test", { exact: true })).toHaveCount(0);
 
   await institutionPicker.selectOption(institutionOne);
