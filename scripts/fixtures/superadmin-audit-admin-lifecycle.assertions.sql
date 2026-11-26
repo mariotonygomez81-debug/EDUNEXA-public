@@ -98,14 +98,14 @@ BEGIN
   END IF;
 
   SELECT count(*) INTO v_events FROM public.platform_list_audit_events(
-    100,null,null,v_institution,'platform.institution.admin.update',null,'success','synthetic-admin-edit-00001'
+    100,null,v_institution,null,'platform.institution.admin.update',null,'success','synthetic-admin-edit-00001'
   );
   IF v_events<1 THEN RAISE EXCEPTION 'audit text/action/institution filters did not return matching event'; END IF;
 
   SELECT occurred_at,id INTO v_cursor,v_cursor_id
-  FROM public.platform_list_audit_events(1,null,null,v_institution,null,null,null,null);
+  FROM public.platform_list_audit_events(1,null,v_institution,null,null,null,null,null);
   IF NOT EXISTS(
-    SELECT 1 FROM public.platform_list_audit_events(100,v_cursor,v_cursor_id,v_institution,null,null,null,null)
+    SELECT 1 FROM public.platform_list_audit_events(100,v_cursor,v_institution,v_cursor_id,null,null,null,null)
     WHERE (occurred_at,id)<(v_cursor,v_cursor_id)
   ) THEN RAISE EXCEPTION 'composite audit cursor failed to advance'; END IF;
 
