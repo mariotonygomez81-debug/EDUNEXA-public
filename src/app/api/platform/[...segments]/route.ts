@@ -471,15 +471,46 @@ export async function PATCH(request: Request, route: RouteContext) {
       logoPath = uploadedPath;
     }
     if (removeExistingLogo) logoPath = null;
-    const updated = await platformRpc(auth.supabase, "platform_update_institution", {
-      p_institution_id: segments[1], p_display_name: value("displayName"), p_legal_name: value("legalName"),
-      p_locale: value("locale"), p_timezone: value("timezone"), p_tax_id: value("taxId") || null,
-      p_contact_email: value("contactEmail") || null, p_contact_phone: value("contactPhone") || null,
-      p_address_line: value("addressLine") || null, p_city: value("city") || null,
-      p_province: value("province") || null, p_country: value("country") || "Argentina",
-      p_website_url: value("websiteUrl") || null, p_logo_path: logoPath,
-      p_expected_updated_at: expected.toISOString(), p_reason: reason,
-      p_request_id: requestId(), p_idempotency_key: idempotencyKey(request),
+    const saveStartedAt = Date.now();
+    const saveRequestId = requestId();
+    console.info("[platform-institution] update_started", { requestId: saveRequestId, institutionId: segments[1], logoOperation });
+    let updated: Awaited<ReturnType<typeof platformRpc>>;
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    try {
+      updated = await Promise.race([
+        platformRpc(auth.supabase, "platform_update_institution", {
+          p_institution_id: segments[1], p_display_name: value("displayName"), p_legal_name: value("legalName"),
+          p_locale: value("locale"), p_timezone: value("timezone"), p_tax_id: value("taxId") || null,
+          p_contact_email: value("contactEmail") || null, p_contact_phone: value("contactPhone") || null,
+          p_address_line: value("addressLine") || null, p_city: value("city") || null,
+          p_province: value("province") || null, p_country: value("country") || "Argentina",
+          p_website_url: value("websiteUrl") || null, p_logo_path: logoPath,
+          p_expected_updated_at: expected.toISOString(), p_reason: reason,
+          p_request_id: saveRequestId, p_idempotency_key: idempotencyKey(request),
+        }),
+        new Promise<never>((_, reject) => {
+          timeoutHandle = setTimeout(() => reject(new Error("institution_update_timeout")), 20000);
+        }),
+      ]);
+    } catch (error) {
+      const timedOut = error instanceof Error && error.message === "institution_update_timeout";
+      console.error("[platform-institution] update_failed", {
+        requestId: saveRequestId, institutionId: segments[1], stage: "rpc",
+        durationMs: Date.now() - saveStartedAt, code: timedOut ? "RPC_TIMEOUT" : "RPC_EXCEPTION",
+      });
+      return json({
+        error: timedOut
+          ? "La base de datos no confirmó la actualización en 20 segundos. Verificá la ficha antes de volver a intentar."
+          : "No se pudo completar la actualización institucional.",
+        code: timedOut ? "INSTITUTION_UPDATE_TIMEOUT" : "INSTITUTION_UPDATE_FAILED",
+        confirmation: "unknown",
+      }, 504);
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+    }
+    console.info("[platform-institution] update_finished", {
+      requestId: saveRequestId, institutionId: segments[1], durationMs: Date.now() - saveStartedAt,
+      success: !updated.error,
     });
     if (updated.error) {
       if (uploadedPath && admin) await admin.storage.from("institution-logos").remove([uploadedPath]);
