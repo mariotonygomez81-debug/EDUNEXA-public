@@ -480,7 +480,7 @@ export async function PATCH(request: Request, route: RouteContext) {
       return rpcErrorResponse(updated.error);
     }
     const oldLogo = value("existingLogoPath");
-    if ((form.get("removeLogo") === "true" || (uploadedPath && oldLogo)) && oldLogo) {
+    if (oldLogo.startsWith(`${segments[1]}/`) && (form.get("removeLogo") === "true" || (uploadedPath && oldLogo))) {
       await admin.storage.from("institution-logos").remove([oldLogo]);
     }
     return json({ institution: updated.data });
