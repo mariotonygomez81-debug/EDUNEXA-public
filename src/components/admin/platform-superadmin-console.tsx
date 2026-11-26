@@ -220,6 +220,7 @@ export function InstitutionLifecyclePanel({ institutions }: { institutions: Plat
               <p className="mt-1 text-xs text-slate-500">PNG, JPG o WEBP · máximo 2 MB.</p>{logoFile&&<p className="mt-1 text-xs text-cyan-200">Nuevo archivo: {logoFile.name}</p>}
               {editing.logo_path&&<label className="mt-2 flex items-center gap-2 text-xs text-rose-200"><input type="checkbox" checked={removeLogo} onChange={e=>setRemoveLogo(e.target.checked)}/> Quitar logo actual</label>}</div>
           </div></div>
+          {message&&<p role="status" aria-live="polite" className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">{message}</p>}
           <div><label className="mb-1 block text-sm font-semibold text-cyan-100">Motivo del cambio (obligatorio)</label><textarea className={fieldClass} rows={2} minLength={12} maxLength={1000} required value={editForm.reason} onChange={e=>setField("reason",e.target.value)} placeholder="Describí por qué se actualiza la ficha institucional."/></div>
           <div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={()=>setEditing(null)} className="rounded-lg border border-white/15 px-4 py-2.5 text-sm">Cancelar</button><button type="submit" disabled={!!busy} className="rounded-lg bg-cyan-500 px-5 py-2.5 text-sm font-bold text-slate-950 disabled:opacity-50">{busy===editing.id?"Guardando ficha…":"Guardar ficha completa"}</button></div>
         </form>
