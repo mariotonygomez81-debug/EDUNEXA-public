@@ -7,8 +7,8 @@ const password = process.env.E2E_SYNTHETIC_PASSWORD;
 
 async function api(page, path, method = "GET", body = null, extraHeaders = {}) {
   return page.evaluate(async ({ path, method, body, extraHeaders }) => {
-    const headers = { ...extraHeaders };
-    if (body !== null) headers["Content-Type"] = "application/json";
+    const headers = new Headers(extraHeaders);
+    if (body !== null) headers.set("Content-Type", "application/json");
     const response = await fetch(path, {
       method,
       credentials: "same-origin",
