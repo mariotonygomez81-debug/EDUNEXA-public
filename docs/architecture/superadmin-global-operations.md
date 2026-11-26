@@ -16,7 +16,7 @@ Se incorporó en `feature/EDUNEXA-MODELES` un primer backend de control global c
 ## Operaciones incorporadas en el contrato del backend
 
 1. **Instituciones:** inventario global paginado, creación en estado `pending`, activación/suspensión con transición permitida y control optimista por `updated_at`.
-2. **Administradores institucionales:** asignación de un usuario Auth existente a la membresía de un colegio con rol `institution_admin`; revocación con motivo, bloqueo de autorrevocación y protección del último administrador.
+2. **Administradores institucionales:** asignación de un usuario Auth existente y envío de invitaciones por correo para cuentas nuevas. La invitación crea una membresía `invited` con rol `institution_admin`; el acceso no se activa hasta que un administrador institucional la aprueba. La operación es idempotente y auditada; si falla la asignación tras crear la identidad Auth, el servidor intenta compensar eliminando la cuenta recién creada. También se admite revocación con motivo, bloqueo de autorrevocación y protección del último administrador.
 3. **Superadministradores:** solicitud de alta/revocación del claim `app_metadata.platform_role`, aprobación por una segunda persona y ejecución servidor-servidor mediante Supabase Auth Admin. Se registra intención, inicio y resultado; se intenta reversión si falla la finalización de auditoría.
 4. **Acceso delegado:** solicitud limitada a una institución, motivo obligatorio, expiración máxima de 30 minutos y aprobación de otro Superadministrador. Es un permiso temporal de soporte, no una suplantación de identidad ni una sesión de administrador institucional; todavía no se conecta a las acciones de los módulos.
 5. **Clonación:** crea una institución destino en estado `pending` y un trabajo en cola con modo `configuration_only`. No copia alumnos, tutores, legajos, calificaciones, asistencia, mensajes ni otros datos personales. El trabajador que copie la configuración aún no está desplegado; la operación permanece en cola.
@@ -37,7 +37,8 @@ Base: `/api/platform`.
 
 - `GET /institutions`, `POST /institutions`
 - `PATCH /institutions/:id`, `PATCH /institutions/:id/status`
-- `POST /institutions/:id/administrators`, `DELETE /institutions/:id/administrators/:membershipId`
+- `POST /institutions/:id/administrators`, `POST /institutions/:id/administrators/invite`, `DELETE /institutions/:id/administrators/:membershipId`
+- `POST /institutions/:id/administrators/invite` utiliza `platform_invite_institution_admin` para crear una membresía pendiente con rol global de administrador institucional, idempotencia y auditoría; el correo se envía desde el servidor mediante Supabase Auth Admin.
 - `POST /delegations`, `POST /delegations/:id/approve`, `POST /delegations/:id/revoke`
 - `POST /clones`
 - `GET /superadmins`, `GET /superadmins/requests`, `GET /institutions/:id/administrators`\n- `POST /superadmins/requests`, `POST /superadmins/requests/:id/approve`, `POST /superadmins/requests/:id/execute`
@@ -64,7 +65,7 @@ Las escrituras requieren `Origin` same-origin. Las operaciones idempotentes de i
 
 - La delegación aún no modifica el contexto operativo de las rutas de los siete módulos institucionales. No es impersonación.
 - La clonación solo crea el trabajo aislado en cola; falta el worker que replique una lista blanca de configuración.
-- La invitación por correo de administradores nuevos no está incluida; la asignación requiere un usuario ya existente en Auth.
+- La invitación por correo requiere `EDUNEXA_APP_URL` y una clave Auth Admin configuradas exclusivamente en el servidor. La cuenta y membresía se crean pendientes; no se activa el acceso por confirmar el correo.
 - El Copiloto no crea ramas ni PR, no aplica migraciones, no consulta ni modifica Supabase alojado, no consulta ni modifica Render y no despliega servicios. Su ejecución se limita a inspección de repositorio y CI en la rama autorizada, después de aprobación independiente.
 - La migración no fue aplicada y no se ha probado todavía contra el esquema real alojado. No afirmar disponibilidad productiva hasta completar CI, revisión SQL y despliegue autorizado.
 
