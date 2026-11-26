@@ -62,6 +62,12 @@ export async function GET(request: Request, route: RouteContext) {
     if (result.error) return rpcErrorResponse(result.error);
     return json({ superadmins: result.data ?? [] });
   }
+  if (segments.length === 2 && segments[0] === "superadmins" && segments[1] === "requests") {
+    const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? "50") || 50));
+    const result = await platformRpc(auth.supabase, "platform_list_superadmin_change_requests", { p_limit: limit });
+    if (result.error) return rpcErrorResponse(result.error);
+    return json({ requests: result.data ?? [] });
+  }
   if (segments.length === 3 && segments[0] === "institutions" && segments[2] === "administrators" && validUuid(segments[1])) {
     const result = await platformRpc(auth.supabase, "platform_list_institution_admins", { p_institution_id: segments[1] });
     if (result.error) return rpcErrorResponse(result.error);
