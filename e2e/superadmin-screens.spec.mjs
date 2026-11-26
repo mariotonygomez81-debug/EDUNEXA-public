@@ -156,7 +156,7 @@ test("Permisos de pantalla: una identidad institucional ordinaria no abre rutas 
   const ordinary = await signIn(browser, process.env.E2E_TARGET_EMAIL, 403);
   for (const route of ["/dashboard/platform", "/dashboard/platform/institutions", "/dashboard/platform/administrators"]) {
     await ordinary.page.goto(route);
-    await expect(ordinary.page).toHaveURL(/\\/dashboard$/);
+    await expect(ordinary.page).toHaveURL(new RegExp("/dashboard$"));
   }
   await ordinary.context.close();
 });
