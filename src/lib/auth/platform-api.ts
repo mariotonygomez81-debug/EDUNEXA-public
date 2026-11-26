@@ -12,7 +12,20 @@ export type PlatformContext =
 export async function requirePlatformSuperadmin(request: Request, write = false): Promise<PlatformContext> {
   if (write) {
     const origin = request.headers.get("origin");
-    if (!origin || origin !== new URL(request.url).origin) {
+    const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+    const host = forwardedHost || request.headers.get("host");
+    const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+    const protocol = forwardedProto ? `${forwardedProto.replace(/:\\/$/, "")}:` : new URL(request.url).protocol;
+    let originUrl: URL | null = null;
+    try {
+      originUrl = origin ? new URL(origin) : null;
+    } catch {
+      originUrl = null;
+    }
+    const validOrigin = !!originUrl && !!host
+      && originUrl.host.toLowerCase() === host.toLowerCase()
+      && originUrl.protocol === protocol;
+    if (!validOrigin) {
       return { ok: false, response: NextResponse.json({ error: "Origen no autorizado." }, { status: 403 }) };
     }
   }
