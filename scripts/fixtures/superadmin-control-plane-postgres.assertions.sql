@@ -292,8 +292,8 @@ BEGIN
   SELECT count(*),count(*) FILTER (WHERE status='active'),count(*) FILTER (WHERE status='invited')
     INTO v_count,v_active,v_invited
   FROM public.platform_list_institution_admins(v_id);
-  IF v_count<>3 OR v_active<>2 OR v_invited<>1 THEN
-    RAISE EXCEPTION 'institution administrator registry must distinguish two active administrators and one pending invitation';
+  IF v_count<>3 OR v_active<>3 OR v_invited<>0 THEN
+    RAISE EXCEPTION 'institution administrator registry must show all three active after independent approval';
   END IF;
 END $$;
 
