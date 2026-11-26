@@ -93,6 +93,9 @@ jobs:
       - name: Start disposable local Supabase stack
         run: npx --yes supabase@2.34.3 start -x studio,edge-runtime,logflare,vector,analytics,pooler
 
+      - name: Install PostgreSQL client for local Supabase fixture
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
       - name: Export local Supabase connection details for this job
         shell: bash
         run: |
@@ -122,6 +125,7 @@ jobs:
             20261126180000_platform_admin_invitation_approval.sql; do
             psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "supabase/migrations/$migration"
           done
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema';"
 
       - name: Create two independent Superadmins and an ordinary synthetic Auth identity
         run: node scripts/fixtures/seed-superadmin-authenticated-e2e.mjs
