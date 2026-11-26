@@ -1,5 +1,3 @@
-"use server";
-
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowUpRight, Building2, ClipboardList, ShieldCheck, Users } from "lucide-react";
@@ -29,6 +27,8 @@ function date(value: string | null | undefined) {
 const statusLabel: Record<string, string> = {
   active: "Activa", pending: "Pendiente", suspended: "Suspendida", archived: "Archivada",
 };
+
+export const dynamic = "force-dynamic";
 
 export default async function PlatformWorkspace() {
   const supabase = await createClient();
