@@ -4,7 +4,7 @@ DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object T
 DO $$ BEGIN CREATE ROLE service_role NOLOGIN BYPASSRLS; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS storage;
-DO $
+DO $storage$
 BEGIN
   -- Supabase local already owns this protected catalog; isolated PostgreSQL fixtures do not.
   IF NOT EXISTS (
@@ -19,7 +19,7 @@ BEGIN
     );
   END IF;
 END;
-$;
+$storage$;
 CREATE TABLE IF NOT EXISTS auth.users (
   id uuid PRIMARY KEY,
   raw_app_meta_data jsonb NOT NULL DEFAULT '{}'::jsonb,
