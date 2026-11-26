@@ -184,20 +184,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "activate_self") {
-      const { data: pending, error: pendingError } = await admin.from("memberships")
-        .select("id").eq("institution_id", institution.id)
-        .eq("user_id", actor.id).eq("status", "invited");
-      if (pendingError) throw pendingError;
-      if (pending?.length) {
-        const { error } = await admin.from("memberships").update({
-          status: "active", joined_at: new Date().toISOString(),
-        }).in("id", pending.map((m) => m.id)).eq("institution_id", institution.id);
-        if (error) throw error;
-        await audit(institution.id, actor.id, "membership.invitation_accepted", pending[0].id, {
-          activated_memberships: pending.length,
-        });
-      }
-      return response({ activated: pending?.length ?? 0 }, 200, origin);
+      return response({ error: "Email confirmation does not activate institutional access. An institution administrator must approve the invitation." }, 410, origin);
     }
 
     const { data: actorMembership, error: actorMembershipError } = await admin
@@ -341,6 +328,26 @@ Deno.serve(async (req: Request) => {
     if (targetError || !target) return response({ error: "Account not found in this institution." }, 404, origin);
     if (target.user_id === actor.id) return response({ error: "You cannot change your own access from this screen." }, 409, origin);
 
+    if (action === "approve_invitation") {
+      if (target.status !== "invited") return response({ error: "Only pending invitations can be approved." }, 409, origin);
+      const { data: invitedUser, error: invitedUserError } = await admin.auth.admin.getUserById(target.user_id);
+      if (invitedUserError) throw invitedUserError;
+      if (!invitedUser.user?.email_confirmed_at) {
+        return response({ error: "The invited person must confirm their email before approval." }, 409, origin);
+      }
+      const approvedAt = new Date().toISOString();
+      const { data: approved, error: approvalError } = await admin.from("memberships").update({
+        status: "active", joined_at: approvedAt,
+      }).eq("id", membershipId).eq("institution_id", institution.id).eq("status", "invited")
+        .select("id").maybeSingle();
+      if (approvalError) throw approvalError;
+      if (!approved) return response({ error: "This invitation was already processed. Refresh the list." }, 409, origin);
+      await audit(institution.id, actor.id, "membership.invitation_approved", membershipId, {
+        approved_user_id: target.user_id, approved_at: approvedAt,
+      });
+      return response({ ok: true, status: "active", approved_at: approvedAt }, 200, origin);
+    }
+
     const currentRoleKeys = (target.membership_roles ?? [])
       .map((item) => firstRelation(item.roles)?.key)
       .filter((key): key is string => Boolean(key));
@@ -414,6 +421,9 @@ Deno.serve(async (req: Request) => {
     if (action === "set_status") {
       const status = clean(body.status, 20);
       if (!["active", "suspended"].includes(status)) return response({ error: "Invalid account status." }, 400, origin);
+      if (!["active", "suspended"].includes(target.status)) {
+        return response({ error: "Pending invitations and ended memberships cannot be activated through status changes. Use explicit invitation approval." }, 409, origin);
+      }
       if (target.status === "active" && status === "suspended" && currentRoleKeys.includes("institution_admin")) {
         const { data: adminRole } = await admin.from("roles").select("id").eq("key", "institution_admin").single();
         if (!adminRole) return response({ error: "Institution administrator role is not configured." }, 500, origin);

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { ArrowLeft, LoaderCircle, MailPlus, RefreshCw, ShieldCheck, UserRound, UserRoundX } from "lucide-react";
+import { ArrowLeft, CheckCircle2, LoaderCircle, MailPlus, RefreshCw, ShieldCheck, UserRound, UserRoundX } from "lucide-react";
 import Link from "next/link";
 
 type Role = { key: string; name: string };
@@ -21,7 +21,7 @@ const directorSubprofiles = [
 ] as const;
 
 const statusLabels: Record<Member["status"], string> = {
-  invited: "Invitación pendiente", active: "Activo", suspended: "Suspendido", ended: "Finalizado",
+  invited: "Pendiente de aprobación", active: "Activo", suspended: "Suspendido", ended: "Finalizado",
 };
 
 export default function InstitutionUsersManager({ slug }: { slug: string }) {
@@ -76,7 +76,7 @@ export default function InstitutionUsersManager({ slug }: { slug: string }) {
       if (!roleKeys.length) throw new Error("Seleccioná al menos un perfil.");
       if (roleKeys.includes("director") && !directorSubprofile) throw new Error("Seleccioná el subperfil de Directivos.");
       const data = await invoke({ action: "invite", email, first_name: firstName, last_name: lastName, role_keys: roleKeys, director_subprofile: directorSubprofile });
-      setNotice(data.message ?? "Invitación enviada.");
+      setNotice(data.message ?? "Invitación enviada. El acceso quedará pendiente hasta su aprobación.");
       setEmail(""); setFirstName(""); setLastName(""); setDirectorSubprofile("");
       await load();
     } catch (e) { setError(e instanceof Error ? e.message : "No se pudo enviar la invitación."); }
@@ -96,6 +96,17 @@ export default function InstitutionUsersManager({ slug }: { slug: string }) {
       setNotice("Perfiles actualizados correctamente.");
       await load();
     } catch (e) { setError(e instanceof Error ? e.message : "No se pudieron actualizar los perfiles."); }
+    finally { setBusy(""); }
+  }
+
+  async function approveInvitation(member: Member) {
+    if (!window.confirm("¿Confirmás la habilitación de esta cuenta en esta institución?")) return;
+    setBusy(member.membership_id); setError(""); setNotice("");
+    try {
+      await invoke({ action: "approve_invitation", membership_id: member.membership_id });
+      setNotice("Invitación aprobada. El acceso institucional quedó habilitado.");
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : "No se pudo aprobar la invitación."); }
     finally { setBusy(""); }
   }
 
@@ -125,7 +136,7 @@ export default function InstitutionUsersManager({ slug }: { slug: string }) {
       {notice && <div className="users-alert users-alert-success" role="status">{notice}</div>}
 
       <div className="users-invite-card">
-        <div className="users-card-title"><div className="users-card-icon"><MailPlus size={20}/></div><div><h2>Invitar a un usuario</h2><p>La persona recibirá un correo para confirmar su dirección y crear su contraseña.</p></div></div>
+        <div className="users-card-title"><div className="users-card-icon"><MailPlus size={20}/></div><div><h2>Invitar a un usuario</h2><p>La persona confirmará su correo y luego un administrador deberá aprobar el acceso institucional.</p></div></div>
         <form className="users-invite-form" onSubmit={invite}>
           <label>Nombre<input value={firstName} onChange={e=>setFirstName(e.target.value)} minLength={2} maxLength={80} required placeholder="Nombre"/></label>
           <label>Apellido<input value={lastName} onChange={e=>setLastName(e.target.value)} minLength={2} maxLength={80} required placeholder="Apellido"/></label>
@@ -168,7 +179,7 @@ export default function InstitutionUsersManager({ slug }: { slug: string }) {
                 <small>{(member.role_names ?? [member.role_name]).join(" · ")}{member.director_subprofile ? ` · ${directorSubprofiles.find(([value])=>value===member.director_subprofile)?.[1] ?? member.director_subprofile}` : ""}</small>
               </div></td>
               <td><span className={`users-status status-${member.status}`}>{statusLabels[member.status]}</span></td>
-              <td>{member.status==="invited" ? <span className="users-muted">Esperando confirmación</span> : member.status==="ended" ? <span className="users-muted">Sin acceso</span> : <button type="button" className={`users-status-action ${member.status==="active"?"danger":""}`} disabled={busy===member.membership_id} onClick={()=>void changeStatus(member)}>{member.status==="active" ? <><UserRoundX size={15}/> Suspender</> : <><ShieldCheck size={15}/> Reactivar</>}</button>}</td>
+              <td>{member.status==="invited" ? <button type="button" className="users-status-action" disabled={busy===member.membership_id} onClick={()=>void approveInvitation(member)}><CheckCircle2 size={15}/> Aprobar acceso</button> : member.status==="ended" ? <span className="users-muted">Sin acceso</span> : <button type="button" className={`users-status-action ${member.status==="active"?"danger":""}`} disabled={busy===member.membership_id} onClick={()=>void changeStatus(member)}>{member.status==="active" ? <><UserRoundX size={15}/> Suspender</> : <><ShieldCheck size={15}/> Reactivar</>}</button>}</td>
             </tr>)}
           </tbody></table></div>
         )}

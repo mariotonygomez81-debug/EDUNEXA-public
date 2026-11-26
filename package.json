@@ -27,7 +27,8 @@
     "check:role-scoped-authz": "node scripts/check-role-scoped-authz.mjs",
     "check:platform-roles": "node scripts/check-platform-role-boundary.mjs",
     "check:seven-module-guards": "node scripts/check-seven-module-route-guards.mjs",
-    "check:superadmin": "node scripts/check-superadmin-control-plane.mjs"
+    "check:superadmin": "node scripts/check-superadmin-control-plane.mjs",
+    "check:invitation-approval": "node scripts/check-invitation-approval-flow.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

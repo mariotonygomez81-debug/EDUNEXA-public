@@ -66,6 +66,8 @@ jobs:
         run: npm run check:platform-roles
       - name: Validate Superadmin control-plane security contract
         run: npm run check:superadmin
+      - name: Validate invitation approval security contract
+        run: npm run check:invitation-approval
       - name: Validate seven institutional route guards and action permissions
         run: npm run check:seven-module-guards
       - name: Build
