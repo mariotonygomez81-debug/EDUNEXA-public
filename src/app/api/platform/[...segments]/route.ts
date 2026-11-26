@@ -653,6 +653,10 @@ export async function PATCH(request: Request, route: RouteContext) {
       p_idempotency_key: idempotencyKey(request),
     });
     if (updated.error) return rpcErrorResponse(updated.error);
+    const updateResult = updated.data as { conflict?: boolean; code?: string } | null;
+    if (updateResult?.conflict) {
+      return json({ error: "El administrador cambió. Actualizá el listado y volvé a intentar.", code: updateResult.code ?? "institution_admin_version_conflict" }, 409);
+    }
     return json({ administrator: updated.data });
   }
   if (segments.length === 5 && segments[0] === "institutions" && segments[2] === "administrators"
@@ -670,6 +674,10 @@ export async function PATCH(request: Request, route: RouteContext) {
       p_idempotency_key: idempotencyKey(request),
     });
     if (changed.error) return rpcErrorResponse(changed.error);
+    const statusResult = changed.data as { conflict?: boolean; code?: string } | null;
+    if (statusResult?.conflict) {
+      return json({ error: "El administrador cambió. Actualizá el listado y volvé a intentar.", code: statusResult.code ?? "institution_admin_version_conflict" }, 409);
+    }
     return json({ administrator: changed.data });
   }
 
