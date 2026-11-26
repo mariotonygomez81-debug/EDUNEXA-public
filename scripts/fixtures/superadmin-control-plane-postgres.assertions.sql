@@ -135,11 +135,11 @@ BEGIN
     'Asignación sintética de administrador institucional','synthetic-request-admin-001','synthetic-admin-key-00001');
   PERFORM public.platform_assign_institution_admin(v_id,'00000000-0000-4000-8000-000000000005',
     'Asignación sintética de segundo administrador','synthetic-request-admin-002','synthetic-admin-key-00002');
-END $;
+END $$;
 
 -- Activate a second synthetic institution and assign the same user there.
 -- A membership in one tenant must never be revocable through another tenant.
-DO $
+DO $$
 DECLARE v_first uuid; v_second uuid; v_version timestamptz;
 BEGIN
   SELECT institution_id,second_institution_id INTO v_first,v_second FROM synthetic_results;
@@ -148,7 +148,7 @@ BEGIN
     'Activación sintética para probar aislamiento entre instituciones','synthetic-request-status-002','synthetic-status-key-0002');
   PERFORM public.platform_assign_institution_admin(v_second,'00000000-0000-4000-8000-000000000004',
     'Asignación sintética del mismo usuario en una segunda institución','synthetic-request-admin-003','synthetic-admin-key-00003');
-END $;
+END $$;
 
 -- Administrator list is scoped to one institution and reflects active and inactive memberships.
 DO $$
