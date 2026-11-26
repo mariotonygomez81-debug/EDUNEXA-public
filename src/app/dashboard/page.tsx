@@ -10,7 +10,7 @@ export default async function DashboardPage() {
 
   if (error || !user) redirect("/login");
 
-  if (user.app_metadata?.platform_role === "superadmin") redirect("/platform");
+  if (user.app_metadata?.platform_role === "superadmin") redirect("/dashboard/platform");
 
   const [{ data: profile }, { data: memberships, error: membershipError }] = await Promise.all([
     supabase.from("profiles").select("display_name,first_name,last_name").eq("id", user.id).maybeSingle(),
