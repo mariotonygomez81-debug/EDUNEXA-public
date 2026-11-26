@@ -28,6 +28,30 @@ SELECT (public.platform_create_institution(
   'Alta de institución ficticia para prueba automatizada','synthetic-request-0001','synthetic-idempotency-0001'
 )->>'id')::uuid;
 
+-- The global institution profile form must persist every exposed field and return it to the console.
+DO $
+DECLARE v_id uuid; v_updated timestamptz; v_result jsonb; v_tax_id text; v_contact text;
+BEGIN
+  SELECT institution_id INTO v_id FROM synthetic_results;
+  SELECT updated_at INTO v_updated FROM public.institutions WHERE id=v_id;
+  v_result:=public.platform_update_institution(
+    v_id,'Colegio Sintético Uno','Colegio Sintético Uno S.A.','es-AR','America/Argentina/Buenos_Aires',
+    '30-12345678-9','contacto@synthetic.test','+54-11-5555-0000','Domicilio sintético','Ciudad Ficticia',
+    'Provincia Ficticia','Argentina','https://synthetic.test',null,v_updated,
+    'Actualización sintética de ficha institucional','synthetic-profile-update-0001','synthetic-profile-idem-0001'
+  );
+  IF v_result->'fields'->>'tax_id'<>'30-12345678-9'
+    OR v_result->'fields'->>'contact_email'<>'contacto@synthetic.test'
+    OR v_result->'fields'->>'website_url'<>'https://synthetic.test' THEN
+    RAISE EXCEPTION 'institution profile update did not persist the complete synthetic profile';
+  END IF;
+  SELECT tax_id,contact_email INTO v_tax_id,v_contact
+  FROM public.platform_list_institutions(20,null,null,null) WHERE id=v_id;
+  IF v_tax_id<>'30-12345678-9' OR v_contact<>'contacto@synthetic.test' THEN
+    RAISE EXCEPTION 'institution inventory did not return the complete profile to the console';
+  END IF;
+END $;
+
 -- Seed real, synthetic institution settings; triggers must mirror only safe configuration.
 DO $$
 DECLARE v_institution uuid; v_level uuid; v_year uuid; v_scale uuid; v_course uuid; v_subject uuid; v_division uuid; v_campus uuid; v_second uuid;
