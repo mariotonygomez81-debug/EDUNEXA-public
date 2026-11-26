@@ -21,7 +21,15 @@ Se incorporó en `feature/EDUNEXA-MODELES` un primer backend de control global c
 4. **Acceso delegado:** solicitud limitada a una institución, motivo obligatorio, expiración máxima de 30 minutos y aprobación de otro Superadministrador. Es un permiso temporal de soporte, no una suplantación de identidad ni una sesión de administrador institucional; todavía no se conecta a las acciones de los módulos.
 5. **Clonación:** crea una institución destino en estado `pending` y un trabajo en cola con modo `configuration_only`. No copia alumnos, tutores, legajos, calificaciones, asistencia, mensajes ni otros datos personales. El trabajador que copie la configuración aún no está desplegado; la operación permanece en cola.
 6. **Auditoría:** eventos append-only, sin UPDATE/DELETE para roles de aplicación, con actor, acción, objetivo, institución, motivo, request ID, resultado y metadatos reducidos. Lecturas de inventario y auditoría también generan trazabilidad.
-7. **Copiloto EDUNEXA:** genera planes estructurados exclusivamente con Groq. Se filtran instrucciones que contienen patrones de secretos o datos personales, se valida una lista permitida de acciones y se requiere aprobación independiente. La aprobación deja el plan en modo `review_only`; no ejecuta automáticamente cambios en GitHub, Supabase ni Render.
+7. **Copiloto EDUNEXA:** genera planes estructurados exclusivamente con Groq. Se filtran instrucciones y resultados con patrones de secretos o datos personales y se requiere aprobación independiente. El ejecutor vigente se limita a inspección del repositorio EDUNEXA y despacho de CI en `feature/EDUNEXA-MODELES`. No crea ramas ni PR y no consulta ni modifica Supabase alojado o Render.
+
+## Consola de gobierno y límites de ejecución
+
+- La consola incluye paneles operativos para el registro de Superadministradores, solicitudes de privilegios, cola de clonaciones, delegaciones, planes Groq y bitácora global.
+- `GET /superadmins/requests` utiliza `platform_list_superadmin_change_requests`, una RPC `SECURITY DEFINER` que vuelve a validar `app_metadata.platform_role` y audita cada lectura. Solo devuelve metadatos mínimos de las cuentas involucradas.
+- El panel de privilegios permite solicitar alta/revocación, aprobación por un segundo actor y ejecución servidor-servidor. El backend sigue bloqueando autoaprobación y revocación del último Superadministrador.
+- Las tarjetas sin una ruta o panel operativo se identifican como **No habilitado**; no se presentan como capacidades disponibles.
+- La ejecución del Copiloto valida el plan completo antes de cualquier llamada externa. Solo admite `github.review_repository` y `github.run_ci`; rechaza planes que incluyan PR, Supabase o Render antes de iniciar acciones.
 
 ## Rutas de servidor
 
@@ -32,7 +40,7 @@ Base: `/api/platform`.
 - `POST /institutions/:id/administrators`, `DELETE /institutions/:id/administrators/:membershipId`
 - `POST /delegations`, `POST /delegations/:id/approve`, `POST /delegations/:id/revoke`
 - `POST /clones`
-- `GET /superadmins`, `GET /institutions/:id/administrators`\n- `POST /superadmins/requests`, `POST /superadmins/requests/:id/approve`, `POST /superadmins/requests/:id/execute`
+- `GET /superadmins`, `GET /superadmins/requests`, `GET /institutions/:id/administrators`\n- `POST /superadmins/requests`, `POST /superadmins/requests/:id/approve`, `POST /superadmins/requests/:id/execute`
 - `GET /audit`
 - `POST /copilot/plans`, `POST /copilot/plans/:id/approve`
 
@@ -57,7 +65,7 @@ Las escrituras requieren `Origin` same-origin. Las operaciones idempotentes de i
 - La delegación aún no modifica el contexto operativo de las rutas de los siete módulos institucionales. No es impersonación.
 - La clonación solo crea el trabajo aislado en cola; falta el worker que replique una lista blanca de configuración.
 - La invitación por correo de administradores nuevos no está incluida; la asignación requiere un usuario ya existente en Auth.
-- El Copiloto no aplica migraciones, no cambia repositorios, no despliega servicios y no ejecuta comandos externos. La aprobación actual registra el plan, pero la ejecución de conectores GitHub/Supabase/Render permanece bloqueada hasta implementar y validar cada adaptador, límites de alcance, rollback y auditoría de resultado.
+- El Copiloto no crea ramas ni PR, no aplica migraciones, no consulta ni modifica Supabase alojado, no consulta ni modifica Render y no despliega servicios. Su ejecución se limita a inspección de repositorio y CI en la rama autorizada, después de aprobación independiente.
 - La migración no fue aplicada y no se ha probado todavía contra el esquema real alojado. No afirmar disponibilidad productiva hasta completar CI, revisión SQL y despliegue autorizado.
 
 ## Criterio para habilitación productiva
