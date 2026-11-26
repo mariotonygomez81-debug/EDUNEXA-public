@@ -70,12 +70,12 @@ test("Instituciones: alta, edición y ciclo de suspensión/reactivación desde e
   await expect(page.getByRole("status")).toContainText("Ficha institucional actualizada correctamente");
   await expect(page.getByText(updatedName, { exact: true })).toBeVisible();
 
-  const secondInstitution = page.getByText("edunexa-e2e-dos", { exact: true }).locator("xpath=../../..");
-  await secondInstitution.getByRole("button", { name: "Suspender" }).click();
+  const secondInstitution = page.getByText("Institución E2E Dos", { exact: true }).locator("xpath=../../..");
   page.once("dialog", dialogEvent => dialogEvent.accept("Suspensión sintética para prueba de interfaz"));
+  await secondInstitution.getByRole("button", { name: "Suspender" }).click();
   await expect(secondInstitution).toContainText("Suspendida");
-  await secondInstitution.getByRole("button", { name: "Activar" }).click();
   page.once("dialog", dialogEvent => dialogEvent.accept("Reactivación sintética para prueba de interfaz"));
+  await secondInstitution.getByRole("button", { name: "Activar" }).click();
   await expect(secondInstitution).toContainText("Activa");
 
   await operator.context.close();
