@@ -196,6 +196,13 @@ for (const name of scopedFunctions) {
   assert.ok(scopedMigration.includes("grant execute on function public." + name + "("), name + " must grant explicit authenticated execution");
 }
 
+const authEmailTypesMigration = read("../supabase/migrations/20261126190000_platform_auth_email_return_types.sql");
+assert.ok(authEmailTypesMigration.includes("u.email::text") && authEmailTypesMigration.includes("target.email::text")
+  && authEmailTypesMigration.includes("requester.email::text") && authEmailTypesMigration.includes("approver.email::text"),
+  "Auth email varchar columns must be cast to text for Superadmin RPC return contracts");
+assert.ok(authEmailTypesMigration.includes("grant execute on function public.platform_list_superadmins() to authenticated"));
+assert.ok(authEmailTypesMigration.includes("grant execute on function public.platform_list_institution_admins(uuid) to authenticated"));
+assert.ok(authEmailTypesMigration.includes("grant execute on function public.platform_list_superadmin_change_requests(integer) to authenticated"));
 const adminApprovalMigration = read("../supabase/migrations/20261126180000_platform_admin_invitation_approval.sql");
 const adminApprovalRoute = read("../src/app/api/institution/administrator-invitations/[membershipId]/approve/route.ts");
 assert.ok(adminApprovalMigration.includes("active_institution_admin_required"), "Invitation approval must require an active institution admin");
