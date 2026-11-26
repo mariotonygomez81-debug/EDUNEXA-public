@@ -181,6 +181,7 @@ assert.ok(adminInviteMigration.includes("private.platform_idempotency_claim") &&
 assert.ok(adminInviteMigration.includes("revoke all on function public.platform_invite_institution_admin(uuid,uuid,text,text,text) from public,anon"));
 assert.ok(adminInviteMigration.includes("grant execute on function public.platform_invite_institution_admin(uuid,uuid,text,text,text) to authenticated"));
 assert.ok(api.includes("inviteUserByEmail") && api.includes("platform_invite_institution_admin") && api.includes("admin.auth.admin.deleteUser"), "Server route must send Auth invite, persist pending membership and compensate on failure");
+assert.ok(api.includes("else nextMetadata.platform_role = null") && api.includes("platform_role: previousMetadata.platform_role ?? null"), "Auth Admin metadata merge must explicitly clear and safely restore the global privilege key");
 assert.ok(api.includes("EDUNEXA_APP_URL"), "Invitation redirect must use an explicit server-configured application URL");
 assert.ok(institutionAdminsPanel.includes("/administrators/invite") && institutionAdminsPanel.includes("Enviar invitación"));
 assert.ok(institutionAdminsPanel.includes("Pendiente de aprobación"), "New administrator invitations must remain visibly pending until institution approval");

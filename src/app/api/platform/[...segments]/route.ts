@@ -352,6 +352,10 @@ export async function POST(request: Request, route: RouteContext) {
     const nextMetadata: Record<string, unknown> = { ...previousMetadata };
     if (change.action === "grant") nextMetadata.platform_role = "superadmin";
     else nextMetadata.platform_role = null; // Auth metadata updates may merge keys; null explicitly revokes the trusted role.
+    const rollbackMetadata: Record<string, unknown> = {
+      ...previousMetadata,
+      platform_role: previousMetadata.platform_role ?? null,
+    };
     const updated = await admin.auth.admin.updateUserById(change.target_user_id, { app_metadata: nextMetadata });
     if (updated.error) {
       const finished = await platformRpc(auth.supabase, "platform_finish_superadmin_change", {
@@ -365,7 +369,7 @@ export async function POST(request: Request, route: RouteContext) {
       p_request_id: segments[2], p_success: true, p_failure_code: null, p_audit_request_id: requestId(),
     });
     if (finished.error) {
-      const rollback = await admin.auth.admin.updateUserById(change.target_user_id, { app_metadata: previousMetadata });
+      const rollback = await admin.auth.admin.updateUserById(change.target_user_id, { app_metadata: rollbackMetadata });
       if (rollback.error) return json({ error: "Fallaron la auditoría final y la reversión. Bloqueá nuevas operaciones y reconciliá manualmente." }, 500);
       const failedFinish = await platformRpc(auth.supabase, "platform_finish_superadmin_change", {
         p_request_id: segments[2], p_success: false, p_failure_code: "audit_finalize_failed_rolled_back",
