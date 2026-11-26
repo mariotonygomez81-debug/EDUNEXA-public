@@ -47,6 +47,7 @@ revoke all on function public.platform_list_institutions(integer,timestamptz,tex
 grant execute on function public.platform_list_institutions(integer,timestamptz,text,text) to authenticated;
 
 drop function if exists public.platform_update_institution(uuid,text,text,text,text,timestamptz,text,text,text);
+drop function if exists public.platform_update_institution(uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,timestamptz,text,text,text);
 create function public.platform_update_institution(
  p_institution_id uuid,p_display_name text,p_legal_name text,p_locale text,p_timezone text,
  p_tax_id text,p_contact_email text,p_contact_phone text,p_address_line text,p_city text,p_province text,
