@@ -11,6 +11,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/scripts/fixtures/superadmin-co
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/20261125190000_superadmin_global_control_plane.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/20261125193000_superadmin_execution_layer.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/20261125200000_superadmin_module_scoped_support_and_config_sync.sql"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/20261125203000_expand_institution_profiles_and_branding.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/20261126160000_platform_superadmin_change_request_listing.sql"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT/scripts/fixtures/superadmin-control-plane-postgres.assertions.sql"
 echo "PASS: Superadmin control plane validated in isolated local PostgreSQL only."
