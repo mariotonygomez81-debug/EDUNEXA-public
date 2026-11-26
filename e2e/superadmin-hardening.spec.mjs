@@ -223,12 +223,24 @@ test("Administradores: edición, suspensión, reactivación, idempotencia y sesi
   expect(concurrentReplay.payload.administrator.updated_at).toBe(suspended.payload.administrator.updated_at);
 
   roster = await api(page, `/api/platform/institutions/${institutionOne}/administrators`);
-  const remainingActive = roster.payload.administrators.find(item => item.status === "active" && item.membership_id !== membershipId);
-  expect(remainingActive).toBeTruthy();
-  const lastAdmin = await api(page, `/api/platform/institutions/${institutionOne}/administrators/${remainingActive.membership_id}/status`, "PATCH", {
-    status: "suspended", expectedUpdatedAt: remainingActive.updated_at,
-    reason: "Intento de suspender al último administrador activo",
-  }, { "Idempotency-Key": `admin-last-${randomUUID()}` });
+  const otherActive = roster.payload.administrators.filter(item => item.status === "active" && item.membership_id !== membershipId);
+  expect(otherActive.length).toBeGreaterThan(0);
+  const keeper = otherActive[0];
+  const temporarilySuspended = otherActive.slice(1);
+  for (const extra of temporarilySuspended) {
+    const extraSuspension = await api(page,
+      `/api/platform/institutions/${institutionOne}/administrators/${extra.membership_id}/status`, "PATCH", {
+        status: "suspended", expectedUpdatedAt: extra.updated_at,
+        reason: "Aislamiento temporal del escenario sintético de último administrador",
+      }, { "Idempotency-Key": `admin-isolate-${randomUUID()}` });
+    expectStatus(extraSuspension, 200, "temporarily isolate extra synthetic administrator");
+  }
+
+  const lastAdmin = await api(page,
+    `/api/platform/institutions/${institutionOne}/administrators/${keeper.membership_id}/status`, "PATCH", {
+      status: "suspended", expectedUpdatedAt: keeper.updated_at,
+      reason: "Intento de suspender al último administrador activo",
+    }, { "Idempotency-Key": `admin-last-${randomUUID()}` });
   expectStatus(lastAdmin, 409, "last active administrator protection");
 
   const reactivated = await api(page, statusPath, "PATCH", {
@@ -237,6 +249,21 @@ test("Administradores: edición, suspensión, reactivación, idempotencia y sesi
   }, { "Idempotency-Key": `admin-reactivate-${randomUUID()}` });
   expectStatus(reactivated, 200, "administrator reactivation");
   expect(reactivated.payload.administrator.status).toBe("active");
+
+  // Restore any other synthetic administrators temporarily isolated for this assertion.
+  if (temporarilySuspended.length > 0) {
+    roster = await api(page, `/api/platform/institutions/${institutionOne}/administrators`);
+    for (const extra of temporarilySuspended) {
+      const currentExtra = roster.payload.administrators.find(item => item.membership_id === extra.membership_id);
+      if (currentExtra?.status !== "suspended") continue;
+      const restored = await api(page,
+        `/api/platform/institutions/${institutionOne}/administrators/${extra.membership_id}/status`, "PATCH", {
+          status: "active", expectedUpdatedAt: currentExtra.updated_at,
+          reason: "Restauración del administrador sintético tras prueba de último administrador",
+        }, { "Idempotency-Key": `admin-restore-${randomUUID()}` });
+      expectStatus(restored, 200, "restore temporarily isolated synthetic administrator");
+    }
+  }
 
   await page.goto("/dashboard/platform");
   await expect(page.getByText("Administradores institucionales", { exact: true })).toBeVisible();
