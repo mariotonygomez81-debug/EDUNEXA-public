@@ -23,7 +23,8 @@ for (const token of ["private.require_platform_superadmin", "raw_app_meta_data -
   assert.ok(base.includes(token), "Missing global control: " + token);
 }
 assert.ok(!base.includes("user_metadata"), "Global privilege must never trust user_metadata");
-for (const token of ["platform_request_delegation_idempotent", "platform_approve_delegation",
+assert.ok(base.includes("platform_approve_delegation"), "Delegation approval must be a database-enforced second-person action");
+for (const token of ["platform_request_delegation_idempotent",
   "expires_at", "approved_by", "for update skip locked"]) {
   assert.ok(execution.includes(token), "Missing execution/delegation control: " + token);
 }
