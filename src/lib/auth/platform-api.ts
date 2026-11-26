@@ -15,7 +15,7 @@ export async function requirePlatformSuperadmin(request: Request, write = false)
     const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
     const host = forwardedHost || request.headers.get("host");
     const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
-    const protocol = forwardedProto ? `${forwardedProto.replace(/:\\/$/, "")}:` : new URL(request.url).protocol;
+    const protocol = forwardedProto ? `${forwardedProto}:` : new URL(request.url).protocol;
     let originUrl: URL | null = null;
     try {
       originUrl = origin ? new URL(origin) : null;
