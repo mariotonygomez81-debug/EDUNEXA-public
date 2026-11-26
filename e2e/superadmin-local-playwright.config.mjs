@@ -12,7 +12,7 @@ for (const name of required) {
 
 export default defineConfig({
   testDir: ".",
-  testMatch: ["superadmin-authenticated.spec.mjs"],
+  testMatch: ["superadmin-*.spec.mjs"],
   fullyParallel: false,
   workers: 1,
   retries: 0,
