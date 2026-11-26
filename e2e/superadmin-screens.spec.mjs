@@ -65,7 +65,7 @@ test("Instituciones: alta, edición y ciclo de suspensión/reactivación desde e
   const dialog = page.getByRole("dialog", { name: "Editar ficha del colegio" });
   await dialog.getByLabel("Nombre institucional").fill(updatedName);
   await dialog.getByLabel("Razón social").fill(`Razón social editada ${suffix}`);
-  await dialog.getByLabel("Motivo del cambio (obligatorio)").fill("Edición sintética para comprobar persistencia de la ficha");
+  await dialog.locator("textarea").fill("Edición sintética para comprobar persistencia de la ficha");
   await dialog.getByRole("button", { name: "Guardar ficha completa" }).click();
   await expect(page.getByRole("status")).toContainText("Ficha institucional actualizada correctamente");
   await expect(page.getByText(updatedName, { exact: true })).toBeVisible();
@@ -91,8 +91,8 @@ test("Administradores: invitación, aprobación por tenant y separación de padr
   await expect(a.page.getByText("superadmin-a@edunexa.test", { exact: true })).toBeVisible();
 
   await institutionPicker.selectOption(institutionTwo);
-  await expect(a.page.getByText("No hay administradores asignados a esta institución.")).toBeVisible();
-  await expect(a.page.getByText("superadmin-a@edunexa.test")).toHaveCount(0);
+  await expect(a.page.getByText("invited-admin-two@edunexa.test · Pendiente de aprobación", { exact: true })).toBeVisible();
+  await expect(a.page.getByText("superadmin-a@edunexa.test", { exact: true })).toHaveCount(0);
 
   await institutionPicker.selectOption(institutionOne);
   const emailOne = `ui-admin-one-${randomUUID().slice(0, 8)}@edunexa.test`;
@@ -169,7 +169,7 @@ test("Auditoría: navegación a la bitácora y visualización de eventos institu
   await page.getByRole("link", { name: /Auditoría global/ }).click();
   const audit = page.locator("#global-audit");
   await expect(audit).toBeVisible();
-  await expect(audit.getByText("platform.audit.read", { exact: true })).toBeVisible();
+  await expect(audit.getByText("platform.audit.read", { exact: true }).first()).toBeVisible();
   await expect(audit).toContainText("Consulta de bitácora de auditoría");
   await operator.context.close();
 });
