@@ -109,6 +109,8 @@ const governancePanel = read("../src/components/admin/platform-governance-panel.
 const privilegeQueueMigration = read("../supabase/migrations/20261126160000_platform_superadmin_change_request_listing.sql");
 const profileMigration = read("../supabase/migrations/20261125203000_expand_institution_profiles_and_branding.sql");
 const superadminTestRunner = read("../scripts/test-superadmin-control-plane-postgres.sh");
+const adminInviteMigration = read("../supabase/migrations/20261126170000_platform_admin_invitation.sql");
+const institutionAdminsPanel = read("../src/components/admin/platform-institution-admins-panel.tsx");
 for (const token of [
   "platform_delegations_module_scope_check", "platform_request_delegation_scoped_idempotent",
   "platform_read_delegated_module", "platform_list_delegations", "platform_list_clone_jobs",
@@ -174,6 +176,15 @@ assert.ok(postgresAssertions.includes("institution profile update did not persis
 assert.ok(postgresAssertions.includes("institution inventory did not return the complete profile to the console"), "Ephemeral suite must test profile inventory fields");
 assert.ok(!api.includes("supabase: [") && !api.includes("render: ["), "Copilot must not generate hosted Supabase or Render execution steps");
 assert.ok(!api.includes("create_pull_request"), "Copilot prompt and allowlist must prohibit pull requests");
+assert.ok(adminInviteMigration.includes("private.require_platform_superadmin()") && adminInviteMigration.includes("'invited'"), "Global administrator invitation must create a pending membership under trusted Superadmin authority");
+assert.ok(adminInviteMigration.includes("private.platform_idempotency_claim") && adminInviteMigration.includes("platform_audit_append("), "Administrator invitation must be idempotent and audited");
+assert.ok(api.includes("inviteUserByEmail") && api.includes("platform_invite_institution_admin") && api.includes("admin.auth.admin.deleteUser"), "Server route must send Auth invite, persist pending membership and compensate on failure");
+assert.ok(api.includes("EDUNEXA_APP_URL"), "Invitation redirect must use an explicit server-configured application URL");
+assert.ok(institutionAdminsPanel.includes("/administrators/invite") && institutionAdminsPanel.includes("Enviar invitación"));
+assert.ok(institutionAdminsPanel.includes("Pendiente de aprobación"), "New administrator invitations must remain visibly pending until institution approval");
+assert.ok(superadminTestRunner.includes("20261126170000_platform_admin_invitation.sql"), "Ephemeral suite must apply the admin invitation migration");
+assert.ok(postgresAssertions.includes("institution administrator invitation must be idempotent and remain pending"), "Ephemeral suite must test pending invitation idempotency");
+assert.ok(postgresAssertions.includes("institution administrator invitation must create a pending role assignment and audit event"), "Ephemeral suite must test invitation role and audit");
 assert.ok(consoleSource.includes('href="#global-audit"'), "Audit card must navigate to its functional panel");
 
 assert.equal((scopedMigration.split("as " + String.fromCharCode(36,36)).length - 1) + (scopedMigration.split("do " + String.fromCharCode(36,36)).length - 1), (scopedMigration.split(String.fromCharCode(36,36) + ";").length - 1), "Scoped support migration dollar quotes must be balanced");
