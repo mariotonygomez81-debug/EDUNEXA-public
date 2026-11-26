@@ -178,6 +178,8 @@ assert.ok(!api.includes("supabase: [") && !api.includes("render: ["), "Copilot m
 assert.ok(!api.includes("create_pull_request"), "Copilot prompt and allowlist must prohibit pull requests");
 assert.ok(adminInviteMigration.includes("private.require_platform_superadmin()") && adminInviteMigration.includes("'invited'"), "Global administrator invitation must create a pending membership under trusted Superadmin authority");
 assert.ok(adminInviteMigration.includes("private.platform_idempotency_claim") && adminInviteMigration.includes("platform_audit_append("), "Administrator invitation must be idempotent and audited");
+assert.ok(adminInviteMigration.includes("revoke all on function public.platform_invite_institution_admin(uuid,uuid,text,text,text) from public,anon"));
+assert.ok(adminInviteMigration.includes("grant execute on function public.platform_invite_institution_admin(uuid,uuid,text,text,text) to authenticated"));
 assert.ok(api.includes("inviteUserByEmail") && api.includes("platform_invite_institution_admin") && api.includes("admin.auth.admin.deleteUser"), "Server route must send Auth invite, persist pending membership and compensate on failure");
 assert.ok(api.includes("EDUNEXA_APP_URL"), "Invitation redirect must use an explicit server-configured application URL");
 assert.ok(institutionAdminsPanel.includes("/administrators/invite") && institutionAdminsPanel.includes("Enviar invitación"));
