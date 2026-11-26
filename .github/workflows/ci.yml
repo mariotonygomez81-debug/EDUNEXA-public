@@ -76,3 +76,69 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/edunexa_superadmin_test
         run: bash scripts/test-superadmin-control-plane-postgres.sh
+
+  superadmin-authenticated-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GROQ_ALLOW_STUDENT_DATA: "false"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install application dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Install pinned Playwright runner
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @playwright/test@1.58.2
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Start disposable local Supabase stack
+        run: npx --yes supabase@2.34.3 start -x studio,edge-runtime,logflare,vector,analytics,pooler
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Export local Supabase connection details
+        shell: bash
+        run: |
+          npx --yes supabase@2.34.3 status -o env > /tmp/edunexa-supabase.env
+          set -a
+          source /tmp/edunexa-supabase.env
+          set +a
+          {
+            echo "SUPABASE_URL=$API_URL"
+            echo "SUPABASE_DB_URL=$DB_URL"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+            echo "EDUNEXA_APP_URL=http://localhost:3101"
+          } >> "$GITHUB_ENV"
+      - name: Apply Superadmin schema to disposable Supabase only
+        run: |
+          PGOPTIONS="-c edunexa.local_auth=true" psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f scripts/fixtures/superadmin-control-plane-postgres.sql
+          for migration in \
+            20261125230425_superadmin_global_control_plane.sql \
+            20261125230430_superadmin_execution_layer.sql \
+            20261125230434_superadmin_module_scoped_support_and_config_sync.sql \
+            20261126010152_expand_institution_profiles_and_branding.sql \
+            20261126230401_expand_institution_profiles_and_branding.sql \
+            20261126230420_platform_superadmin_change_request_listing.sql \
+            20261126230422_platform_admin_invitation.sql \
+            20261126230425_platform_admin_invitation_approval.sql \
+            20261126230428_platform_auth_email_return_types.sql \
+            20261126230431_superadmin_audit_and_admin_lifecycle.sql; do
+            psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "supabase/migrations/$migration"
+          done
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema';"
+      - name: Create two synthetic Superadmins and one ordinary Auth identity
+        run: node scripts/fixtures/seed-superadmin-authenticated-e2e.mjs
+      - name: Seed synthetic institutions and same-tenant administrator
+        run: psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f scripts/fixtures/superadmin-authenticated-e2e.sql
+      - name: Build against disposable local Supabase
+        run: npm run build
+      - name: Run authenticated Superadmin HTTP and browser E2E
+        env:
+          CI: "true"
+        run: npm run test:e2e:superadmin
+      - name: Stop disposable local Supabase
+        if: always()
+        run: npx --yes supabase@2.34.3 stop --no-backup || true
