@@ -80,6 +80,13 @@ export default async function AppointmentsPage({
           </span>
           <h1 className="mt-5 text-3xl font-bold tracking-tight">{isGuardian ? "Mis citaciones" : "Seguimiento de citaciones"}</h1>
           <p className="mt-2 text-sm leading-6 text-indigo-100">{institution.display_name} · Solicitudes de entrevista entre docentes y familias.</p>
+          {isTeacher ? (
+            <div className="mt-5">
+              <Link href={`/dashboard/${slug}/appointments/new`} className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-indigo-950 shadow-sm transition hover:bg-indigo-50">
+                <CalendarClock size={16} /> Nueva citación a un tutor
+              </Link>
+            </div>
+          ) : null}
         </header>
 
         {query.created ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">La citación fue enviada al tutor correctamente.</p> : null}
