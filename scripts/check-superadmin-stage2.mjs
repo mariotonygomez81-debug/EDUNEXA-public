@@ -5,7 +5,7 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const base = read("../supabase/migrations/20261125230425_superadmin_global_control_plane.sql");
 const execution = read("../supabase/migrations/20261125230430_superadmin_execution_layer.sql");
 const scope = read("../supabase/migrations/20261125230434_superadmin_module_scoped_support_and_config_sync.sql");
-const profile = read("../supabase/migrations/20261125230436_expand_institution_profiles_and_branding.sql");
+const profile = read("../supabase/migrations/20261126010152_expand_institution_profiles_and_branding.sql");
 const invite = read("../supabase/migrations/20261126170000_platform_admin_invitation.sql");
 const approval = read("../supabase/migrations/20261126180000_platform_admin_invitation_approval.sql");
 const emailTypes = read("../supabase/migrations/20261126190000_platform_auth_email_return_types.sql");
