@@ -59,6 +59,7 @@ export function rpcErrorResponse(error: PlatformRpcResult["error"]) {
     self_revocation_forbidden: "No podés revocar tu propio acceso desde esta operación.",
     membership_is_not_institution_admin: "La asignación seleccionada no tiene el rol de administrador institucional.",
     institution_version_conflict: "La institución cambió. Actualizá la ficha y volvé a intentar.",
+    invalid_institution_update: "Los datos de la ficha no superan la validación. Revisá nombre, razón social, idioma, zona horaria, correo, sitio web y logo.",
     cannot_revoke_last_institution_admin: "No se puede revocar al último administrador de la institución.",
     cannot_revoke_last_superadmin: "No se puede revocar al último Superadministrador global.",
     delegation_requires_second_superadmin: "La aprobación debe realizarla otro Superadministrador.",
