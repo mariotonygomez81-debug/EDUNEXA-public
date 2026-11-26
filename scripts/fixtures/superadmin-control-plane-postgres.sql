@@ -4,10 +4,22 @@ DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object T
 DO $$ BEGIN CREATE ROLE service_role NOLOGIN BYPASSRLS; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS storage;
-CREATE TABLE IF NOT EXISTS storage.buckets (
-  id text PRIMARY KEY, name text NOT NULL, public boolean NOT NULL DEFAULT false,
-  file_size_limit bigint, allowed_mime_types text[]
-);
+DO $
+BEGIN
+  -- Supabase local already owns this protected catalog; isolated PostgreSQL fixtures do not.
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'storage' AND c.relname = 'buckets'
+  ) THEN
+    CREATE TABLE storage.buckets (
+      id text PRIMARY KEY, name text NOT NULL, public boolean NOT NULL DEFAULT false,
+      file_size_limit bigint, allowed_mime_types text[]
+    );
+  END IF;
+END;
+$;
 CREATE TABLE IF NOT EXISTS auth.users (
   id uuid PRIMARY KEY,
   raw_app_meta_data jsonb NOT NULL DEFAULT '{}'::jsonb,

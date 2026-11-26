@@ -171,7 +171,7 @@ assert.ok(consoleSource.includes("PlatformGovernancePanel") && consoleSource.inc
 assert.ok(profileMigration.includes("contact_email text") && profileMigration.includes("tax_id text"), "Institution profile migration must define every profile field exposed by the form");
 assert.ok(profileMigration.includes("platform_update_institution(") && profileMigration.includes("platform_list_institutions("), "Institution profile migration must persist and return the complete profile");
 assert.ok(superadminTestRunner.includes("20261125203000_expand_institution_profiles_and_branding.sql"), "Ephemeral PostgreSQL suite must apply the profile migration before assertions");
-assert.ok(postgresFixture.includes("CREATE SCHEMA IF NOT EXISTS storage") && postgresFixture.includes("CREATE TABLE IF NOT EXISTS storage.buckets"), "Ephemeral fixture must provide the isolated storage bucket catalog");
+assert.ok(postgresFixture.includes("CREATE SCHEMA IF NOT EXISTS storage") && postgresFixture.includes("c.relname = 'buckets'"), "Ephemeral fixture must provide the isolated storage bucket catalog");
 assert.ok(postgresAssertions.includes("institution profile update did not persist the complete synthetic profile"), "Ephemeral suite must test profile persistence");
 assert.ok(postgresAssertions.includes("institution inventory did not return the complete profile to the console"), "Ephemeral suite must test profile inventory fields");
 assert.ok(!api.includes("supabase: [") && !api.includes("render: ["), "Copilot must not generate hosted Supabase or Render execution steps");
