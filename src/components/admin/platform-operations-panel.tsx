@@ -119,6 +119,15 @@ export default function PlatformOperationsPanel({ institutions }: { institutions
     setScope((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
   }
 
+  function revokeDelegation(id: string) {
+    const reason = window.prompt("Motivo de revocación del acceso delegado (mínimo 12 caracteres):");
+    if (!reason || reason.trim().length < 12) {
+      setMessage("La revocación requiere un motivo de al menos 12 caracteres.");
+      return;
+    }
+    void send(`/api/platform/delegations/${id}/revoke`, { reason: reason.trim() });
+  }
+
   return (
     <section id="operations-panel" className="space-y-5 scroll-mt-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -222,7 +231,7 @@ export default function PlatformOperationsPanel({ institutions }: { institutions
               <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-semibold text-white">{item.institution_name}</p><p className="mt-1 text-xs text-slate-400">{label(item.status)} · vence {new Date(item.expires_at).toLocaleString("es-AR")}</p></div><span className="font-mono text-[10px] text-slate-500">{item.id.slice(0, 8)}</span></div>
               <p className="mt-2 text-xs text-slate-400">Módulos: {item.module_scope.map((key) => moduleOptions.find(([k]) => k === key)?.[1] ?? key).join(", ")}</p>
               {item.status === "pending" && <button type="button" disabled={!!busy} onClick={() => void send(`/api/platform/delegations/${item.id}/approve`)} className="mt-3 rounded-lg border border-emerald-300/20 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50">Aprobar (segundo Superadministrador)</button>}
-              {item.status === "active" && <button type="button" disabled={!!busy} onClick={() => void send(`/api/platform/delegations/${item.id}/revoke`, { reason: "Revocación preventiva desde consola global." })} className="mt-3 rounded-lg border border-rose-300/20 px-3 py-2 text-xs font-semibold text-rose-200 disabled:opacity-50">Revocar acceso</button>}
+              {item.status === "active" && <button type="button" disabled={!!busy} onClick={() => revokeDelegation(item.id)} className="mt-3 rounded-lg border border-rose-300/20 px-3 py-2 text-xs font-semibold text-rose-200 disabled:opacity-50">Revocar acceso</button>}
             </div>) : <p className="text-sm text-slate-500">No hay accesos delegados registrados.</p>}
           </div>
         </article>
