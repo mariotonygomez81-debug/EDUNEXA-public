@@ -123,6 +123,69 @@ export async function POST(request: Request, route: RouteContext) {
     return json({ administrator: result.data }, 201);
   }
 
+  if (segments.length === 4 && segments[0] === "institutions"
+    && segments[2] === "administrators" && segments[3] === "invite") {
+    const email = text(body.email).toLowerCase();
+    const firstName = text(body.firstName);
+    const lastName = text(body.lastName);
+    if (!validUuid(segments[1]) || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)
+      || firstName.length < 2 || firstName.length > 80 || lastName.length < 2 || lastName.length > 80
+      || !requiredReason(body.reason) || !key) {
+      return json({ error: "Institución, correo, nombre, apellido, motivo e Idempotency-Key son obligatorios." }, 400);
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const adminSecret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const appUrl = process.env.EDUNEXA_APP_URL;
+    if (!supabaseUrl || !adminSecret || !appUrl) {
+      return json({ error: "La invitación requiere URL institucional y clave Auth Admin configuradas solo en el servidor." }, 503);
+    }
+
+    let redirectTo: string;
+    try {
+      const base = new URL(appUrl);
+      if (base.protocol !== "https:" && base.hostname !== "localhost") throw new Error("invalid_app_url");
+      redirectTo = new URL("/auth/confirm?next=/reset-password", base).toString();
+    } catch {
+      return json({ error: "EDUNEXA_APP_URL no es una URL HTTPS válida." }, 503);
+    }
+
+    const admin = createSupabaseAdminClient(supabaseUrl, adminSecret, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const invited = await admin.auth.admin.inviteUserByEmail(email, {
+      data: { first_name: firstName, last_name: lastName, display_name: `${firstName} ${lastName}` },
+      redirectTo,
+    });
+    if (invited.error || !invited.data.user) {
+      const message = invited.error?.message ?? "";
+      if (/already registered|already exists|user already/i.test(message)) {
+        return json({ error: "Ya existe una cuenta con ese correo. Asigná el usuario existente desde su UUID." }, 409);
+      }
+      return json({ error: "No se pudo enviar la invitación de correo." }, 502);
+    }
+
+    result = await platformRpc(auth.supabase, "platform_invite_institution_admin", {
+      p_institution_id: segments[1], p_user_id: invited.data.user.id,
+      p_reason: text(body.reason), p_request_id: requestIdValue, p_idempotency_key: key,
+    });
+    if (result.error) {
+      const rollback = await admin.auth.admin.deleteUser(invited.data.user.id);
+      if (rollback.error) {
+        console.error("[platform-admin-invite] Auth compensation failed", {
+          requestId: requestIdValue, userId: invited.data.user.id,
+        });
+        return json({ error: "La asignación institucional falló y no se pudo compensar la invitación Auth. Requiere revisión administrativa." }, 500);
+      }
+      return rpcErrorResponse(result.error);
+    }
+    return json({
+      invitation: result.data,
+      email,
+      message: "Invitación enviada. La membresía queda pendiente hasta que un administrador institucional apruebe el acceso.",
+    }, 201);
+  }
+
   if (segments.length === 2 && segments[0] === "clones" && segments[1] === "execute-next") {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const adminSecret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
