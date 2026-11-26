@@ -235,7 +235,7 @@ export default function PlatformInstitutionAdminsPanel({ institutions }: Props) 
                   <div key={admin.membership_id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-white">{admin.display_name || admin.email || "Usuario sin nombre"}</p>
-                      <p className="mt-1 break-all text-xs text-slate-400">{admin.email || "Correo no disponible"} · {admin.status === "active" ? "Activo" : "Inactivo"}</p>
+                      <p className="mt-1 break-all text-xs text-slate-400">{admin.email || "Correo no disponible"} · {admin.status === "active" ? "Activo" : admin.status === "invited" ? "Pendiente de aprobación" : admin.status === "suspended" ? "Suspendido" : "Inactivo"}</p>
                       <p className="mt-1 font-mono text-[10px] text-slate-600">{admin.user_id}</p>
                     </div>
                     <div className="flex items-center gap-2">
