@@ -202,7 +202,7 @@ assert.ok(adminApprovalMigration.includes("active_institution_admin_required"), 
 assert.ok(adminApprovalMigration.includes("self_approval_forbidden"), "Invitees must not approve their own memberships");
 assert.ok(adminApprovalMigration.includes("platform.institution.admin.approve"), "Institutional approval must append an audit event");
 assert.ok(adminApprovalMigration.includes("grant execute on function public.platform_approve_institution_admin(uuid,uuid,text) to authenticated"));
-assert.ok(adminApprovalRoute.includes('supabase.rpc("platform_approve_institution_admin"'), "Authenticated API must call the institution-scoped approval RPC");
+assert.ok(adminApprovalRoute.includes('rpcClient.rpc("platform_approve_institution_admin"'), "Authenticated API must call the institution-scoped approval RPC");
 assert.ok(adminApprovalRoute.includes('request.headers.get("origin")'), "Invitation approval writes must enforce same-origin requests");
 assert.ok(runner.includes("20261126180000_platform_admin_invitation_approval.sql"), "Ephemeral PostgreSQL suite must apply invitation approval migration");
 assert.ok(postgresAssertions.includes("institution admin approval must activate the invited membership and append an audit event"));
