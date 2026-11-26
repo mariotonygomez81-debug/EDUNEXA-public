@@ -10,6 +10,7 @@ CREATE TEMP TABLE synthetic_results (
   superadmin_change_id uuid,
   ai_plan_id uuid
 );
+GRANT SELECT ON synthetic_results TO authenticated;
 
 -- No identity and user_metadata-only claims must be denied.
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',false);
@@ -248,10 +249,10 @@ BEGIN
 END $$;
 RESET ROLE;
 
-SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',false);
-SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000005","app_metadata":{},"role":"authenticated"}',false);
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',false);
+SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000004","app_metadata":{},"role":"authenticated"}',false);
 SET ROLE authenticated;
-DO $$
+DO $
 DECLARE v_institution uuid; v_second uuid; v_membership uuid;
 BEGIN
   SELECT institution_id,second_institution_id INTO v_institution,v_second FROM synthetic_results;
