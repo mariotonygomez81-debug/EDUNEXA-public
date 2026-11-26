@@ -62,7 +62,8 @@ INSERT INTO auth.users(id,raw_app_meta_data) VALUES
  ('00000000-0000-4000-8000-000000000002','{"platform_role":"superadmin"}'),
  ('00000000-0000-4000-8000-000000000003','{"platform_role":"superadmin"}'),
  ('00000000-0000-4000-8000-000000000004','{}'),
- ('00000000-0000-4000-8000-000000000005','{}')
+ ('00000000-0000-4000-8000-000000000005','{}'),
+ ('00000000-0000-4000-8000-000000000006','{}')
 ON CONFLICT(id) DO NOTHING;
 INSERT INTO public.roles(key,name) VALUES('institution_admin','Administrador institucional')
 ON CONFLICT(key) DO NOTHING;
