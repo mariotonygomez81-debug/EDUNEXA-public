@@ -204,6 +204,7 @@ test("Rutas globales: identificadores manipulados y actor ordinario reciben dene
   await page.getByRole("button", { name: "Ingresar", exact: true }).click();
   await expect.poll(async () => (await api(page, "/api/platform/superadmins")).status, { timeout: 30_000 }).toBe(403);
 
+  // Authorization is evaluated before route parameter validation for this handler.
   expectStatus(await api(page, "/api/platform/institutions/not-a-uuid/administrators"), 403,
     "ordinary identity is denied before malformed resource resolution");
   expectStatus(await api(page, `/api/platform/institutions/${institutionOne}/administrators/not-a-uuid`, "DELETE", {
