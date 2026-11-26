@@ -107,6 +107,8 @@ const scopedMigration = read("../supabase/migrations/20261125200000_superadmin_m
 const operationsPanel = read("../src/components/admin/platform-operations-panel.tsx");
 const governancePanel = read("../src/components/admin/platform-governance-panel.tsx");
 const privilegeQueueMigration = read("../supabase/migrations/20261126160000_platform_superadmin_change_request_listing.sql");
+const profileMigration = read("../supabase/migrations/20261125203000_expand_institution_profiles_and_branding.sql");
+const superadminTestRunner = read("../scripts/test-superadmin-control-plane-postgres.sh");
 for (const token of [
   "platform_delegations_module_scope_check", "platform_request_delegation_scoped_idempotent",
   "platform_read_delegated_module", "platform_list_delegations", "platform_list_clone_jobs",
@@ -164,6 +166,14 @@ assert.ok(api.includes("platform_list_superadmin_change_requests"), "API must ex
 assert.ok(governancePanel.includes("/api/platform/superadmins/requests") && governancePanel.includes("Aprobar como segundo responsable"));
 assert.ok(governancePanel.includes("Ejecutar cambio aprobado") && governancePanel.includes("/api/platform/audit"));
 assert.ok(consoleSource.includes("PlatformGovernancePanel") && consoleSource.includes('href="#superadmin-governance"'));
+assert.ok(profileMigration.includes("contact_email text") && profileMigration.includes("tax_id text"), "Institution profile migration must define every profile field exposed by the form");
+assert.ok(profileMigration.includes("platform_update_institution(") && profileMigration.includes("platform_list_institutions("), "Institution profile migration must persist and return the complete profile");
+assert.ok(superadminTestRunner.includes("20261125203000_expand_institution_profiles_and_branding.sql"), "Ephemeral PostgreSQL suite must apply the profile migration before assertions");
+assert.ok(postgresFixture.includes("CREATE SCHEMA IF NOT EXISTS storage") && postgresFixture.includes("CREATE TABLE IF NOT EXISTS storage.buckets"), "Ephemeral fixture must provide the isolated storage bucket catalog");
+assert.ok(postgresAssertions.includes("institution profile update did not persist the complete synthetic profile"), "Ephemeral suite must test profile persistence");
+assert.ok(postgresAssertions.includes("institution inventory did not return the complete profile to the console"), "Ephemeral suite must test profile inventory fields");
+assert.ok(!api.includes("supabase: [") && !api.includes("render: ["), "Copilot must not generate hosted Supabase or Render execution steps");
+assert.ok(!api.includes("create_pull_request"), "Copilot prompt and allowlist must prohibit pull requests");
 assert.ok(consoleSource.includes('href="#global-audit"'), "Audit card must navigate to its functional panel");
 
 assert.equal((scopedMigration.split("as " + String.fromCharCode(36,36)).length - 1) + (scopedMigration.split("do " + String.fromCharCode(36,36)).length - 1), (scopedMigration.split(String.fromCharCode(36,36) + ";").length - 1), "Scoped support migration dollar quotes must be balanced");
