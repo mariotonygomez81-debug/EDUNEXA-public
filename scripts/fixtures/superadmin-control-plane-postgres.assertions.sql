@@ -311,7 +311,7 @@ SELECT public.platform_approve_institution_admin(
   'synthetic-admin-approve-after-revoke-001'
 );
 RESET ROLE;
-DO $
+DO $$
 DECLARE v_institution uuid; v_membership uuid;
 BEGIN
   SELECT institution_id INTO v_institution FROM synthetic_results;
@@ -323,7 +323,7 @@ BEGIN
         AND actor_user_id='00000000-0000-4000-8000-000000000005') THEN
     RAISE EXCEPTION 'institution admin approval must activate the invited membership and append an audit event';
   END IF;
-END $;
+END $$;
 
 
 
