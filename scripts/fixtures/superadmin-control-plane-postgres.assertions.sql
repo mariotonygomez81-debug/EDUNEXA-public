@@ -218,14 +218,18 @@ BEGIN
     'Asignación sintética del mismo usuario en una segunda institución','synthetic-request-admin-003','synthetic-admin-key-00003');
 END $$;
 
--- Administrator list is scoped to one institution and reflects active and inactive memberships.
-DO $$
-DECLARE v_id uuid; v_count integer;
+-- Administrator list is scoped to one institution and includes active plus pending invitations.
+DO $
+DECLARE v_id uuid; v_count integer; v_active integer; v_invited integer;
 BEGIN
   SELECT institution_id INTO v_id FROM synthetic_results;
-  SELECT count(*) INTO v_count FROM public.platform_list_institution_admins(v_id);
-  IF v_count<>2 THEN RAISE EXCEPTION 'institution administrator registry must return both assigned administrators'; END IF;
-END $$;
+  SELECT count(*),count(*) FILTER (WHERE status='active'),count(*) FILTER (WHERE status='invited')
+    INTO v_count,v_active,v_invited
+  FROM public.platform_list_institution_admins(v_id);
+  IF v_count<>3 OR v_active<>2 OR v_invited<>1 THEN
+    RAISE EXCEPTION 'institution administrator registry must distinguish two active administrators and one pending invitation';
+  END IF;
+END $;
 
 -- Revoking one administrator is allowed; revoking the last one is rejected.
 DO $$
