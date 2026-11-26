@@ -152,6 +152,15 @@ test("Administradores: invitación, aprobación por tenant y separación de padr
   await a.context.close();
 });
 
+test("Permisos de pantalla: una identidad institucional ordinaria no abre rutas globales", async ({ browser }) => {
+  const ordinary = await signIn(browser, process.env.E2E_TARGET_EMAIL, 403);
+  for (const route of ["/dashboard/platform", "/dashboard/platform/institutions", "/dashboard/platform/administrators"]) {
+    await ordinary.page.goto(route);
+    await expect(ordinary.page).toHaveURL(/\\/dashboard$/);
+  }
+  await ordinary.context.close();
+});
+
 test("Auditoría: navegación a la bitácora y visualización de eventos institucionales recientes", async ({ browser }) => {
   const operator = await signIn(browser, process.env.E2E_SUPERADMIN_A_EMAIL);
   const { page } = operator;
