@@ -26,6 +26,7 @@ const preferenceOptions = [
   { key: "grade", label: "Calificaciones", description: "Publicación o actualización de calificaciones." },
   { key: "attendance", label: "Asistencia", description: "Novedades y comunicaciones de asistencia." },
   { key: "support", label: "Soporte", description: "Cambios y respuestas en tus tickets de soporte." },
+  { key: "appointment", label: "Citaciones y entrevistas", description: "Nuevas citaciones, respuestas, reprogramaciones y entrevistas realizadas." },
 ];
 
 const typeLabels: Record<string, string> = {
@@ -35,6 +36,7 @@ const typeLabels: Record<string, string> = {
   attendance: "Asistencia",
   support: "Soporte",
   account_access: "Acceso a la cuenta",
+  appointment: "Citación / entrevista",
 };
 
 function formatDate(value: string) {
@@ -171,7 +173,7 @@ export default async function NotificationsPage({
             })}
           </div>
           <p className="mt-5 text-xs leading-5 text-slate-400">
-            Por ahora se generan avisos internos para anuncios. Los demás tipos quedarán conectados cuando se habiliten sus respectivos eventos.
+            Recibís avisos automáticos de anuncios y citaciones. Podés administrar cada categoría desde aquí.
           </p>
         </section>
 
@@ -213,6 +215,10 @@ export default async function NotificationsPage({
                     ) : notification.resource_type === "conversation" ? (
                       <Link href={`/dashboard/${slug}/messages/${notification.resource_id}`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
                         Abrir conversación
+                      </Link>
+                    ) : notification.resource_type === "appointment" ? (
+                      <Link href={`/dashboard/${slug}/appointments`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
+                        Ver citaciones y entrevistas
                       </Link>
                     ) : notification.resource_type === "membership" ? (
                       <Link href={`/dashboard/${slug}`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
