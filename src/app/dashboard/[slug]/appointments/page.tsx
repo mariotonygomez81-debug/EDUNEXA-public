@@ -52,7 +52,7 @@ export default async function AppointmentsPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ error?: string; updated?: string; created?: string }>;
+  searchParams: Promise<{ error?: string; updated?: string; created?: string; student?: string }>;
 }) {
   const { slug } = await params;
   const query = await searchParams;
@@ -82,8 +82,15 @@ export default async function AppointmentsPage({
   const { data, error } = await supabase.rpc("list_my_teacher_guardian_appointment_details");
   if (error) throw new Error("No se pudieron cargar las citaciones.");
   const appointments = (data ?? []) as unknown as Appointment[];
-  const activeAppointments = appointments.filter((item) => ["requested", "confirmed", "rejected", "declined"].includes(item.status));
-  const historyAppointments = appointments.filter((item) => ["completed", "cancelled"].includes(item.status));
+  const selectedStudentId = /^[0-9a-f-]{36}$/i.test(query.student ?? "") ? query.student! : null;
+  const selectedStudentName = selectedStudentId
+    ? appointments.find((item) => item.student_id === selectedStudentId)?.student_name ?? null
+    : null;
+  const scopedAppointments = selectedStudentId
+    ? appointments.filter((item) => item.student_id === selectedStudentId)
+    : appointments;
+  const activeAppointments = scopedAppointments.filter((item) => ["requested", "confirmed", "rejected", "declined"].includes(item.status));
+  const historyAppointments = scopedAppointments.filter((item) => ["completed", "cancelled"].includes(item.status));
   const displayAppointments = [...activeAppointments, ...historyAppointments];
   const { data: commitmentRows, error: commitmentError } = isTeacher
     ? await supabase.rpc("list_my_teacher_guardian_appointment_commitments")
@@ -118,6 +125,17 @@ export default async function AppointmentsPage({
             </div>
           ) : null}
         </header>
+
+        {selectedStudentId ? (
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Historial por estudiante</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{selectedStudentName ?? "Estudiante vinculado"}</p>
+              <p className="mt-1 text-xs text-slate-600">Se muestran las citaciones y el historial de coordinación asociados a este alumno.</p>
+            </div>
+            <Link href={`/dashboard/${slug}/portal`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">Volver al portal familiar</Link>
+          </section>
+        ) : null}
 
         {query.created ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">La citación fue enviada al tutor correctamente.</p> : null}
         {query.updated ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">El estado de la citación se actualizó correctamente.</p> : null}
@@ -310,7 +328,7 @@ export default async function AppointmentsPage({
           <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
             <CalendarClock size={34} className="mx-auto text-slate-300" />
             <h2 className="mt-3 font-semibold text-slate-900">Todavía no hay citaciones</h2>
-            <p className="mt-1 text-sm text-slate-500">{isGuardian ? "Cuando un docente solicite una entrevista, aparecerá aquí para que puedas responder." : "Las solicitudes que envíes a las familias aparecerán aquí para que puedas seguir su estado."}</p>
+            <p className="mt-1 text-sm text-slate-500">{selectedStudentId ? "No hay citaciones ni comunicaciones de coordinación registradas para este estudiante." : isGuardian ? "Cuando un docente solicite una entrevista, aparecerá aquí para que puedas responder." : "Las solicitudes que envíes a las familias aparecerán aquí para que puedas seguir su estado."}</p>
           </section>
         )}
       </div>
