@@ -103,7 +103,7 @@ export default async function AppointmentsPage({
   const activeAppointments = scopedAppointments.filter((item) => ["requested", "confirmed", "rejected", "declined"].includes(item.status));
   const historyAppointments = scopedAppointments.filter((item) => ["completed", "cancelled"].includes(item.status));
   const displayAppointments = [...activeAppointments, ...historyAppointments];
-  const { data: commitmentRows, error: commitmentError } = isTeacher
+  const { data: commitmentRows, error: commitmentError } = isTeacher || isGuardian
     ? await supabase.rpc("list_my_teacher_guardian_appointment_commitments")
     : { data: [], error: null };
   if (commitmentError) throw new Error("No se pudieron cargar los acuerdos de las entrevistas.");
@@ -179,6 +179,60 @@ export default async function AppointmentsPage({
                 <div className="rounded-xl border border-slate-200 bg-slate-100 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Canceladas</p><p className="mt-1 text-2xl font-bold text-slate-900">{historyAppointments.filter((item) => item.status === "cancelled").length}</p></div>
               </div>
             )}
+            {isGuardian ? (() => {
+              const myCommitments = commitments.filter((item) => item.responsible === "guardian" || item.responsible === "family");
+              const pendingCommitments = myCommitments.filter((item) => item.status === "pending" || item.status === "in_progress");
+              const commitmentStatusLabel = (status: Commitment["status"]) =>
+                status === "completed" ? "Cumplido" :
+                status === "cancelled" ? "Cancelado" :
+                status === "in_progress" ? "En seguimiento" : "Pendiente";
+              const commitmentDateLabel = (value: string | null) => value
+                ? new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(`${value}T12:00:00-03:00`))
+                : "Sin fecha definida";
+              return (
+                <section className="rounded-2xl border border-violet-200 bg-violet-50/70 p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-semibold text-violet-950">Compromisos a tu cargo</h2>
+                      <p className="mt-1 text-sm text-violet-800">Acuerdos asignados al tutor o a la familia en entrevistas realizadas.</p>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-violet-800">{pendingCommitments.length} pendiente(s)</span>
+                  </div>
+                  {myCommitments.length ? (
+                    <div className="mt-4 space-y-3">
+                      {myCommitments.map((commitment) => {
+                        const appointment = scopedAppointments.find((item) => item.appointment_id === commitment.appointment_id);
+                        return (
+                          <article key={commitment.commitment_id} className="rounded-xl border border-violet-100 bg-white p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <h3 className="font-semibold text-slate-900">{commitment.title}</h3>
+                                {commitment.details ? <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{commitment.details}</p> : null}
+                                <p className="mt-2 text-xs text-slate-500">
+                                  {appointment ? `Alumno: ${appointment.student_name} · Entrevista: ${dateLabel(appointment.scheduled_at)}` : "Entrevista asociada"}
+                                </p>
+                              </div>
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                commitment.status === "completed" ? "bg-emerald-100 text-emerald-800" :
+                                commitment.status === "cancelled" ? "bg-slate-100 text-slate-600" :
+                                commitment.status === "in_progress" ? "bg-sky-100 text-sky-800" :
+                                "bg-amber-100 text-amber-800"
+                              }`}>{commitmentStatusLabel(commitment.status)}</span>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-slate-100 pt-3 text-xs text-slate-600">
+                              <span><strong className="text-slate-700">Responsable:</strong> {commitment.responsible === "guardian" ? "Tutor" : "Familia"}</span>
+                              <span><strong className="text-slate-700">Fecha de seguimiento:</strong> {commitmentDateLabel(commitment.due_date)}</span>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-3 rounded-xl border border-dashed border-violet-200 bg-white p-4 text-sm text-slate-600">No tenés compromisos asignados al tutor o a la familia por el momento.</p>
+                  )}
+                </section>
+              );
+            })() : null}
             {displayAppointments.map((appointment, index) => (
               <>
                 {index === 0 && activeAppointments.length ? <h2 className="pt-3 text-lg font-semibold text-slate-900">Seguimiento actual</h2> : null}
