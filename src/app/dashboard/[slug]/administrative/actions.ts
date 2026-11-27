@@ -84,7 +84,7 @@ export async function updateAdministrativeRecord(formData: FormData) {
   const statusLabel:Record<string,string>={open:"Pendiente",in_progress:"En proceso",closed:"Cerrado"};
   const entry=`[${timestamp}] ${statusLabel[current.status] ?? current.status} → ${statusLabel[status]}. ${resolutionNotes}`;
   const previousNotes=current.resolution_notes?.trim();
-  const history=[previousNotes,entry].filter(Boolean).join("\\n\\n");
+  const history=[previousNotes,entry].filter(Boolean).join("\n\n");
   if(history.length>3000) redirect(`/dashboard/${slug}/administrative?error=history_full`);
   const {error}=await supabase.from("administrative_records").update({
     status,

@@ -98,7 +98,7 @@ export default async function AdministrativeWorkspace({
           <div className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Registros visibles</p><p className="mt-2 text-3xl font-bold">{rows.length}</p></div>
         </section>
 
-        {query.error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{query.error==="invalid"?"Revisá los datos ingresados.": "No se pudo guardar el registro. Verificá el código y los datos."}</p>}
+        {query.error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{query.error==="invalid"?"Revisá los datos ingresados.": query.error==="history_full"?"La bitácora alcanzó su límite. Conservá la documentación en un nuevo registro relacionado.":"No se pudo guardar el registro. Verificá el código y los datos."}</p>}
         {query.created && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">El registro administrativo se creó correctamente.</p>}
         {query.updated && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">El seguimiento se actualizó correctamente.</p>}
 
