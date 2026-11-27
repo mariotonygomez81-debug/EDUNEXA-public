@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Download } from "lucide-react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
+type ReportSection = { title: string; items: string[] };
+
 type ReportRow = {
   date: string;
   kind: string;
@@ -16,10 +18,11 @@ type ReportRow = {
   extra: string;
 };
 
-export default function PrefectFollowupPdf({ institution, filters, rows }: {
+export default function PrefectFollowupPdf({ institution, filters, rows, sections = [] }: {
   institution: string;
   filters: string[];
   rows: ReportRow[];
+  sections?: ReportSection[];
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -76,6 +79,16 @@ export default function PrefectFollowupPdf({ institution, filters, rows }: {
       for (const filter of filters) { draw(filter, 8, false, muted); y -= 11; }
       y -= 8;
       draw(`REGISTROS INCLUIDOS: ${sorted.length}`, 9, true); y -= 18;
+      for (const section of sections) {
+        if (y < 95) addPage();
+        draw(section.title.toLocaleUpperCase("es-AR"), 9, true); y -= 15;
+        if (!section.items.length) {
+          paragraph("RESUMEN", "Sin registros para este apartado.", 8);
+        } else {
+          for (const item of section.items) paragraph("RESUMEN", item, 8);
+        }
+        y -= 4;
+      }
 
       let previousDate = "";
       let previousCategory = "";

@@ -57,17 +57,19 @@ export default async function PrefectStudentReportPage({ params, searchParams }:
       .eq("institution_id", institution.id).order("starts_on", { ascending: false }),
   ]);
   if (assignmentError) throw new Error("No se pudieron cargar tus divisiones asignadas.");
+  const yearsList = years ?? [];
+  const selectedYear = yearsList.find(y => y.id === filters.year) ?? yearsList.find(y => y.status === "active") ?? yearsList[0];
+  if (!selectedYear) notFound();
   const divisionIds = [...new Set(((assignments ?? []) as Assignment[])
-    .filter(a => (!a.starts_on || a.starts_on <= today) && (!a.ends_on || a.ends_on >= today))
+    .filter(a => (!a.starts_on || a.starts_on <= today) && (!a.ends_on || a.ends_on >= today)
+      && (!a.starts_on || a.starts_on <= selectedYear.ends_on)
+      && (!a.ends_on || a.ends_on >= selectedYear.starts_on))
     .map(a => a.division_id))];
   const { data: divisions, error: divisionError } = divisionIds.length
     ? await supabase.from("divisions").select("id,name,course_id,academic_year_id")
       .eq("institution_id", institution.id).in("id", divisionIds)
     : { data: [] as Division[], error: null };
   if (divisionError) throw new Error("No se pudieron cargar las divisiones asignadas.");
-  const yearsList = years ?? [];
-  const selectedYear = yearsList.find(y => y.id === filters.year) ?? yearsList.find(y => y.status === "active") ?? yearsList[0];
-  if (!selectedYear) notFound();
   const yearDivisions = (divisions ?? []).filter(d => d.academic_year_id === selectedYear.id);
   const yearDivisionIds = yearDivisions.map(d => d.id);
   const courseIds = [...new Set(yearDivisions.map(d => d.course_id))];
@@ -76,7 +78,8 @@ export default async function PrefectStudentReportPage({ params, searchParams }:
       : Promise.resolve({ data: [] }),
     yearDivisionIds.length ? supabase.from("enrollments")
       .select("division_id,students(id,first_name,last_name,student_number)")
-      .eq("institution_id", institution.id).in("division_id", yearDivisionIds).eq("status", "active")
+      .eq("institution_id", institution.id).in("division_id", yearDivisionIds)
+      .lte("enrolled_on", selectedYear.ends_on).or(`ended_on.is.null,ended_on.gte.${selectedYear.starts_on}`)
       : Promise.resolve({ data: [] }),
   ]);
   const courseNames = new Map((courses ?? []).map(c => [c.id, c.name]));
@@ -103,8 +106,9 @@ export default async function PrefectStudentReportPage({ params, searchParams }:
       .eq("institution_id", institution.id).eq("division_id", student.divisionId).eq("student_id", studentId)
       .gte("meeting_date", from).lte("meeting_date", to).order("meeting_date", { ascending: false }),
     supabase.rpc("list_my_teacher_guardian_appointment_details"),
-    supabase.from("grading_periods").select("id,name,starts_on,ends_on")
-      .eq("institution_id", institution.id).eq("academic_year_id", selectedYear.id),
+    supabase.from("grading_periods").select("id,name,starts_on,ends_on,sort_order")
+      .eq("institution_id", institution.id).eq("academic_year_id", selectedYear.id)
+      .order("sort_order", { ascending: true }).order("starts_on", { ascending: true }),
   ]);
   if (novelties.error || conduct.error || minutes.error || appointments.error || periods.error) {
     throw new Error("No se pudo cargar el seguimiento individual.");
@@ -115,7 +119,7 @@ export default async function PrefectStudentReportPage({ params, searchParams }:
   for (const n of novelties.data ?? []) timeline.push({
     id: n.id, date: n.event_date, kind: "novelty", division: divisionName,
     title: n.title, status: statusLabels[n.status] ?? n.status, detail: n.description,
-    extra: n.follow_up ? `Seguimiento: ${n.follow_up}${n.follow_up_due_on ? ` · Próxima acción: ${dateLabel(n.follow_up_due_on)}` : ""}` : "",
+    extra: n.follow_up && n.status === "resolved" ? `Seguimiento cerrado: ${n.follow_up}` : "",
   });
   for (const c of conduct.data ?? []) {
     if (!periodIds.has(c.grading_period_id)) continue;
@@ -128,8 +132,7 @@ export default async function PrefectStudentReportPage({ params, searchParams }:
   for (const m of minutes.data ?? []) timeline.push({
     id: m.id, date: m.meeting_date, kind: "minute", division: divisionName,
     title: `Acta N.º ${String(m.folio).padStart(6, "0")} · ${m.subject}`,
-    status: m.act_type.replaceAll("_", " "), detail: m.development,
-    extra: m.agreements ? `Acuerdos: ${m.agreements}` : "",
+    status: m.act_type.replaceAll("_", " "), detail: m.development, extra: "",
   });
   for (const a of appointments.data ?? []) {
     if (a.student_id !== studentId || !a.scheduled_at || a.scheduled_at.slice(0, 10) < from || a.scheduled_at.slice(0, 10) > to) continue;
@@ -143,6 +146,48 @@ export default async function PrefectStudentReportPage({ params, searchParams }:
     });
   }
   timeline.sort((a,b) => b.date.localeCompare(a.date));
+  const orderedPeriods = periods.data ?? [];
+  const dateOnly = (value: string) => value.slice(0, 10);
+  const quarterlyEvolution = orderedPeriods.map(period => {
+    const periodConduct = (conduct.data ?? []).find(row => row.grading_period_id === period.id);
+    const inPeriod = timeline.filter(row => dateOnly(row.date) >= period.starts_on && dateOnly(row.date) <= period.ends_on);
+    return {
+      id: period.id, name: period.name, startsOn: period.starts_on, endsOn: period.ends_on,
+      concept: periodConduct ? (conductLabels[periodConduct.concept] ?? periodConduct.concept) : "Sin concepto registrado",
+      observation: periodConduct?.observation ?? "",
+      novelties: inPeriod.filter(row => row.kind === "novelty").length,
+      appointments: inPeriod.filter(row => row.kind === "appointment").length,
+      minutes: inPeriod.filter(row => row.kind === "minute").length,
+    };
+  });
+  const agreements = (minutes.data ?? []).filter(row => row.agreements?.trim()).map(row => ({
+    id: row.id, date: row.meeting_date, title: row.subject, agreement: row.agreements,
+    folio: row.folio,
+  }));
+  const pendingFollowups = (novelties.data ?? []).filter(row => row.status !== "resolved").map(row => ({
+    id: row.id, date: row.event_date, title: row.title,
+    followUp: row.follow_up?.trim() || row.description,
+    dueOn: row.follow_up_due_on as string | null,
+    status: row.follow_up_due_on && row.follow_up_due_on < today ? "Vencido" : "Pendiente",
+  }));
+  const pendingAppointments = (appointments.data ?? []).filter(row =>
+    row.student_id === studentId && ["requested", "confirmed", "rejected"].includes(row.status)
+    && row.scheduled_at && row.scheduled_at.slice(0, 10) >= from && row.scheduled_at.slice(0, 10) <= to
+  ).map(row => ({
+    id: row.appointment_id, date: row.scheduled_at, reason: row.reason,
+    status: statusLabels[row.status] ?? row.status, response: row.guardian_response_note ?? "",
+  }));
+  const pendingItems = [
+    ...pendingFollowups.map(row => ({
+      id: row.id, date: row.dueOn ?? row.date, title: row.title, detail: row.followUp,
+      status: row.status, source: "Seguimiento de novedad",
+    })),
+    ...pendingAppointments.map(row => ({
+      id: row.id, date: row.date, title: row.reason,
+      detail: row.response || "La citación todavía no está finalizada.",
+      status: row.status, source: "Citación a tutor",
+    })),
+  ].sort((a,b) => a.date.localeCompare(b.date));
   const counts = (Object.keys(labels) as (keyof typeof labels)[]).map(kind =>
     ({ kind, label: labels[kind], count: timeline.filter(row => row.kind === kind).length }));
 
