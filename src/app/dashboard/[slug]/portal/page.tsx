@@ -397,12 +397,20 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                                   ) : null}
                                 </div>
                               </div>
-                              <div className="mt-2.5 rounded-lg border border-slate-200/80 bg-white/80 px-3 py-2.5">
-                                <p className="text-xs leading-5 text-slate-600">{counterpart?.last_message_body ? counterpart.last_message_body.slice(0, 110) : "Conversación privada sin mensajes todavía"}{counterpart?.last_message_body && counterpart.last_message_body.length > 110 ? "…" : ""}</p>
-                                {counterpart?.last_message_at ? (
-                                  <p className="mt-2 border-t border-slate-100 pt-2 text-[11px] font-medium text-slate-400">Último mensaje · {dateTimeLabel(counterpart.last_message_at)}</p>
-                                ) : null}
-                              </div>
+                              {hasMessages ? (
+                                <div className="mt-2.5 rounded-lg border border-slate-200/80 bg-white/80 px-3 py-2.5">
+                                  <p className="text-xs leading-5 text-slate-600">{counterpart?.last_message_body ? counterpart.last_message_body.slice(0, 110) : "Mensaje enviado en esta conversación"}</p>
+                                  {counterpart?.last_message_body && counterpart.last_message_body.length > 110 ? <span className="sr-only">El resumen fue abreviado</span> : null}
+                                  {counterpart?.last_message_at ? (
+                                    <p className="mt-2 border-t border-slate-100 pt-2 text-[11px] font-medium text-slate-400">Último mensaje · {dateTimeLabel(counterpart.last_message_at)}</p>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <div className="mt-2.5 flex items-start gap-2.5 rounded-lg border border-dashed border-slate-300 bg-slate-100/70 px-3 py-3" aria-label="Todavía no hay mensajes en esta conversación">
+                                  <MessageCircle size={15} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />
+                                  <p className="text-xs leading-5 text-slate-500">Aún no hay intercambio. El primer mensaje aparecerá aquí.</p>
+                                </div>
+                              )}
                             </div>
                             <Link href={`/dashboard/${slug}/messages/${item.conversation_id}?student=${student.student_id}`} className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-50 sm:w-auto sm:self-center">
                               Abrir conversación <MessageCircle size={14} />
