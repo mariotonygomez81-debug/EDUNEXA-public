@@ -193,6 +193,96 @@ returns table(conversation_id uuid,student_id uuid,student_name text)
 language sql stable set search_path=''
 as $function$ select * from private.list_my_student_conversations_impl(p_institution_id,p_student_id); $function$;
 
+
+create or replace function private.list_messageable_contacts_for_student_impl(
+  p_institution_id uuid,p_student_id uuid
+)
+returns table(membership_id uuid,display_name text,role_keys text[])
+language plpgsql stable security definer set search_path=''
+as $function$
+declare
+  v_sender_membership_id uuid;
+begin
+  if (select auth.uid()) is null then
+    raise exception 'Authentication required' using errcode='28000';
+  end if;
+
+  select m.id into v_sender_membership_id
+  from public.memberships m
+  where m.user_id=(select auth.uid())
+    and m.institution_id=p_institution_id and m.status='active'
+  limit 1;
+
+  if v_sender_membership_id is null then
+    raise exception 'Active membership required' using errcode='42501';
+  end if;
+
+  -- The shared policy helper confirms the active guardian-to-student link,
+  -- active enrollment, authorized messaging relationship and current staff assignment.
+  if not exists (
+    select 1 from public.memberships candidate
+    where candidate.institution_id=p_institution_id
+      and candidate.status='active'
+      and private.can_message_about_student(
+        p_institution_id,v_sender_membership_id,candidate.id,p_student_id
+      )
+  ) then
+    if not exists (
+      select 1 from public.guardians g
+      join public.student_guardians sg
+        on sg.guardian_id=g.id and sg.institution_id=g.institution_id
+      where g.membership_id=v_sender_membership_id
+        and g.institution_id=p_institution_id and sg.student_id=p_student_id
+    ) then
+      raise exception 'Student is not linked to this guardian' using errcode='42501';
+    end if;
+  end if;
+
+  return query
+  select
+    candidate.id,
+    coalesce(
+      nullif(btrim(profile.display_name),''),
+      nullif(btrim(concat_ws(' ',profile.first_name,profile.last_name)),''),
+      'Usuario escolar'
+    ),
+    coalesce(
+      array_agg(distinct role.key order by role.key)
+        filter(where role.key in ('teacher','prefect')),
+      array[]::text[]
+    )
+  from public.memberships candidate
+  join public.membership_roles mr
+    on mr.membership_id=candidate.id and mr.institution_id=candidate.institution_id
+  join public.roles role on role.id=mr.role_id
+  left join public.profiles profile on profile.id=candidate.user_id
+  where candidate.institution_id=p_institution_id
+    and candidate.status='active'
+    and candidate.id<>v_sender_membership_id
+    and role.key in ('teacher','prefect')
+    and private.can_message_about_student(
+      p_institution_id,v_sender_membership_id,candidate.id,p_student_id
+    )
+  group by candidate.id,profile.display_name,profile.first_name,profile.last_name
+  order by 2
+  limit 250;
+end;
+$function$;
+
+create or replace function public.list_messageable_contacts_for_student(
+  p_institution_id uuid,p_student_id uuid
+)
+returns table(membership_id uuid,display_name text,role_keys text[])
+language sql stable set search_path=''
+as $function$
+  select * from private.list_messageable_contacts_for_student_impl(p_institution_id,p_student_id);
+$function$;
+
+revoke all on function private.list_messageable_contacts_for_student_impl(uuid,uuid) from public,anon;
+grant execute on function private.list_messageable_contacts_for_student_impl(uuid,uuid) to authenticated;
+revoke all on function public.list_messageable_contacts_for_student(uuid,uuid) from public,anon;
+grant execute on function public.list_messageable_contacts_for_student(uuid,uuid) to authenticated;
+
 revoke all on function private.can_message_about_student(uuid,uuid,uuid,uuid) from public,anon,authenticated;
 revoke all on function private.create_student_direct_conversation_impl(uuid,uuid,uuid,text) from public,anon;
 grant execute on function private.create_student_direct_conversation_impl(uuid,uuid,uuid,text) to authenticated;

@@ -65,14 +65,16 @@ export default async function MessagesPage({
     .eq("user_id", user.id).eq("status", "active").maybeSingle();
   if (!membership) redirect("/dashboard");
 
+  const selectedStudentId = /^[0-9a-f-]{36}$/i.test(query.student ?? "") ? query.student! : null;
   const [contactsResult, conversationsResult] = await Promise.all([
-    supabase.rpc("list_messageable_contacts", { p_institution_id: institution.id }),
+    selectedStudentId
+      ? supabase.rpc("list_messageable_contacts_for_student", { p_institution_id: institution.id, p_student_id: selectedStudentId })
+      : supabase.rpc("list_messageable_contacts", { p_institution_id: institution.id }),
     supabase.rpc("list_my_conversations", { p_institution_id: institution.id }),
   ]);
 
   const contacts = (contactsResult.data ?? []) as Contact[];
   const initialSubject = query.subject === "citation" ? "Solicitud de citación" : "";
-  const selectedStudentId = /^[0-9a-f-]{36}$/i.test(query.student ?? "") ? query.student! : null;
   const [{ data: portalStudents }, { data: studentConversationRows, error: studentConversationsError }] = selectedStudentId
     ? await Promise.all([supabase.rpc("list_my_portal_students", { p_institution_id: institution.id }), supabase.rpc("list_my_student_conversations", { p_institution_id: institution.id, p_student_id: selectedStudentId })])
     : [{ data: null }, { data: null, error: null }];
