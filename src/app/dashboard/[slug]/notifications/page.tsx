@@ -250,6 +250,10 @@ export default async function NotificationsPage({
                       <Link href={`/dashboard/${slug}/appointments`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
                         Ver citaciones y entrevistas
                       </Link>
+                    ) : notification.notification_type === "grade" ? (
+                      <Link href={`/dashboard/${slug}/report-cards`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
+                        Consultar boletines
+                      </Link>
                     ) : notification.resource_type === "membership" ? (
                       <Link href={`/dashboard/${slug}`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
                         Ir a mi espacio
