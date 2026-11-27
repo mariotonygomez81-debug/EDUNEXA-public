@@ -63,12 +63,14 @@ export async function updatePrefectNovelty(formData: FormData) {
   const id = field(formData, "novelty_id");
   const status = field(formData, "status");
   const followUp = field(formData, "follow_up");
-  if (!slug || !id || !["open","in_progress","resolved"].includes(status) || followUp.length > 3000) {
+  const followUpDueOn = field(formData, "follow_up_due_on");
+  const validDueDate = !followUpDueOn || (/^\d{4}-\d{2}-\d{2}$/.test(followUpDueOn) && !Number.isNaN(new Date(followUpDueOn + "T12:00:00Z").getTime()) && new Date(followUpDueOn + "T12:00:00Z").toISOString().slice(0, 10) === followUpDueOn);
+  if (!slug || !id || !["open","in_progress","resolved"].includes(status) || followUp.length > 3000 || !validDueDate) {
     redirect(`/dashboard/${encodeURIComponent(slug)}/prefect/novelties?error=invalid`);
   }
   const { supabase, institution } = await getContext(slug);
   const { error } = await supabase.from("prefect_novelties")
-    .update({ status, follow_up: followUp || null })
+    .update({ status, follow_up: followUp || null, follow_up_due_on: followUpDueOn || null })
     .eq("id", id).eq("institution_id", institution.id);
   if (error) redirect(`/dashboard/${slug}/prefect/novelties?error=save`);
   revalidatePath(`/dashboard/${slug}/prefect/novelties`);

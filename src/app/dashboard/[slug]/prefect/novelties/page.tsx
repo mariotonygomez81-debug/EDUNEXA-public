@@ -13,7 +13,7 @@ type Student = { id: string; first_name: string; last_name: string; student_numb
 type Novelty = {
   id: string; division_id: string; student_id: string | null; category: string;
   title: string; description: string; event_date: string; status: string; follow_up: string | null;
-  created_at: string;
+  created_at: string; follow_up_due_on: string | null;
 };
 
 const categoryLabels: Record<string,string> = {
@@ -136,7 +136,7 @@ export default async function PrefectNoveltiesPage({
         </section>
 
         <section className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold">Novedades registradas</h2><span className="text-sm text-slate-500">{novelties?.length ?? 0} registros recientes · máximo 200</span></div><PrefectNoveltiesPdf institution={institution.display_name} rows={(novelties ?? []).map(n => ({ date: n.event_date, division: divisionNames.get(n.division_id) ?? "División", student: n.student_id ? studentNames.get(n.student_id) ?? "Alumno" : "División completa", category: categoryLabels[n.category] ?? n.category, title: n.title, description: n.description, status: statusLabels[n.status] ?? n.status, followUp: n.follow_up ?? "" }))} /></div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold">Novedades registradas</h2><span className="text-sm text-slate-500">{novelties?.length ?? 0} registros recientes · máximo 200</span></div><PrefectNoveltiesPdf institution={institution.display_name} rows={(novelties ?? []).map(n => ({ date: n.event_date, division: divisionNames.get(n.division_id) ?? "División", student: n.student_id ? studentNames.get(n.student_id) ?? "Alumno" : "División completa", category: categoryLabels[n.category] ?? n.category, title: n.title, description: n.description, status: statusLabels[n.status] ?? n.status, followUp: n.follow_up ?? "", followUpDueOn: n.follow_up_due_on ?? "" }))} /></div>
           {novelties?.length ? novelties.map(n => (
             <article key={n.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -148,7 +148,12 @@ export default async function PrefectNoveltiesPage({
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{statusLabels[n.status] ?? n.status}</span>
               </div>
               <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">{n.description}</p>
-              <form action={updatePrefectNovelty} className="mt-5 grid gap-3 border-t border-slate-100 pt-4 md:grid-cols-[1fr_2fr_auto] md:items-end">
+              {n.follow_up_due_on && (
+                <p className={`mt-3 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold ${n.status !== "resolved" && n.follow_up_due_on < today ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-sky-800"}`}>
+                  {n.status !== "resolved" && n.follow_up_due_on < today ? "Acción vencida" : "Próxima acción"} · {new Date(n.follow_up_due_on + "T12:00:00").toLocaleDateString("es-AR")}
+                </p>
+              )}
+              <form action={updatePrefectNovelty} className="mt-5 grid gap-3 border-t border-slate-100 pt-4 md:grid-cols-[1fr_2fr_1fr_auto] md:items-end">
                 <input type="hidden" name="slug" value={slug}/><input type="hidden" name="novelty_id" value={n.id}/>
                 <label className="grid gap-1 text-xs font-semibold text-slate-600">Estado
                   <select name="status" defaultValue={n.status} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal">
@@ -157,6 +162,9 @@ export default async function PrefectNoveltiesPage({
                 </label>
                 <label className="grid gap-1 text-xs font-semibold text-slate-600">Seguimiento / próxima acción
                   <input name="follow_up" maxLength={3000} defaultValue={n.follow_up ?? ""} placeholder="Acuerdos, contacto o acción pendiente" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"/>
+                </label>
+                <label className="grid gap-1 text-xs font-semibold text-slate-600">Fecha de próxima acción
+                  <input type="date" name="follow_up_due_on" defaultValue={n.follow_up_due_on ?? ""} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"/>
                 </label>
                 <button className="rounded-lg border border-violet-200 px-4 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-50">Actualizar</button>
               </form>

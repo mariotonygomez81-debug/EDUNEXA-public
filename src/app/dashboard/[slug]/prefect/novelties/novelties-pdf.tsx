@@ -12,6 +12,7 @@ type NoveltyRow = {
   description: string;
   status: string;
   followUp: string;
+  followUpDueOn: string;
 };
 
 export default function PrefectNoveltiesPdf({
@@ -64,13 +65,15 @@ export default function PrefectNoveltiesPdf({
       for (const row of rows) {
         const bodyLines = wrap(row.description, 510, 8.5);
         const followLines = row.followUp ? wrap(`Seguimiento: ${row.followUp}`, 510, 8) : [];
-        const blockHeight = 64 + bodyLines.length * 11 + followLines.length * 10;
+        const dueLines = row.followUpDueOn ? [`Próxima acción: ${new Date(row.followUpDueOn + "T12:00:00").toLocaleDateString("es-AR")}`] : [];
+        const blockHeight = 64 + bodyLines.length * 11 + (followLines.length + dueLines.length) * 10;
         ensureSpace(blockHeight);
         draw(`${row.date} · ${row.category} · ${row.status}`, 40, 8, true, muted); y -= 13;
         draw(row.title, 40, 10, true); y -= 14;
         draw(`División: ${row.division} | Alumno: ${row.student}`, 40, 8); y -= 13;
         for (const line of bodyLines) { draw(line, 40, 8.5); y -= 11; }
         for (const line of followLines) { draw(line, 40, 8, false, muted); y -= 10; }
+        for (const line of dueLines) { draw(line, 40, 8, true, muted); y -= 10; }
         y -= 12;
         page.drawLine({ start: { x: 40, y }, end: { x: 555, y }, thickness: 0.5, color: rgb(0.86, 0.88, 0.91) });
         y -= 14;
