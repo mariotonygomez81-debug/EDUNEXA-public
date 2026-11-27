@@ -1,0 +1,1 @@
+revoke all on function private.academic_year_snapshot(uuid,uuid) from public,anon,authenticated;

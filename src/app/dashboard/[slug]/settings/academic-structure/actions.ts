@@ -47,6 +47,7 @@ export async function createCourse(formData: FormData) {
   const name = field(formData, "name");
   const gradeRaw = field(formData, "grade_number");
   const shift = field(formData, "shift");
+  const orientationId = field(formData, "orientation_id");
   const gradeNumber = gradeRaw ? Number(gradeRaw) : null;
 
   if (!slug || !/^[0-9a-f-]{36}$/i.test(levelId) ||
@@ -60,10 +61,11 @@ export async function createCourse(formData: FormData) {
     p_institution_id: institution.id,
     p_level_id: levelId,
     p_name: name,
-    ...(gradeNumber !== null ? { p_grade_number: gradeNumber } : {}),
-    ...(shift ? { p_shift: shift } : {}),
+    p_grade_number: gradeNumber,
+    p_shift: shift || null,
+    p_orientation_id: orientationId || null,
   };
-  const { error } = await supabase.rpc("create_course", args);
+  const { error } = await supabase.rpc("create_course_with_orientation", args);
   if (error) saveError(slug, error.code);
 
   revalidatePath(`/dashboard/${slug}/settings/academic-structure`);

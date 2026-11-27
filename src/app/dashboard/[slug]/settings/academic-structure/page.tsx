@@ -15,7 +15,8 @@ import {
 } from "./actions";
 
 type NamedRow = { id: string; name: string };
-type Course = { id: string; level_id: string; name: string; grade_number: number | null; shift: string | null };
+type Course = { id: string; level_id: string; orientation_id: string | null; name: string; grade_number: number | null; shift: string | null };
+type Orientation = { id: string; education_level_id: string; name: string; is_active: boolean };
 type Division = { id: string; course_id: string; academic_year_id: string; campus_id: string | null; name: string; capacity: number | null };
 type Subject = { id: string; name: string; code: string | null };
 type CourseSubject = { id: string; course_id: string; subject_id: string; weekly_hours: number | null };
@@ -82,12 +83,13 @@ export default async function AcademicStructurePage({
     supabase.from("education_levels").select("id,name").eq("institution_id", institution.id).order("name"),
     supabase.from("academic_years").select("id,name,status,starts_on,ends_on").eq("institution_id", institution.id).order("starts_on", { ascending: false }),
     supabase.from("campuses").select("id,name").eq("institution_id", institution.id).order("name"),
-    supabase.from("courses").select("id,level_id,name,grade_number,shift").eq("institution_id", institution.id).order("grade_number"),
+    supabase.from("courses").select("id,level_id,orientation_id,name,grade_number,shift").eq("institution_id", institution.id).order("grade_number"),
     supabase.from("divisions").select("id,course_id,academic_year_id,campus_id,name,capacity").eq("institution_id", institution.id).order("name"),
     supabase.from("subjects").select("id,name,code").eq("institution_id", institution.id).order("name"),
     supabase.from("course_subjects").select("id,course_id,subject_id,weekly_hours").eq("institution_id", institution.id),
     supabase.from("staff_assignments").select("id,membership_id,assignment_type,division_id,course_subject_id,starts_on,ends_on").eq("institution_id", institution.id).order("created_at", { ascending: false }),
     supabase.rpc("list_assignable_staff_members", { p_institution_id: institution.id }),
+    supabase.from("education_orientations").select("id,education_level_id,name,is_active").eq("institution_id", institution.id).eq("is_active", true).order("name"),
   ]);
 
   const levels = (levelsResult.data ?? []) as NamedRow[];
@@ -99,6 +101,8 @@ export default async function AcademicStructurePage({
   const courseSubjects = (courseSubjectsResult.data ?? []) as CourseSubject[];
   const assignments = (assignmentsResult.data ?? []) as StaffAssignment[];
   const staff = (staffResult.data ?? []) as Staff[];
+  const orientations = (orientationsResult.data ?? []) as Orientation[];
+  const orientationMap = new Map(orientations.map((item) => [item.id, item.name]));
 
   const levelMap = new Map(levels.map((item) => [item.id, item.name]));
   const yearMap = new Map(years.map((item) => [item.id, item.name]));
@@ -224,7 +228,7 @@ export default async function AcademicStructurePage({
               <div className="rounded-xl bg-violet-100 p-3 text-violet-700"><GraduationCap size={21} /></div>
               <div>
                 <h2 className="font-semibold text-slate-900">Crear curso</h2>
-                <p className="text-sm text-slate-500">Nivel, año y turno.</p>
+                <p className="text-sm text-slate-500">Nivel, orientación, año y turno.</p>
               </div>
             </div>
             <form action={createCourse} className="grid gap-3 sm:grid-cols-2">
@@ -233,6 +237,12 @@ export default async function AcademicStructurePage({
                 <select name="level_id" required defaultValue="" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal">
                   <option value="" disabled>Seleccionar nivel</option>
                   {levels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}
+                </select>
+              </label>
+              <label className="text-sm font-medium text-slate-700">Orientación (opcional)
+                <select name="orientation_id" defaultValue="" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal">
+                  <option value="">Sin orientación</option>
+                  {orientations.map((orientation) => <option key={orientation.id} value={orientation.id}>{orientation.name}</option>)}
                 </select>
               </label>
               <label className="text-sm font-medium text-slate-700">Nombre del curso
@@ -260,7 +270,7 @@ export default async function AcademicStructurePage({
               {courses.map((course) => (
                 <div key={course.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
                   <span className="font-medium text-slate-800">{course.name}</span>
-                  <span className="text-xs text-slate-500">{levelMap.get(course.level_id) ?? "Nivel"} · {course.grade_number ?? "—"} · {course.shift ? shiftLabels[course.shift] : "Turno sin definir"}</span>
+                  <span className="text-xs text-slate-500">{levelMap.get(course.level_id) ?? "Nivel"}{course.orientation_id ? ` · ${orientationMap.get(course.orientation_id) ?? "Orientación"}` : ""} · {course.grade_number ?? "—"} · {course.shift ? shiftLabels[course.shift] : "Turno sin definir"}</span>
                 </div>
               ))}
             </div>
