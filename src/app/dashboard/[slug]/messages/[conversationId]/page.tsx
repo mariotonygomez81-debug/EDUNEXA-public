@@ -79,8 +79,11 @@ export default async function ConversationPage({
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
       <div className="mx-auto max-w-4xl space-y-5">
-        <Link href={`/dashboard/${slug}/messages${query.student && /^[0-9a-f-]{36}$/i.test(query.student) ? `?student=${query.student}` : ""}`} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-violet-700">
-          <ArrowLeft size={16} /> Volver a mensajes
+        <Link
+          href={studentContext ? `/dashboard/${slug}/portal#student-${studentContext.student_id}` : `/dashboard/${slug}/messages`}
+          className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-violet-700"
+        >
+          <ArrowLeft size={16} /> {studentContext ? "Volver al historial del alumno" : "Volver a mensajes"}
         </Link>
 
         <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -89,6 +92,11 @@ export default async function ConversationPage({
             <div>
               <h1 className="text-xl font-semibold text-slate-900">{conversation.counterpart_name}</h1>
               <p className="text-sm text-slate-500">{conversation.subject || "Conversación privada"} · {institution.display_name}</p>
+              {studentContext ? (
+                <p className="mt-1 text-xs font-medium text-violet-700">
+                  Sobre el alumno: {studentContext.last_name}, {studentContext.first_name}
+                </p>
+              ) : null}
             </div>
           </div>
           {conversation.unread_count > 0 ? (
