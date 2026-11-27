@@ -9,6 +9,52 @@ function value(formData: FormData, key: string) {
   return typeof entry === "string" ? entry.trim() : "";
 }
 
+export async function assignSupportTicket(formData: FormData) {
+  const slug = value(formData, "slug");
+  const ticketId = value(formData, "ticket_id");
+  const assigneeMembershipId = value(formData, "assignee_membership_id") || null;
+  const expectedAssigneeMembershipId = value(formData, "expected_assignee_membership_id") || null;
+
+  if (!/^[a-z0-9-]{1,80}$/i.test(slug) ||
+      !/^[0-9a-f-]{36}$/i.test(ticketId) ||
+      (assigneeMembershipId && !/^[0-9a-f-]{36}$/i.test(assigneeMembershipId)) ||
+      (expectedAssigneeMembershipId && !/^[0-9a-f-]{36}$/i.test(expectedAssigneeMembershipId))) {
+    redirect("/dashboard/" + encodeURIComponent(slug) + "/support?error=assignment_invalid");
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: institution } = await supabase
+    .from("institutions").select("id").eq("slug", slug).maybeSingle();
+  if (!institution) redirect("/dashboard");
+
+  const { data: membership } = await supabase
+    .from("memberships").select("id")
+    .eq("institution_id", institution.id).eq("user_id", user.id).eq("status", "active").maybeSingle();
+  if (!membership) redirect("/dashboard");
+
+  const { error } = await supabase.rpc("support_assign_ticket", {
+    p_ticket_id: ticketId,
+    p_assignee_membership_id: assigneeMembershipId,
+    p_expected_assignee_membership_id: expectedAssigneeMembershipId,
+  });
+
+  if (error) {
+    const code = error.message.includes("support_ticket_assignment_changed")
+      ? "assignment_conflict"
+      : error.message.includes("invalid_support_ticket_assignee")
+        ? "assignment_invalid"
+        : "assignment_save";
+    redirect("/dashboard/" + slug + "/support/" + ticketId + "?error=" + code);
+  }
+
+  revalidatePath("/dashboard/" + slug + "/support");
+  revalidatePath("/dashboard/" + slug + "/support/" + ticketId);
+  redirect("/dashboard/" + slug + "/support/" + ticketId + "?assigned=1");
+}
+
 export async function createTicket(formData: FormData) {
   const slug = value(formData, "slug");
   const title = value(formData, "title");

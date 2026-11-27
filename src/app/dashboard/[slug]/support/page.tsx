@@ -59,14 +59,16 @@ export default async function SupportPage({
   if (!membership) redirect("/dashboard");
 
   const permissions = await getMembershipPermissions(supabase, membership.id);
-  const canReadInstitutionTickets = permissions.has("support.read") || permissions.has("support.manage");
+  const canManageSupport = permissions.has("support.manage");
+  const canReadInstitutionTickets = permissions.has("support.read") || canManageSupport;
+  const canReadAssignedTickets = permissions.has("support.respond_assigned");
   const canCreateTicket = permissions.has("support.create");
-  if (!canReadInstitutionTickets && !canCreateTicket) redirect(`/dashboard/${slug}`);
+  if (!canReadInstitutionTickets && !canReadAssignedTickets && !canCreateTicket) redirect(`/dashboard/${slug}`);
   const isInstitutionAdmin = canReadInstitutionTickets;
 
   const { data: tickets, error } = await supabase
     .from("support_tickets")
-    .select("id,title,module_key,category,priority,status,created_at,updated_at")
+    .select("id,title,module_key,category,priority,status,created_at,updated_at,assigned_to_membership_id")
     .eq("institution_id", institution.id)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -83,7 +85,7 @@ export default async function SupportPage({
               <div className="rounded-xl bg-violet-100 p-3 text-violet-700"><LifeBuoy size={24} /></div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Ayuda y soporte</p>
-                <h1 className="text-2xl font-bold">{isInstitutionAdmin ? "Soporte institucional" : "Mis tickets"}</h1>
+                <h1 className="text-2xl font-bold">{isInstitutionAdmin ? "Soporte institucional" : canReadAssignedTickets ? "Tickets asignados" : "Mis tickets"}</h1>
               </div>
             </div>
             <p className="mt-3 max-w-2xl text-sm text-slate-500">
@@ -100,7 +102,7 @@ export default async function SupportPage({
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-semibold">{isInstitutionAdmin ? "Tickets de la institución" : "Solicitudes registradas"}</h2>
+              <h2 className="font-semibold">{isInstitutionAdmin ? "Tickets de la institución" : canReadAssignedTickets ? "Tickets asignados a vos" : "Solicitudes registradas"}</h2>
               <span className="text-xs text-slate-400">{tickets?.length ?? 0} tickets</span>
             </div>
             {error ? (
@@ -113,6 +115,7 @@ export default async function SupportPage({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{ticket.title}</p>
                       <p className="mt-1 text-xs text-slate-500">{moduleLabels[ticket.module_key ?? "other"] ?? "Otro módulo"} · {ticket.category} · {new Date(ticket.created_at).toLocaleString("es-AR")}</p>
+                      {ticket.assigned_to_membership_id === membership.id && <p className="mt-1 text-xs font-semibold text-violet-700">Asignado a vos</p>}
                     </div>
                     <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700">{statusLabels[ticket.status] ?? ticket.status}</span>
                   </Link>

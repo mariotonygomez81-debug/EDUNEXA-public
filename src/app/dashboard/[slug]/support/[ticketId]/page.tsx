@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, FileText, MessageCircle, Paperclip, Ticket } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { addTicketMessage, updateTicketStatus } from "../actions";
+import { getMembershipPermissions } from "@/lib/auth/permissions";
+import { addTicketMessage, assignSupportTicket, updateTicketStatus } from "../actions";
 import SupportTicketAttachmentUploader from "../support-ticket-attachment-uploader";
 
 const moduleLabels: Record<string, string> = {
@@ -30,10 +31,10 @@ export default async function TicketDetailPage({
   searchParams,
 }: {
   params: Promise<{ slug: string; ticketId: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; assigned?: string }>;
 }) {
   const { slug, ticketId } = await params;
-  const { error: errorCode } = await searchParams;
+  const { error: errorCode, assigned } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -51,15 +52,12 @@ export default async function TicketDetailPage({
     .maybeSingle();
   if (!membership) redirect("/dashboard");
 
-  const { data: roleRows } = await supabase
-    .from("membership_roles")
-    .select("roles(key)")
-    .eq("membership_id", membership.id);
-  const isInstitutionAdmin = (roleRows ?? []).some((row) => row.roles?.key === "institution_admin");
+  const permissions = await getMembershipPermissions(supabase, membership.id);
+  const canManageSupport = permissions.has("support.manage");
 
   const { data: ticket } = await supabase
     .from("support_tickets")
-    .select("id,title,description,module_key,steps_to_reproduce,occurred_at,category,priority,status,created_at")
+    .select("id,title,description,module_key,steps_to_reproduce,occurred_at,category,priority,status,created_at,created_by_membership_id,assigned_to_membership_id")
     .eq("id", ticketId)
     .eq("institution_id", institution.id)
     .maybeSingle();
@@ -72,16 +70,27 @@ export default async function TicketDetailPage({
     .eq("institution_id", institution.id)
     .order("created_at", { ascending: true });
 
-  const { data: attachmentRows, error: attachmentsError } = await supabase.rpc(
-    "list_support_ticket_attachments",
-    { p_ticket_id: ticket.id },
-  );
+  const isRequester = ticket.created_by_membership_id === membership.id;
+  const isAssignedResponder = ticket.assigned_to_membership_id === membership.id &&
+    permissions.has("support.respond_assigned");
+  const canReply = isRequester || canManageSupport || isAssignedResponder;
+  const canManageAttachments = isRequester || canManageSupport;
+
+  const { data: attachmentRows, error: attachmentsError } = canManageAttachments
+    ? await supabase.rpc("list_support_ticket_attachments", { p_ticket_id: ticket.id })
+    : { data: null, error: null };
   const attachments = await Promise.all((attachmentRows ?? []).map(async (attachment) => {
-    const { data: signed } = await supabase.storage
-      .from(attachment.storage_bucket)
+    const { data: signed } = await supabase.storage.from(attachment.storage_bucket)
       .createSignedUrl(attachment.storage_path, 300);
     return { ...attachment, signedUrl: signed?.signedUrl ?? null };
   }));
+
+  const { data: assignmentHistory } = await supabase.rpc("support_list_ticket_assignment_history", {
+    p_ticket_id: ticket.id,
+  });
+  const { data: assignableMembers } = canManageSupport
+    ? await supabase.rpc("support_list_assignable_members", { p_ticket_id: ticket.id })
+    : { data: null };
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
@@ -120,13 +129,64 @@ export default async function TicketDetailPage({
         </section>
 
 
+        {assigned === "1" && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">La asignación se actualizó correctamente.</p>}
+        {errorCode?.startsWith("assignment_") && (
+          <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            {errorCode === "assignment_conflict" ? "Otro administrador modificó la asignación. Actualizá la página e intentá nuevamente." :
+              errorCode === "assignment_invalid" ? "El responsable seleccionado ya no está habilitado para esta institución." :
+                "No se pudo guardar la asignación. Verificá los permisos e intentá nuevamente."}
+          </p>
+        )}
+
+        {canManageSupport && (
+          <section className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
+            <h2 className="font-semibold text-violet-950">Asignación de responsable</h2>
+            <p className="mt-1 text-sm text-violet-800">Elegí un integrante activo del personal de esta institución.</p>
+            <form action={assignSupportTicket} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+              <input type="hidden" name="slug" value={slug} />
+              <input type="hidden" name="ticket_id" value={ticket.id} />
+              <input type="hidden" name="expected_assignee_membership_id" value={ticket.assigned_to_membership_id ?? ""} />
+              <label className="min-w-0 flex-1 text-sm font-medium text-violet-950">
+                Responsable
+                <select name="assignee_membership_id" defaultValue={ticket.assigned_to_membership_id ?? ""} className="mt-1 block w-full rounded-lg border border-violet-200 bg-white px-3 py-2.5 text-sm">
+                  <option value="">Sin asignar</option>
+                  {(assignableMembers ?? []).map((member) => (
+                    <option key={member.membership_id} value={member.membership_id}>{member.display_name} · {member.role_label}</option>
+                  ))}
+                </select>
+              </label>
+              <button className="rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800">Guardar responsable</button>
+            </form>
+            {!(assignableMembers ?? []).length && <p className="mt-2 text-xs text-violet-800">No hay integrantes activos habilitados para recibir asignaciones.</p>}
+          </section>
+        )}
+
+        {(canManageSupport || isAssignedResponder) && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="font-semibold">Historial de asignaciones</h2>
+            {assignmentHistory?.length ? (
+              <ol className="mt-4 space-y-3">
+                {assignmentHistory.map((event, index) => (
+                  <li key={String(event.created_at) + "-" + index} className="border-l-2 border-violet-200 pl-4">
+                    <p className="text-sm"><span className="font-semibold">{event.actor_name}</span> modificó la asignación</p>
+                    <p className="mt-1 text-sm text-slate-600">{event.previous_assignee_name ?? "Sin responsable"} → {event.new_assignee_name ?? "Sin responsable"}</p>
+                    <p className="mt-1 text-xs text-slate-400">{new Date(event.created_at).toLocaleString("es-AR")}</p>
+                  </li>
+                ))}
+              </ol>
+            ) : <p className="mt-3 text-sm text-slate-500">Todavía no hay cambios de responsable registrados.</p>}
+          </section>
+        )}
+
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Paperclip size={18} className="text-violet-700" />
             <h2 className="font-semibold">Archivos adjuntos</h2>
             <span className="text-xs text-slate-400">{attachments.length}</span>
           </div>
-          {attachmentsError ? (
+          {!canManageAttachments ? (
+            <p className="text-sm text-slate-500">Los archivos adjuntos están disponibles para quien solicitó el ticket y para la administración institucional.</p>
+          ) : attachmentsError ? (
             <p className="text-sm text-rose-600">No se pudieron cargar los archivos adjuntos.</p>
           ) : attachments.length ? (
             <div className="mb-5 space-y-2">
@@ -150,12 +210,12 @@ export default async function TicketDetailPage({
           ) : (
             <p className="mb-5 text-sm text-slate-500">Este ticket todavía no tiene archivos adjuntos.</p>
           )}
-          {ticket.status !== "closed" && ticket.status !== "resolved" && (
+          {canManageAttachments && ticket.status !== "closed" && ticket.status !== "resolved" && (
             <SupportTicketAttachmentUploader slug={slug} ticketId={ticket.id} />
           )}
         </section>
 
-        {isInstitutionAdmin && (
+        {canManageSupport && (
           <section className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
             <h2 className="font-semibold text-violet-950">Gestión institucional</h2>
             <p className="mt-1 text-sm text-violet-800">Actualizá el estado y la prioridad de esta solicitud.</p>
@@ -210,7 +270,7 @@ export default async function TicketDetailPage({
             <p className="rounded-xl bg-slate-50 p-5 text-sm text-slate-500">Todavía no hay respuestas en este ticket.</p>
           )}
 
-          {ticket.status !== "closed" && ticket.status !== "resolved" && (
+          {canReply && ticket.status !== "closed" && ticket.status !== "resolved" && (
             <form action={addTicketMessage} className="mt-6 space-y-3 border-t border-slate-100 pt-5">
               <input type="hidden" name="slug" value={slug} />
               <input type="hidden" name="ticket_id" value={ticket.id} />
