@@ -196,6 +196,16 @@ export default async function AppointmentsPage({
                 groups.set(key, group);
                 return groups;
               }, new Map<string, { studentId: string; studentName: string; items: Commitment[] }>()).values());
+              const groupCommitments = (items: Commitment[]) => Array.from(items.reduce((groups, commitment) => {
+                const appointment = scopedAppointments.find((item) => item.appointment_id === commitment.appointment_id);
+                const key = appointment?.student_id ?? "unknown";
+                const group = groups.get(key) ?? { studentId: key, studentName: appointment?.student_name ?? "Alumno", items: [] as Commitment[] };
+                group.items.push(commitment);
+                groups.set(key, group);
+                return groups;
+              }, new Map<string, { studentId: string; studentName: string; items: Commitment[] }>()).values());
+              const activeStudentGroups = groupCommitments(myCommitments.filter((item) => item.status === "pending" || item.status === "in_progress"));
+              const historyStudentGroups = groupCommitments(myCommitments.filter((item) => item.status === "completed" || item.status === "cancelled"));
               const pendingCommitments = myCommitments.filter((item) => item.status === "pending" || item.status === "in_progress");
               const todayParts = new Intl.DateTimeFormat("en-CA", {
                 timeZone: "America/Argentina/Buenos_Aires", year: "numeric", month: "2-digit", day: "2-digit",
@@ -238,14 +248,14 @@ export default async function AppointmentsPage({
                       </div>
                     </div>
                   ) : null}
-                  {studentCommitmentGroups.length ? (
+                  {myCommitments.length ? (
                     <div className="mt-4 space-y-4">
-                      {studentCommitmentGroups.map((group) => (
+                      {activeStudentGroups.length ? activeStudentGroups.map((group) => (
                         <section key={group.studentId} className="rounded-xl border border-violet-200 bg-white p-4">
                           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-violet-100 pb-3">
                             <h3 className="font-semibold text-slate-900">{group.studentName}</h3>
                             <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-800">
-                              {group.items.length} {group.items.length === 1 ? "compromiso" : "compromisos"}
+                              {group.items.length} {group.items.length === 1 ? "pendiente" : "pendientes"}
                             </span>
                           </div>
                           <div className="mt-3 space-y-3">
@@ -312,6 +322,46 @@ export default async function AppointmentsPage({
                         </section>
                       ))}
                     </div>
+                    {historyStudentGroups.length ? (
+                      <section className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <h3 className="font-semibold text-slate-900">Historial de compromisos</h3>
+                            <p className="mt-1 text-xs text-slate-600">Acuerdos cumplidos o cancelados, organizados por alumno</p>
+                          </div>
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                            {historyStudentGroups.reduce((total, group) => total + group.items.length, 0)} registro(s)
+                          </span>
+                        </div>
+                        <div className="mt-3 space-y-3">
+                          {historyStudentGroups.map((group) => (
+                            <div key={group.studentId} className="rounded-lg border border-slate-200 bg-white p-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <h4 className="font-semibold text-slate-800">{group.studentName}</h4>
+                                <span className="text-xs text-slate-500">{group.items.length} registro(s)</span>
+                              </div>
+                              <div className="mt-2 space-y-2">
+                                {group.items.map((commitment) => (
+                                  <article key={commitment.commitment_id} className="rounded-lg bg-slate-50 p-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <p className="font-medium text-slate-800">{commitment.title}</p>
+                                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${commitment.status === "completed" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"}`}>
+                                        {commitmentStatusLabel(commitment.status)}
+                                      </span>
+                                    </div>
+                                    {commitment.details ? <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{commitment.details}</p> : null}
+                                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 border-t border-slate-200 pt-2 text-xs text-slate-600">
+                                      <span><strong>Responsable:</strong> {commitment.responsible === "guardian" ? "Tutor" : "Familia"}</span>
+                                      <span><strong>Fecha de seguimiento:</strong> {commitmentDateLabel(commitment.due_date)}</span>
+                                    </div>
+                                  </article>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    ) : null}
                   ) : (
                     <p className="mt-3 rounded-xl border border-dashed border-violet-200 bg-white p-4 text-sm text-slate-600">No tenés compromisos asignados al tutor o a la familia por el momento.</p>
                   )}
