@@ -13,21 +13,50 @@ export async function respondToAppointment(formData: FormData) {
   const slug = value(formData, "slug");
   const appointmentId = value(formData, "appointment_id");
   const response = value(formData, "response");
+  const responseNote = value(formData, "response_note");
+  const proposedAtInput = value(formData, "proposed_at");
   const path = `/dashboard/${encodeURIComponent(slug)}/appointments`;
   if (!/^[a-z0-9-]{2,80}$/i.test(slug) ||
       !/^[0-9a-f-]{36}$/i.test(appointmentId) ||
-      !["confirmed", "rejected"].includes(response)) {
+      !["confirmed", "rejected"].includes(response) ||
+      responseNote.length > 500 ||
+      (proposedAtInput && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(proposedAtInput))) {
     redirect(`${path}?error=invalid`);
   }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data, error } = await supabase.rpc("respond_teacher_guardian_appointment", {
+  const proposedAt = proposedAtInput ? new Date(`${proposedAtInput}:00-03:00`) : null;
+  if (response === "confirmed" && proposedAt) redirect(`${path}?error=invalid`);
+  if (proposedAt && (!Number.isFinite(proposedAt.getTime()) || proposedAt.getTime() <= Date.now())) redirect(`${path}?error=date`);
+  const { data, error } = await supabase.rpc("respond_teacher_guardian_appointment_with_details", {
     p_appointment_id: appointmentId,
     p_response: response,
+    p_note: responseNote || null,
+    p_proposed_at: proposedAt?.toISOString() ?? null,
   });
   if (error || !data) redirect(`${path}?error=response`);
+  revalidatePath(path);
+  revalidatePath(`/dashboard/${slug}/portal`);
+  redirect(`${path}?updated=1`);
+}
+
+
+export async function acceptAppointmentProposal(formData: FormData) {
+  const slug = value(formData, "slug");
+  const appointmentId = value(formData, "appointment_id");
+  const path = `/dashboard/${encodeURIComponent(slug)}/appointments`;
+  if (!/^[a-z0-9-]{2,80}$/i.test(slug) || !/^[0-9a-f-]{36}$/i.test(appointmentId)) {
+    redirect(`${path}?error=invalid`);
+  }
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data, error } = await supabase.rpc("accept_teacher_guardian_appointment_proposal", {
+    p_appointment_id: appointmentId,
+  });
+  if (error || !data) redirect(`${path}?error=reschedule`);
   revalidatePath(path);
   revalidatePath(`/dashboard/${slug}/portal`);
   redirect(`${path}?updated=1`);

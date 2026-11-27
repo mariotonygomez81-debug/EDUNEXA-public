@@ -2,19 +2,22 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, CalendarClock, Check, CircleX, ClipboardCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { respondToAppointment, updateAppointmentStatus } from "./actions";
+import { acceptAppointmentProposal, respondToAppointment, updateAppointmentStatus } from "./actions";
 
 type Appointment = {
   appointment_id: string;
   student_id: string;
   student_name: string;
-  teacher_name?: string;
-  guardian_name?: string;
+  teacher_name: string;
+  guardian_name: string;
   scheduled_at: string;
   reason: string;
   status: "requested" | "confirmed" | "rejected" | "declined" | "completed" | "cancelled";
   created_at: string;
   updated_at: string;
+  guardian_response_note: string | null;
+  guardian_proposed_at: string | null;
+  conversation: { id: string; event_type: string; body: string | null; proposed_at: string | null; created_at: string; actor_name: string }[];
 };
 
 const statusLabels: Record<Appointment["status"], string> = {
@@ -61,9 +64,7 @@ export default async function AppointmentsPage({
   const isTeacher = roles.includes("teacher");
   if (!isGuardian && !isTeacher) redirect(`/dashboard/${slug}`);
 
-  const { data, error } = isGuardian
-    ? await supabase.rpc("list_guardian_teacher_appointments")
-    : await supabase.rpc("list_teacher_guardian_appointments");
+  const { data, error } = await supabase.rpc("list_my_teacher_guardian_appointment_details");
   if (error) throw new Error("No se pudieron cargar las citaciones.");
   const appointments = (data ?? []) as unknown as Appointment[];
 
@@ -113,21 +114,50 @@ export default async function AppointmentsPage({
                   <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Fecha y hora</p><p className="mt-1 text-sm font-medium text-slate-800">{dateLabel(appointment.scheduled_at)}</p></div>
                   <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Motivo</p><p className="mt-1 text-sm text-slate-700">{appointment.reason}</p></div>
                 </div>
-                {isGuardian && appointment.status === "requested" ? (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <form action={respondToAppointment}>
-                      <input type="hidden" name="slug" value={slug} />
-                      <input type="hidden" name="appointment_id" value={appointment.appointment_id} />
-                      <input type="hidden" name="response" value="confirmed" />
-                      <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800"><Check size={16} /> Aceptar citación</button>
-                    </form>
-                    <form action={respondToAppointment}>
-                      <input type="hidden" name="slug" value={slug} />
-                      <input type="hidden" name="appointment_id" value={appointment.appointment_id} />
-                      <input type="hidden" name="response" value="rejected" />
-                      <button className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50"><CircleX size={16} /> Rechazar</button>
-                    </form>
+                {appointment.guardian_response_note || appointment.guardian_proposed_at ? (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Respuesta del tutor</p>
+                    {appointment.guardian_response_note ? <p className="mt-2 whitespace-pre-wrap text-sm text-amber-950">{appointment.guardian_response_note}</p> : null}
+                    {appointment.guardian_proposed_at ? <p className="mt-2 text-sm font-semibold text-amber-950">Horario alternativo propuesto: {dateLabel(appointment.guardian_proposed_at)}</p> : null}
                   </div>
+                ) : null}
+                {isGuardian && appointment.status === "requested" ? (
+                  <form action={respondToAppointment} className="mt-4 space-y-3 rounded-xl border border-slate-200 p-4">
+                    <input type="hidden" name="slug" value={slug} />
+                    <input type="hidden" name="appointment_id" value={appointment.appointment_id} />
+                    <label className="block text-sm font-semibold text-slate-700">Mensaje para el docente (opcional)
+                      <textarea name="response_note" maxLength={500} rows={2} placeholder="Podés confirmar, explicar por qué no podés asistir o dejar una consulta..." className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"/>
+                    </label>
+                    <label className="block text-sm font-semibold text-slate-700">Proponer otro horario (opcional)
+                      <input type="datetime-local" name="proposed_at" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"/>
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button name="response" value="confirmed" className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800"><Check size={16} /> Confirmar entrevista</button>
+                      <button name="response" value="rejected" className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50"><CircleX size={16} /> No puedo asistir</button>
+                    </div>
+                    <p className="text-xs text-slate-500">Si no podés asistir, podés sugerir una fecha alternativa. El docente recibirá tu respuesta para coordinar.</p>
+                  </form>
+                ) : null}
+                {isTeacher && appointment.status === "rejected" && appointment.guardian_proposed_at ? (
+                  <form action={acceptAppointmentProposal} className="mt-4">
+                    <input type="hidden" name="slug" value={slug}/>
+                    <input type="hidden" name="appointment_id" value={appointment.appointment_id}/>
+                    <button className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800"><CalendarClock size={16}/> Aceptar horario alternativo y reenviar</button>
+                  </form>
+                ) : null}
+                {appointment.conversation?.length ? (
+                  <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-slate-700">Historial de coordinación ({appointment.conversation.length})</summary>
+                    <ol className="mt-3 space-y-3">
+                      {appointment.conversation.map((event) => (
+                        <li key={event.id} className="border-l-2 border-violet-200 pl-3">
+                          <p className="text-xs font-semibold text-slate-700">{event.actor_name} · {dateLabel(event.created_at)}</p>
+                          {event.body ? <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{event.body}</p> : null}
+                          {event.proposed_at ? <p className="mt-1 text-xs font-semibold text-violet-700">Horario: {dateLabel(event.proposed_at)}</p> : null}
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
                 ) : null}
                 {isTeacher && (appointment.status === "confirmed" || appointment.status === "requested") ? (
                   <div className="mt-4 flex flex-wrap gap-2">
