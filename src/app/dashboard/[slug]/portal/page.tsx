@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BookOpen, CalendarCheck, FileText, GraduationCap, MessageCircle, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Bell, BookOpen, CalendarCheck, FileText, GraduationCap, Megaphone, MessageCircle, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 type PublishedReportCard = {
@@ -14,6 +14,8 @@ type PublishedReportCard = {
     workflow_version?: number;
   };
 };
+
+type FamilyAnnouncement = { id: string; title: string; body: string; published_at: string | null; expires_at: string | null };
 
 type PortalStudent = {
   student_id: string;
@@ -45,6 +47,11 @@ function dateLabel(value: string | null) {
   return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium" }).format(new Date(value));
 }
 
+function dateTimeLabel(value: string | null) {
+  if (!value) return "Fecha no disponible";
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(value));
+}
+
 export default async function StudentFamilyPortal({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const supabase = await createClient();
@@ -60,9 +67,21 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
     .eq("user_id", user.id).eq("status", "active").maybeSingle();
   if (!membership) redirect("/dashboard");
 
-  const { data: rows, error } = await supabase.rpc("list_my_portal_students", {
-    p_institution_id: institution.id,
-  });
+  const [{ data: rows, error }, { data: announcementRows, error: announcementError }, { count: unreadNotifications }] = await Promise.all([
+    supabase.rpc("list_my_portal_students", { p_institution_id: institution.id }),
+    supabase.from("announcements")
+      .select("id,title,body,published_at,expires_at")
+      .eq("institution_id", institution.id)
+      .not("published_at", "is", null)
+      .order("published_at", { ascending: false })
+      .limit(6),
+    supabase.from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("institution_id", institution.id)
+      .eq("recipient_membership_id", membership.id)
+      .is("read_at", null),
+  ]);
+  const familyAnnouncements = (announcementRows ?? []) as FamilyAnnouncement[];
   const students = (rows ?? []) as PortalStudent[];
   const gradeStudentIds = students
     .filter((student) => student.can_view_grades)
@@ -92,6 +111,50 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
             Consultá la información académica habilitada para tu cuenta en {institution.display_name}.
           </p>
         </header>
+
+        <section className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-violet-100 p-3 text-violet-700"><Megaphone size={21}/></div>
+                <div>
+                  <h2 className="font-semibold text-slate-900">Comunicados de la institución</h2>
+                  <p className="text-xs text-slate-500">Avisos habilitados para tu cuenta y tus vínculos familiares</p>
+                </div>
+              </div>
+              <Link href={`/dashboard/${slug}/announcements`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">Ver todos</Link>
+            </div>
+            {announcementError ? (
+              <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">No fue posible cargar los comunicados.</p>
+            ) : familyAnnouncements.length ? (
+              <div className="mt-4 divide-y divide-slate-100">
+                {familyAnnouncements.map((announcement) => (
+                  <article key={announcement.id} className="py-3 first:pt-0 last:pb-0">
+                    <p className="text-xs font-medium text-violet-700">{dateTimeLabel(announcement.published_at)}</p>
+                    <h3 className="mt-1 font-semibold text-slate-900">{announcement.title}</h3>
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{announcement.body}</p>
+                    {announcement.expires_at ? <p className="mt-2 text-xs text-slate-400">Disponible hasta {dateTimeLabel(announcement.expires_at)}</p> : null}
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-lg bg-slate-50 p-4 text-sm text-slate-500">No hay comunicados disponibles para tu perfil en este momento.</p>
+            )}
+          </article>
+          <Link href={`/dashboard/${slug}/notifications`} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-violet-200 hover:bg-violet-50/40">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-sky-100 p-3 text-sky-700"><Bell size={21}/></div>
+              <div>
+                <h2 className="font-semibold text-slate-900">Centro de notificaciones</h2>
+                <p className="text-xs text-slate-500">Mensajes y avisos de tu cuenta</p>
+              </div>
+            </div>
+            <div className="mt-5 flex items-end justify-between gap-3">
+              <p className="text-sm text-slate-600">Tenés <strong className="text-slate-900">{unreadNotifications ?? 0}</strong> avisos sin leer</p>
+              <span className="text-sm font-semibold text-violet-700">Abrir centro →</span>
+            </div>
+          </Link>
+        </section>
 
         {error ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="alert">
