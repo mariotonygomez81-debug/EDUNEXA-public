@@ -276,7 +276,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                     className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                     <BookOpen size={15} /> Aula virtual
                   </Link>
-                  <Link href={`/dashboard/${slug}/messages`}
+                  <Link href={`/dashboard/${slug}/messages?student=${student.student_id}`}
                     className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                     <MessageCircle size={15} /> Mensajes
                   </Link>

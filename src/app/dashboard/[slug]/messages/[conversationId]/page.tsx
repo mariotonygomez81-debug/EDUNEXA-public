@@ -37,7 +37,7 @@ export default async function ConversationPage({
   searchParams,
 }: {
   params: Promise<{ slug: string; conversationId: string }>;
-  searchParams?: Promise<{ sent?: string; read?: string; error?: string }>;
+  searchParams?: Promise<{ sent?: string; read?: string; error?: string; student?: string }>;
 }) {
   const { slug, conversationId } = await params;
   const query = searchParams ? await searchParams : {};
@@ -75,7 +75,7 @@ export default async function ConversationPage({
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
       <div className="mx-auto max-w-4xl space-y-5">
-        <Link href={`/dashboard/${slug}/messages`} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-violet-700">
+        <Link href={`/dashboard/${slug}/messages${query.student && /^[0-9a-f-]{36}$/i.test(query.student) ? `?student=${query.student}` : ""}`} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-violet-700">
           <ArrowLeft size={16} /> Volver a mensajes
         </Link>
 

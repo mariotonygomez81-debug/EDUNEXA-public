@@ -34,10 +34,11 @@ export async function createDirectConversation(formData: FormData) {
   const slug = field(formData, "slug");
   const recipientMembershipId = field(formData, "recipient_membership_id");
   const subject = field(formData, "subject");
+  const studentId = field(formData, "student_id");
 
   if (!/^[a-z0-9-]{2,80}$/i.test(slug) ||
       !/^[0-9a-f-]{36}$/i.test(recipientMembershipId) ||
-      subject.length > 120) {
+      subject.length > 120 || (studentId && !/^[0-9a-f-]{36}$/i.test(studentId))) {
     back(slug, "error=invalid");
   }
 
@@ -47,11 +48,13 @@ export async function createDirectConversation(formData: FormData) {
     p_recipient_membership_id: recipientMembershipId,
     ...(subject ? { p_subject: subject } : {}),
   };
-  const { data, error } = await supabase.rpc("create_direct_conversation", args);
+  const { data, error } = studentId
+    ? await supabase.rpc("create_student_direct_conversation", { ...args, p_student_id: studentId })
+    : await supabase.rpc("create_direct_conversation", args);
   if (error || !data) back(slug, error?.code === "42501" ? "error=scope" : "error=create");
 
   revalidatePath(`/dashboard/${slug}/messages`);
-  redirect(`/dashboard/${slug}/messages/${data}`);
+  redirect(`/dashboard/${slug}/messages/${data}${studentId ? `?student=${studentId}` : ""}`);
 }
 
 export async function sendConversationMessage(formData: FormData) {
