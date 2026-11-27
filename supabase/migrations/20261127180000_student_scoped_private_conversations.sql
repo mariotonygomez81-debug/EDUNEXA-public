@@ -64,6 +64,55 @@ begin
 end;
 $function$;
 
+create or replace function private.has_current_conversation_access(
+  p_institution_id uuid,p_conversation_id uuid,p_membership_id uuid
+)
+returns boolean language plpgsql stable security definer set search_path=''
+as $function$
+declare
+  v_counterpart_membership_id uuid;
+  v_student_id uuid;
+begin
+  if (select auth.uid()) is null or p_institution_id is null
+    or p_conversation_id is null or p_membership_id is null then return false; end if;
+
+  if not exists(select 1 from public.memberships m
+    where m.id=p_membership_id and m.institution_id=p_institution_id
+      and m.user_id=(select auth.uid()) and m.status='active') then return false; end if;
+
+  if (select count(*) from public.conversation_members cm
+    where cm.conversation_id=p_conversation_id and cm.institution_id=p_institution_id)<>2 then
+    return false;
+  end if;
+
+  select c.student_id into v_student_id from public.conversations c
+  where c.id=p_conversation_id and c.institution_id=p_institution_id;
+  if not found then return false; end if;
+
+  select cm.membership_id into v_counterpart_membership_id
+  from public.conversation_members cm
+  join public.memberships counterpart on counterpart.id=cm.membership_id
+    and counterpart.institution_id=cm.institution_id
+  where cm.conversation_id=p_conversation_id and cm.institution_id=p_institution_id
+    and cm.membership_id<>p_membership_id and counterpart.status='active'
+  limit 1;
+  if v_counterpart_membership_id is null then return false; end if;
+
+  if v_student_id is not null then
+    return private.can_message_about_student(
+      p_institution_id,p_membership_id,v_counterpart_membership_id,v_student_id
+    );
+  end if;
+
+  return private.can_message_members(
+    p_institution_id,p_membership_id,v_counterpart_membership_id
+  );
+end;
+$function$;
+
+revoke all on function private.has_current_conversation_access(uuid,uuid,uuid) from public,anon;
+grant execute on function private.has_current_conversation_access(uuid,uuid,uuid) to authenticated;
+
 create or replace function private.create_student_direct_conversation_impl(
   p_institution_id uuid,p_recipient_membership_id uuid,p_student_id uuid,p_subject text default null
 )
@@ -127,6 +176,7 @@ begin
   join public.conversation_members mine on mine.conversation_id=c.id and mine.institution_id=c.institution_id and mine.membership_id=v_membership_id
   join public.conversation_members other_member on other_member.conversation_id=c.id and other_member.institution_id=c.institution_id and other_member.membership_id<>v_membership_id
   where c.institution_id=p_institution_id and c.student_id=p_student_id
+    and (select count(*) from public.conversation_members cm where cm.conversation_id=c.id and cm.institution_id=c.institution_id)=2
     and private.can_message_about_student(p_institution_id,v_membership_id,other_member.membership_id,p_student_id)
   order by c.created_at desc;
 end;
@@ -144,7 +194,6 @@ language sql stable set search_path=''
 as $function$ select * from private.list_my_student_conversations_impl(p_institution_id,p_student_id); $function$;
 
 revoke all on function private.can_message_about_student(uuid,uuid,uuid,uuid) from public,anon,authenticated;
-grant execute on function private.can_message_about_student(uuid,uuid,uuid,uuid) to authenticated;
 revoke all on function private.create_student_direct_conversation_impl(uuid,uuid,uuid,text) from public,anon;
 grant execute on function private.create_student_direct_conversation_impl(uuid,uuid,uuid,text) to authenticated;
 revoke all on function private.list_my_student_conversations_impl(uuid,uuid) from public,anon;
