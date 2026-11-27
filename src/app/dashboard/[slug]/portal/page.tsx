@@ -109,6 +109,8 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
     )),
   ]);
   const conversationSummaries = (conversationRowsResult.data ?? []) as ConversationSummary[];
+  const conversationSummaryById = new Map(conversationSummaries.map((conversation) => [conversation.conversation_id, conversation]));
+  const recentMessageCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const studentConversationsByStudent = new Map<string, StudentConversation[]>();
   tutorStudents.forEach((student, index) => {
     const result = studentConversationResults[index];
@@ -294,12 +296,20 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                     <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">Este historial está disponible en el perfil de tutor vinculado al alumno.</p>
                   ) : (studentConversationsByStudent.get(student.student_id) ?? []).length ? (
                     <ul className="mt-3 space-y-2">
-                      {(studentConversationsByStudent.get(student.student_id) ?? []).map((item) => {
-                        const counterpart = conversationSummaries.find((conversation) => conversation.conversation_id === item.conversation_id);
+                      {[...(studentConversationsByStudent.get(student.student_id) ?? [])]
+                        .sort((a, b) => {
+                          const aTime = Date.parse(conversationSummaryById.get(a.conversation_id)?.last_message_at ?? "") || 0;
+                          const bTime = Date.parse(conversationSummaryById.get(b.conversation_id)?.last_message_at ?? "") || 0;
+                          return bTime - aTime;
+                        })
+                        .map((item) => {
+                        const counterpart = conversationSummaryById.get(item.conversation_id);
                         const unreadCount = counterpart?.unread_count ?? 0;
+                        const lastMessageTime = counterpart?.last_message_at ? Date.parse(counterpart.last_message_at) : 0;
+                        const isRecent = lastMessageTime >= recentMessageCutoff && lastMessageTime <= Date.now();
                         const hasMessages = Boolean(counterpart?.last_message_at || counterpart?.last_message_body);
                         return (
-                          <li key={item.conversation_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                          <li key={item.conversation_id} className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-3 ${isRecent ? "border-violet-200 bg-violet-50/70" : "border-slate-200 bg-slate-50"}`}>
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="truncate text-sm font-semibold text-slate-800">{counterpart?.counterpart_name ?? "Contacto escolar autorizado"}</p>
@@ -309,6 +319,11 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                                 >
                                   {hasMessages ? "Activa" : "Sin mensajes"}
                                 </span>
+                                {isRecent ? (
+                                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-800">
+                                    Reciente
+                                  </span>
+                                ) : null}
                                 {unreadCount > 0 ? (
                                   <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-800" aria-label={`${unreadCount} mensajes sin leer`}>
                                     {unreadCount} sin leer
