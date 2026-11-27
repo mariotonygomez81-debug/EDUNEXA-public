@@ -10,7 +10,7 @@ function field(formData: FormData, key: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-async function getContext(slug: string) {
+async function getContext(slug: string, requiredPermission = "prefect_notes.manage") {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -22,7 +22,7 @@ async function getContext(slug: string) {
     .eq("user_id", user.id).eq("status", "active").maybeSingle();
   if (!membership) redirect("/dashboard");
   const permissions = await getMembershipPermissions(supabase, membership.id);
-  if (!permissions.has("prefect_notes.manage")) redirect(`/dashboard/${slug}`);
+  if (!permissions.has(requiredPermission)) redirect(`/dashboard/${slug}`);
   return { supabase, user, institution, membership };
 }
 
@@ -75,4 +75,28 @@ export async function updatePrefectNovelty(formData: FormData) {
   if (error) redirect(`/dashboard/${slug}/prefect/novelties?error=save`);
   revalidatePath(`/dashboard/${slug}/prefect/novelties`);
   redirect(`/dashboard/${slug}/prefect/novelties?updated=1`);
+}
+
+export async function savePrefectConductConcept(formData: FormData) {
+  const slug = field(formData, "slug");
+  const studentSelection = field(formData, "student_id");
+  const [divisionId, studentId] = studentSelection ? studentSelection.split("|") : ["", ""];
+  const gradingPeriodId = field(formData, "grading_period_id");
+  const concept = field(formData, "concept");
+  const observation = field(formData, "observation");
+  const concepts = ["muy_satisfactorio","satisfactorio","en_proceso","requiere_acompanamiento"];
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!slug || !uuid.test(divisionId) || !uuid.test(studentId) ||
+      !uuid.test(gradingPeriodId) || !concepts.includes(concept) || observation.length > 1200) {
+    redirect(`/dashboard/${encodeURIComponent(slug)}/prefect/conduct?error=invalid`);
+  }
+  const { supabase, institution, membership } = await getContext(slug, "prefect_conduct.manage");
+  const { error } = await supabase.from("prefect_conduct_concepts").upsert({
+    institution_id: institution.id, division_id: divisionId, student_id: studentId,
+    grading_period_id: gradingPeriodId, concept, observation: observation || null,
+    recorded_by_membership_id: membership.id,
+  }, { onConflict: "institution_id,student_id,grading_period_id" });
+  if (error) redirect(`/dashboard/${slug}/prefect/conduct?error=save`);
+  revalidatePath(`/dashboard/${slug}/prefect/conduct`);
+  redirect(`/dashboard/${slug}/prefect/conduct?saved=1`);
 }

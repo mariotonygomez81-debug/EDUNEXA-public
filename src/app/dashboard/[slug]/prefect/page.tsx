@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CalendarCheck, CalendarClock, ClipboardList, GraduationCap, Users } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, CalendarCheck, CalendarClock, ClipboardList, GraduationCap, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 
