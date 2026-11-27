@@ -71,13 +71,24 @@ export async function updateAdministrativeRecord(formData: FormData) {
   const id=value(formData,"record_id");
   const status=value(formData,"status");
   const resolutionNotes=value(formData,"resolution_notes");
-  if(!slug || !id || !statuses.includes(status) || resolutionNotes.length>3000) {
+  if(!slug || !id || !statuses.includes(status) || resolutionNotes.length<5 || resolutionNotes.length>1000) {
     redirect(`/dashboard/${encodeURIComponent(slug)}/administrative?error=invalid`);
   }
   const {supabase,institution,membership}=await context(slug);
+  const {data:current,error:readError}=await supabase.from("administrative_records")
+    .select("status,resolution_notes").eq("id",id).eq("institution_id",institution.id).maybeSingle();
+  if(readError || !current) redirect(`/dashboard/${slug}/administrative?error=update`);
+  const timestamp=new Intl.DateTimeFormat("es-AR",{
+    dateStyle:"short",timeStyle:"short",timeZone:"America/Argentina/Buenos_Aires"
+  }).format(new Date());
+  const statusLabel:Record<string,string>={open:"Pendiente",in_progress:"En proceso",closed:"Cerrado"};
+  const entry=`[${timestamp}] ${statusLabel[current.status] ?? current.status} → ${statusLabel[status]}. ${resolutionNotes}`;
+  const previousNotes=current.resolution_notes?.trim();
+  const history=[previousNotes,entry].filter(Boolean).join("\\n\\n");
+  if(history.length>3000) redirect(`/dashboard/${slug}/administrative?error=history_full`);
   const {error}=await supabase.from("administrative_records").update({
     status,
-    resolution_notes:resolutionNotes || null,
+    resolution_notes:history,
     updated_by_membership_id:membership.id,
   }).eq("id",id).eq("institution_id",institution.id);
   if(error) redirect(`/dashboard/${slug}/administrative?error=update`);

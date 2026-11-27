@@ -153,16 +153,16 @@ export default async function AdministrativeWorkspace({
               </div>
               <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{record.description}</p>
               {record.due_date && <p className={`mt-2 text-xs font-medium ${record.due_date<today && record.status!=="closed"?"text-rose-700":"text-slate-500"}`}>Fecha límite: {record.due_date}</p>}
-              {record.resolution_notes && <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Seguimiento: {record.resolution_notes}</p>}
+              {record.resolution_notes && <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3"><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Bitácora de actuaciones</p><p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{record.resolution_notes}</p></div>}
               {canManage && <form action={updateAdministrativeRecord} className="mt-4 grid gap-3 border-t border-slate-100 pt-4 md:grid-cols-[1fr_2fr_auto] md:items-end">
                 <input type="hidden" name="slug" value={slug}/><input type="hidden" name="record_id" value={record.id}/>
                 <label className="grid gap-1 text-xs font-semibold text-slate-600">Estado
                   <select name="status" defaultValue={record.status} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="open">Pendiente</option><option value="in_progress">En proceso</option><option value="closed">Cerrado</option></select>
                 </label>
-                <label className="grid gap-1 text-xs font-semibold text-slate-600">Seguimiento / resolución
-                  <input name="resolution_notes" maxLength={3000} defaultValue={record.resolution_notes ?? ""} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Anotá la gestión realizada o el resultado"/>
+                <label className="grid gap-1 text-xs font-semibold text-slate-600">Nueva actuación (obligatoria)
+                  <input name="resolution_notes" required minLength={5} maxLength={1000} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Qué se gestionó, resultado o motivo del cambio"/>
                 </label>
-                <button className="rounded-lg border border-violet-200 px-4 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-50">Actualizar</button>
+                <button className="rounded-lg border border-violet-200 px-4 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-50">Registrar actuación</button>
               </form>}
             </article>
           )) : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500"><FileText size={30} className="mx-auto mb-3 text-slate-300"/>No hay registros que coincidan con la búsqueda.</div>}
