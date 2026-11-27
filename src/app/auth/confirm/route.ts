@@ -14,21 +14,17 @@ export async function GET(request: NextRequest) {
  if (code) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (!error) {
-   if (institutionSlug) {
-    const { error: activationError } = await supabase.functions.invoke("manage-institution-users", { body: { action: "activate_self", slug: institutionSlug } });
-    if (activationError) return NextResponse.redirect(new URL("/login?message=No%20se%20pudo%20activar%20la%20invitaci%C3%B3n.%20Contact%C3%A1%20al%20administrador.", origin));
-   }
-   return NextResponse.redirect(new URL(next, origin));
+   const destination = new URL(next, origin);
+   if (institutionSlug && next === "/reset-password") destination.searchParams.set("institution", institutionSlug);
+   return NextResponse.redirect(destination);
   }
  }
  if (tokenHash && type) {
   const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
   if (!error) {
-   if (institutionSlug) {
-    const { error: activationError } = await supabase.functions.invoke("manage-institution-users", { body: { action: "activate_self", slug: institutionSlug } });
-    if (activationError) return NextResponse.redirect(new URL("/login?message=No%20se%20pudo%20activar%20la%20invitaci%C3%B3n.%20Contact%C3%A1%20al%20administrador.", origin));
-   }
-   return NextResponse.redirect(new URL(next, origin));
+   const destination = new URL(next, origin);
+   if (institutionSlug && next === "/reset-password") destination.searchParams.set("institution", institutionSlug);
+   return NextResponse.redirect(destination);
   }
  }
  return NextResponse.redirect(new URL("/login?message=El%20enlace%20no%20es%20v%C3%A1lido%20o%20ya%20venci%C3%B3.%20Solicit%C3%A1%20uno%20nuevo.", origin));

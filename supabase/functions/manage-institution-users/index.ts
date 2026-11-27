@@ -9,13 +9,18 @@ if (!serviceKey) throw new Error("Missing Supabase server secret.");
 const admin = createClient(supabaseUrl, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
+const directorSubprofiles = new Set([
+  "rector", "vicerrector", "secretaria", "director_proyectos",
+  "director_deportes", "representante_legal", "pedagoga",
+]);
 const allowedRoles = new Set([
-  "institution_admin", "director", "secretary", "administrative", "teacher",
+  "institution_admin", "director", "administrative", "teacher",
   "prefect", "student", "guardian",
 ]);
-const appUrl = Deno.env.get("EDUNEXA_APP_URL") ?? "https://edunexa.example.edu";
+const appUrl = Deno.env.get("EDUNEXA_APP_URL") ?? "https://edunexa-tutor-preview.onrender.com";
 const allowedOrigins = new Set([
   new URL(appUrl).origin,
+  "https://edunexa-tutor-preview.onrender.com",
   "http://localhost:3000",
 ]);
 
@@ -178,21 +183,23 @@ Deno.serve(async (req: Request) => {
       return response({ ok: true }, 200, origin);
     }
 
-    if (action === "activate_self") {
+    if (action === "accept_invitation") {
       const { data: pending, error: pendingError } = await admin.from("memberships")
         .select("id").eq("institution_id", institution.id)
         .eq("user_id", actor.id).eq("status", "invited");
       if (pendingError) throw pendingError;
-      if (pending?.length) {
-        const { error } = await admin.from("memberships").update({
-          status: "active", joined_at: new Date().toISOString(),
-        }).in("id", pending.map((m) => m.id)).eq("institution_id", institution.id);
-        if (error) throw error;
-        await audit(institution.id, actor.id, "membership.invitation_accepted", pending[0].id, {
-          activated_memberships: pending.length,
-        });
-      }
-      return response({ activated: pending?.length ?? 0 }, 200, origin);
+      if (!pending?.length) return response({ error: "No hay invitaciones pendientes para esta institución." }, 404, origin);
+      const acceptedAt = new Date().toISOString();
+      const { error: acceptError } = await admin.from("memberships").update({
+        invitation_accepted_at: acceptedAt,
+      }).in("id", pending.map((m) => m.id)).eq("institution_id", institution.id)
+        .eq("status", "invited").is("invitation_accepted_at", null);
+      if (acceptError) throw acceptError;
+      await audit(institution.id, actor.id, "membership.invitation_accepted", pending[0].id, {
+        accepted_memberships: pending.length,
+        approval_required: true,
+      });
+      return response({ accepted: pending.length, status: "invited", approval_required: true }, 200, origin);
     }
 
     const { data: actorMembership, error: actorMembershipError } = await admin
@@ -218,7 +225,7 @@ Deno.serve(async (req: Request) => {
 
     if (action === "list") {
       const { data: memberships, error } = await admin.from("memberships")
-        .select("id,user_id,status,joined_at,membership_roles(role_id,roles(key,name))")
+        .select("id,user_id,status,joined_at,invitation_accepted_at,director_subprofile,membership_roles(role_id,roles(key,name))")
         .eq("institution_id", institution.id).order("created_at", { ascending: false });
       if (error) throw error;
       const ids = (memberships ?? []).map((m) => m.user_id);
@@ -241,7 +248,8 @@ Deno.serve(async (req: Request) => {
           const userRoles = (m.membership_roles ?? []).map((mr) => firstRelation(mr.roles)).filter((role): role is NonNullable<typeof role> => Boolean(role));
           return {
             membership_id: m.id, user_id: m.user_id, status: m.status,
-            joined_at: m.joined_at, email: usersById.get(m.user_id)?.email ?? "",
+            joined_at: m.joined_at, invitation_accepted_at: m.invitation_accepted_at,
+            director_subprofile: m.director_subprofile, email: usersById.get(m.user_id)?.email ?? "",
             display_name: p?.display_name || [p?.first_name, p?.last_name].filter(Boolean).join(" ") || "Usuario",
             role_key: userRoles[0]?.key ?? "", role_name: userRoles[0]?.name ?? "Sin perfil",
             role_keys: userRoles.map((role) => role.key),
@@ -260,6 +268,10 @@ Deno.serve(async (req: Request) => {
         ? body.role_keys.map((key: unknown) => clean(key, 40))
         : [clean(body.role_key, 40)];
       const roleKeys: string[] = [...new Set<string>(requestedRoleKeys)];
+      const directorSubprofile = clean(body.director_subprofile, 40);
+      if (roleKeys.includes("director") && !directorSubprofiles.has(directorSubprofile)) {
+        return response({ error: "Select a Directivos subprofile." }, 400, origin);
+      }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
           firstName.length < 2 || lastName.length < 2 || !roleKeys.length ||
           roleKeys.some((key) => !allowedRoles.has(key) || !roles.has(key))) {
@@ -288,6 +300,7 @@ Deno.serve(async (req: Request) => {
 
       const { data: membership, error: membershipError } = await admin.from("memberships").insert({
         institution_id: institution.id, user_id: data.user.id, status: "invited",
+        director_subprofile: roleKeys.includes("director") ? directorSubprofile : null,
       }).select("id").single();
       if (membershipError || !membership) {
         await admin.auth.admin.deleteUser(data.user.id);
@@ -320,13 +333,13 @@ Deno.serve(async (req: Request) => {
       await audit(institution.id, actor.id, "membership.invited", membership.id, {
         email, roles: roleKeys,
       });
-      return response({ ok: true, message: "Invitation sent. The account will be enabled after the recipient confirms the email and sets a password." }, 201, origin);
+      return response({ ok: true, message: "Invitación enviada. Después de confirmar el correo y crear su contraseña, la cuenta quedará pendiente de habilitación por el administrador institucional." }, 201, origin);
     }
 
     const membershipId = clean(body.membership_id, 80);
     if (!membershipId) return response({ error: "Membership is required." }, 400, origin);
     const { data: target, error: targetError } = await admin.from("memberships")
-      .select("id,user_id,status,membership_roles(role_id,roles(key))")
+      .select("id,user_id,status,invitation_accepted_at,membership_roles(role_id,roles(key))")
       .eq("id", membershipId).eq("institution_id", institution.id).maybeSingle();
     if (targetError || !target) return response({ error: "Account not found in this institution." }, 404, origin);
     if (target.user_id === actor.id) return response({ error: "You cannot change your own access from this screen." }, 409, origin);
@@ -334,6 +347,33 @@ Deno.serve(async (req: Request) => {
     const currentRoleKeys = (target.membership_roles ?? [])
       .map((item) => firstRelation(item.roles)?.key)
       .filter((key): key is string => Boolean(key));
+
+    if (action === "approve_invitation") {
+      const { data: actorRoleRows, error: actorRoleRowsError } = await admin.from("membership_roles")
+        .select("roles!inner(key)").eq("membership_id", actorMembership.id)
+        .eq("institution_id", institution.id);
+      if (actorRoleRowsError) throw actorRoleRowsError;
+      const actorRoleKeys = (actorRoleRows ?? []).map((row) => firstRelation(row.roles)?.key);
+      if (!actorRoleKeys.includes("institution_admin")) {
+        return response({ error: "Solo el administrador institucional puede habilitar cuentas." }, 403, origin);
+      }
+      if (target.status !== "invited" || !target.invitation_accepted_at) {
+        return response({ error: "La persona debe confirmar su correo y crear su contraseña antes de solicitar habilitación." }, 409, origin);
+      }
+      if (target.user_id === actor.id) {
+        return response({ error: "No podés habilitar tu propia cuenta." }, 409, origin);
+      }
+      const { data: approval, error: approvalError } = await admin.rpc("approve_institution_membership_invitation", {
+        p_institution_id: institution.id,
+        p_membership_id: membershipId,
+        p_actor_user_id: actor.id,
+      });
+      if (approvalError) {
+        console.error("approve_institution_membership_invitation:", approvalError);
+        return response({ error: "No se pudo habilitar la cuenta. Actualizá la lista e intentá nuevamente." }, 409, origin);
+      }
+      return response({ ok: true, invitation: approval }, 200, origin);
+    }
     if (currentRoleKeys.includes("institution_admin") && ["update_role", "update_roles"].includes(action)) {
       const requestedRoleKeys = action === "update_roles" && Array.isArray(body.role_keys)
         ? [...new Set(body.role_keys.map((key: unknown) => clean(key, 40)))]
@@ -360,6 +400,10 @@ Deno.serve(async (req: Request) => {
         ? body.role_keys.map((key: unknown) => clean(key, 40))
         : [clean(body.role_key, 40)];
       const nextRoleKeys: string[] = [...new Set<string>(requestedRoleKeys)];
+      const directorSubprofile = clean(body.director_subprofile, 40);
+      if (nextRoleKeys.includes("director") && !directorSubprofiles.has(directorSubprofile)) {
+        return response({ error: "Select a Directivos subprofile." }, 400, origin);
+      }
       if (!nextRoleKeys.length || nextRoleKeys.some((key) => !allowedRoles.has(key) || !roles.has(key))) {
         return response({ error: "Select at least one valid profile." }, 400, origin);
       }
@@ -383,6 +427,14 @@ Deno.serve(async (req: Request) => {
         }
         throw insertError;
       }
+      const { error: subprofileError } = await admin.from("memberships").update({
+        director_subprofile: nextRoleKeys.includes("director") ? directorSubprofile : null,
+      }).eq("id", membershipId).eq("institution_id", institution.id);
+      if (subprofileError) throw subprofileError;
+      const { error: subprofileError } = await admin.from("memberships").update({
+        director_subprofile: nextRoleKeys.includes("director") ? directorSubprofile : null,
+      }).eq("id", membershipId).eq("institution_id", institution.id);
+      if (subprofileError) throw subprofileError;
       await audit(institution.id, actor.id, "membership.roles_changed", membershipId, {
         from: currentRoleKeys, to: nextRoleKeys,
       });

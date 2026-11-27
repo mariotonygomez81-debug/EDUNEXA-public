@@ -34,6 +34,7 @@ const typeLabels: Record<string, string> = {
   grade: "Calificación",
   attendance: "Asistencia",
   support: "Soporte",
+  account_access: "Acceso a la cuenta",
 };
 
 function formatDate(value: string) {
@@ -212,6 +213,10 @@ export default async function NotificationsPage({
                     ) : notification.resource_type === "conversation" ? (
                       <Link href={`/dashboard/${slug}/messages/${notification.resource_id}`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
                         Abrir conversación
+                      </Link>
+                    ) : notification.resource_type === "membership" ? (
+                      <Link href={`/dashboard/${slug}`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
+                        Ir a mi espacio
                       </Link>
                     ) : <span />}
                     {notification.read_at ? (

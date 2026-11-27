@@ -1,8 +1,0 @@
-create index classroom_file_objects_classroom_scope_idx
-  on public.classroom_file_objects(classroom_id,institution_id);
-create index classroom_file_objects_material_scope_idx
-  on public.classroom_file_objects(material_id,institution_id);
-create index classroom_file_objects_submission_scope_idx
-  on public.classroom_file_objects(submission_id,institution_id);
-create index classroom_file_objects_uploader_scope_idx
-  on public.classroom_file_objects(uploaded_by_membership_id,institution_id);

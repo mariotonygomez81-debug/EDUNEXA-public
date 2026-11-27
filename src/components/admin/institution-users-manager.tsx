@@ -8,7 +8,7 @@ import Link from "next/link";
 type Role = { key: string; name: string };
 type Member = {
   membership_id: string; user_id: string; status: "invited" | "active" | "suspended" | "ended";
-  joined_at: string | null; email: string; display_name: string; role_key: string; role_name: string;
+  joined_at: string | null; invitation_accepted_at: string | null; email: string; display_name: string; role_key: string; role_name: string;
   role_keys?: string[]; role_names?: string[];
 };
 type Payload = { users?: Member[]; roles?: Role[]; error?: string; message?: string };
@@ -85,6 +85,16 @@ export default function InstitutionUsersManager({ slug }: { slug: string }) {
     finally { setBusy(""); }
   }
 
+  async function approveInvitation(member: Member) {
+    setBusy(member.membership_id); setError(""); setNotice("");
+    try {
+      await invoke({ action: "approve_invitation", membership_id: member.membership_id });
+      setNotice("Acceso habilitado. Se envió una notificación a la persona invitada.");
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : "No se pudo habilitar el acceso."); }
+    finally { setBusy(""); }
+  }
+
   async function changeStatus(member: Member) {
     const nextStatus = member.status === "active" ? "suspended" : "active";
     if (!window.confirm(nextStatus === "suspended"
@@ -143,8 +153,10 @@ export default function InstitutionUsersManager({ slug }: { slug: string }) {
                 <button type="button" onClick={()=>void changeRoles(member)} disabled={busy===member.membership_id || !(draftRoles[member.membership_id]?.length)}>Guardar</button>
                 <small>{(member.role_names ?? [member.role_name]).join(" · ")}</small>
               </div></td>
-              <td><span className={`users-status status-${member.status}`}>{statusLabels[member.status]}</span></td>
-              <td>{member.status==="invited" ? <span className="users-muted">Esperando confirmación</span> : member.status==="ended" ? <span className="users-muted">Sin acceso</span> : <button type="button" className={`users-status-action ${member.status==="active"?"danger":""}`} disabled={busy===member.membership_id} onClick={()=>void changeStatus(member)}>{member.status==="active" ? <><UserRoundX size={15}/> Suspender</> : <><ShieldCheck size={15}/> Reactivar</>}</button>}</td>
+              <td><span className={`users-status status-${member.status}`}>{member.status==="invited" ? (member.invitation_accepted_at ? statusLabels.invited : "Invitación enviada") : statusLabels[member.status]}</span></td>
+              <td>{member.status==="invited" ? (member.invitation_accepted_at
+                ? <button type="button" className="users-status-action" disabled={busy===member.membership_id} onClick={()=>void approveInvitation(member)}>{busy===member.membership_id ? <><LoaderCircle size={15} className="animate-spin"/> Habilitando...</> : <><ShieldCheck size={15}/> Habilitar acceso</>}</button>
+                : <span className="users-muted">Esperando confirmación y creación de contraseña</span>) : member.status==="ended" ? <span className="users-muted">Sin acceso</span> : <button type="button" className={`users-status-action ${member.status==="active"?"danger":""}`} disabled={busy===member.membership_id} onClick={()=>void changeStatus(member)}>{member.status==="active" ? <><UserRoundX size={15}/> Suspender</> : <><ShieldCheck size={15}/> Reactivar</>}</button>}</td>
             </tr>)}
           </tbody></table></div>
         )}
