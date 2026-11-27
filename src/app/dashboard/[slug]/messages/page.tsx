@@ -115,16 +115,33 @@ export default async function MessagesPage({
             <div className="rounded-xl bg-violet-100 p-3 text-violet-700"><Plus size={21} /></div>
             <div>
               <h2 className="font-semibold text-slate-900">Nueva conversación</h2>
-              <p className="text-sm text-slate-500">{selectedStudent ? `Nueva conversación vinculada a ${selectedStudent.first_name} ${selectedStudent.last_name}. El servidor validará el vínculo familiar y la asignación del contacto.` : "Solo aparecen contactos con los que tu perfil está autorizado a comunicarse."}</p>
+              <p className="text-sm text-slate-500">{selectedStudent ? "El contexto del alumno se conservará al crear el chat." : "Solo aparecen contactos con los que tu perfil está autorizado a comunicarse."}</p>
             </div>
           </div>
+          {selectedStudent ? (
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4" aria-label="Alumno asociado a la nueva conversación">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="rounded-lg bg-white p-2 text-violet-700"><ShieldCheck size={19} /></div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Conversación vinculada al alumno</p>
+                  <p className="mt-0.5 truncate text-sm font-semibold text-slate-900">{selectedStudent.first_name} {selectedStudent.last_name}</p>
+                </div>
+              </div>
+              <span className="rounded-full border border-violet-200 bg-white px-3 py-1 text-xs font-semibold text-violet-800">Contexto protegido</span>
+            </div>
+          ) : null}
 
           {selectedStudentId && !selectedStudent ? (\n            <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">No tenés un vínculo autorizado con el alumno solicitado.</p>\n          ) : studentConversationsError ? (\n            <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">No fue posible cargar el historial autorizado de este alumno.</p>\n          ) : contactsResult.error ? (
             <p className="text-sm text-amber-800">No fue posible cargar los contactos habilitados.</p>
           ) : contacts.length ? (
             <form action={createDirectConversation} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <input type="hidden" name="slug" value={slug} />
-              {selectedStudent ? <input type="hidden" name="student_id" value={selectedStudent.student_id} /> : null}
+              {selectedStudent ? (
+                <>
+                  <input type="hidden" name="student_id" value={selectedStudent.student_id} />
+                  <input type="hidden" name="student_context" value={`${selectedStudent.first_name} ${selectedStudent.last_name}`} />
+                </>
+              ) : null}
               <label className="block text-sm font-medium text-slate-700">
                 Contacto
                 <select name="recipient_membership_id" required defaultValue=""
