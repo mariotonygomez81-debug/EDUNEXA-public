@@ -16,6 +16,8 @@ type PublishedReportCard = {
 };
 
 type FamilyAnnouncement = { id: string; title: string; body: string; published_at: string | null; expires_at: string | null };
+type StudentConversation = { conversation_id: string; student_id: string; student_name: string };
+type ConversationSummary = { conversation_id: string; counterpart_name: string; last_message_body: string | null; last_message_at: string | null };
 
 type PortalStudent = {
   student_id: string;
@@ -94,6 +96,27 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
       .order("created_at", { ascending: false })
     : { data: [] as PublishedReportCard[] };
   const publishedReportCards = (publishedSnapshots ?? []) as PublishedReportCard[];
+  const tutorStudents = students.filter((student) => !student.is_self);
+  const [conversationRowsResult, studentConversationResults] = await Promise.all([
+    tutorStudents.length
+      ? supabase.rpc("list_my_conversations", { p_institution_id: institution.id })
+      : Promise.resolve({ data: [], error: null }),
+    Promise.all(tutorStudents.map((student) =>
+      supabase.rpc("list_my_student_conversations", {
+        p_institution_id: institution.id,
+        p_student_id: student.student_id,
+      })
+    )),
+  ]);
+  const conversationSummaries = (conversationRowsResult.data ?? []) as ConversationSummary[];
+  const studentConversationsByStudent = new Map<string, StudentConversation[]>();
+  tutorStudents.forEach((student, index) => {
+    const result = studentConversationResults[index];
+    studentConversationsByStudent.set(
+      student.student_id,
+      result.error ? [] : (result.data ?? []) as StudentConversation[],
+    );
+  });
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
@@ -258,6 +281,38 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                     )}
                   </section>
                 )}
+
+                <section className="border-t border-slate-100 px-5 py-4" aria-label="Historial de conversaciones del alumno">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-800">Conversaciones sobre este alumno</h3>
+                      <p className="mt-1 text-xs text-slate-500">Historial privado con docentes y preceptores autorizados</p>
+                    </div>
+                    <MessageCircle size={18} className="text-violet-600" />
+                  </div>
+                  {student.is_self ? (
+                    <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">Este historial está disponible en el perfil de tutor vinculado al alumno.</p>
+                  ) : (studentConversationsByStudent.get(student.student_id) ?? []).length ? (
+                    <ul className="mt-3 space-y-2">
+                      {(studentConversationsByStudent.get(student.student_id) ?? []).map((item) => {
+                        const counterpart = conversationSummaries.find((conversation) => conversation.conversation_id === item.conversation_id);
+                        return (
+                          <li key={item.conversation_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-slate-800">{counterpart?.counterpart_name ?? "Contacto escolar autorizado"}</p>
+                              <p className="mt-1 text-xs text-slate-500">{counterpart?.last_message_body ? counterpart.last_message_body.slice(0, 110) : "Conversación privada sin mensajes todavía"}{counterpart?.last_message_body && counterpart.last_message_body.length > 110 ? "…" : ""}</p>
+                            </div>
+                            <Link href={`/dashboard/${slug}/messages/${item.conversation_id}`} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50">
+                              Abrir conversación <MessageCircle size={14} />
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">Todavía no hay conversaciones privadas vinculadas a este alumno.</p>
+                  )}
+                </section>
 
                 <div className="flex flex-wrap gap-2 border-t border-slate-100 p-5">
                   {student.can_view_grades ? (
