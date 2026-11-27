@@ -309,6 +309,9 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                                 ) : null}
                               </div>
                               <p className="mt-1 text-xs text-slate-500">{counterpart?.last_message_body ? counterpart.last_message_body.slice(0, 110) : "Conversación privada sin mensajes todavía"}{counterpart?.last_message_body && counterpart.last_message_body.length > 110 ? "…" : ""}</p>
+                              {counterpart?.last_message_at ? (
+                                <p className="mt-1 text-[11px] text-slate-400">Último mensaje: {dateTimeLabel(counterpart.last_message_at)}</p>
+                              ) : null}
                             </div>
                             <Link href={`/dashboard/${slug}/messages/${item.conversation_id}`} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50">
                               Abrir conversación <MessageCircle size={14} />
