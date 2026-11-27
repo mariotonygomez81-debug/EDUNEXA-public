@@ -154,11 +154,31 @@ export default async function AppointmentsPage({
 
         {appointments.length ? (
           <section className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Pendientes / en curso</p><p className="mt-1 text-2xl font-bold text-amber-950">{activeAppointments.length}</p></div>
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Realizadas</p><p className="mt-1 text-2xl font-bold text-emerald-950">{historyAppointments.filter((item) => item.status === "completed").length}</p></div>
-              <div className="rounded-xl border border-slate-200 bg-slate-100 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Canceladas</p><p className="mt-1 text-2xl font-bold text-slate-900">{historyAppointments.filter((item) => item.status === "cancelled").length}</p></div>
-            </div>
+            {isGuardian ? (
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Requieren tu respuesta</p>
+                  <p className="mt-1 text-2xl font-bold text-amber-950">{scopedAppointments.filter((item) => item.status === "requested").length}</p>
+                  <p className="mt-1 text-xs text-amber-800">Solicitudes que todavía podés confirmar o responder</p>
+                </div>
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Confirmadas</p>
+                  <p className="mt-1 text-2xl font-bold text-emerald-950">{scopedAppointments.filter((item) => item.status === "confirmed").length}</p>
+                  <p className="mt-1 text-xs text-emerald-800">Entrevistas con fecha acordada</p>
+                </div>
+                <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">En coordinación</p>
+                  <p className="mt-1 text-2xl font-bold text-violet-950">{scopedAppointments.filter((item) => ["rejected", "declined"].includes(item.status)).length}</p>
+                  <p className="mt-1 text-xs text-violet-800">Respuestas enviadas; a la espera del equipo institucional</p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Pendientes / en curso</p><p className="mt-1 text-2xl font-bold text-amber-950">{activeAppointments.length}</p></div>
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Realizadas</p><p className="mt-1 text-2xl font-bold text-emerald-950">{historyAppointments.filter((item) => item.status === "completed").length}</p></div>
+                <div className="rounded-xl border border-slate-200 bg-slate-100 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Canceladas</p><p className="mt-1 text-2xl font-bold text-slate-900">{historyAppointments.filter((item) => item.status === "cancelled").length}</p></div>
+              </div>
+            )}
             {displayAppointments.map((appointment, index) => (
               <>
                 {index === 0 && activeAppointments.length ? <h2 className="pt-3 text-lg font-semibold text-slate-900">Seguimiento actual</h2> : null}
@@ -189,7 +209,10 @@ export default async function AppointmentsPage({
                   </div>
                 ) : null}
                 {isGuardian && appointment.status === "requested" ? (
-                  <form action={respondToAppointment} className="mt-4 space-y-3 rounded-xl border border-slate-200 p-4">
+                  <section className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+                    <p className="text-sm font-semibold text-amber-950">Acción necesaria: esta citación espera tu respuesta</p>
+                    <p className="mt-1 text-xs leading-5 text-amber-900">Revisá la fecha y el motivo. Podés confirmar la entrevista o indicar que no podés asistir y proponer otro horario.</p>
+                    <form action={respondToAppointment} className="mt-3 space-y-3 rounded-lg border border-amber-200 bg-white p-3">
                     <input type="hidden" name="slug" value={slug} />
                     <input type="hidden" name="appointment_id" value={appointment.appointment_id} />
                     <label className="block text-sm font-semibold text-slate-700">Mensaje para el docente (opcional)
@@ -203,7 +226,14 @@ export default async function AppointmentsPage({
                       <button name="response" value="rejected" className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50"><CircleX size={16} /> No puedo asistir</button>
                     </div>
                     <p className="text-xs text-slate-500">Si no podés asistir, podés sugerir una fecha alternativa. El docente recibirá tu respuesta para coordinar.</p>
-                  </form>
+                    </form>
+                  </section>
+                ) : null}
+                {isGuardian && appointment.status === "confirmed" ? (
+                  <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">Entrevista confirmada. No necesitás responder nuevamente; consultá aquí la fecha acordada y el historial.</p>
+                ) : null}
+                {isGuardian && (appointment.status === "rejected" || appointment.status === "declined") ? (
+                  <p className="mt-4 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-950">Tu respuesta ya fue enviada. La citación queda en coordinación con el equipo institucional; no requiere otra acción de tu parte por ahora.</p>
                 ) : null}
                 {canManageAppointments && appointment.status === "rejected" && appointment.guardian_proposed_at ? (
                   <form action={acceptAppointmentProposal} className="mt-4">
