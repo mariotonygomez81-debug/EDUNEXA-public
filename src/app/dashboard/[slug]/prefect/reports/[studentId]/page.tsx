@@ -217,12 +217,60 @@ export default async function PrefectStudentReportPage({ params, searchParams }:
           <p className="mt-1 text-2xl font-bold text-slate-900">{item.count}</p>
         </div>)}
       </section>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div><h2 className="text-xl font-bold text-slate-900">Evolución por trimestre</h2><p className="text-sm text-slate-500">Concepto conductual y actividad registrada en cada período del ciclo lectivo</p></div>
+          <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-800">{quarterlyEvolution.length} períodos</span>
+        </div>
+        {quarterlyEvolution.length ? <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {quarterlyEvolution.map((period, index) => <article key={period.id} className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center justify-between gap-2"><h3 className="font-semibold text-slate-900">{period.name || `Trimestre ${index + 1}`}</h3><span className="text-xs text-slate-500">{dateLabel(period.startsOn)} – {dateLabel(period.endsOn)}</span></div>
+            <p className="mt-3 text-sm font-semibold text-violet-800">{period.concept}</p>
+            {period.observation ? <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{period.observation}</p> : <p className="mt-2 text-sm text-slate-400">Sin observación conductual.</p>}
+            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-center">
+              <div><p className="text-lg font-bold text-slate-900">{period.novelties}</p><p className="text-[10px] text-slate-500">Novedades</p></div>
+              <div><p className="text-lg font-bold text-slate-900">{period.appointments}</p><p className="text-[10px] text-slate-500">Citaciones</p></div>
+              <div><p className="text-lg font-bold text-slate-900">{period.minutes}</p><p className="text-[10px] text-slate-500">Actas</p></div>
+            </div>
+          </article>)}
+        </div> : <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No hay períodos de calificación configurados para este ciclo.</p>}
+      </section>
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between gap-2"><h2 className="text-lg font-bold text-slate-900">Acuerdos registrados</h2><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">{agreements.length}</span></div>
+          <div className="mt-3 space-y-3">
+            {agreements.length ? agreements.map(item => <article key={item.id} className="border-l-2 border-emerald-300 pl-3">
+              <p className="text-xs font-semibold text-slate-500">{dateLabel(item.date)} · Acta N.º {String(item.folio).padStart(6, "0")}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-800">{item.title}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{item.agreement}</p>
+            </article>) : <p className="text-sm text-slate-500">No hay acuerdos consignados en las actas de este ciclo.</p>}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5">
+          <div className="flex items-center justify-between gap-2"><h2 className="text-lg font-bold text-slate-900">Seguimientos pendientes</h2><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">{pendingItems.length}</span></div>
+          <div className="mt-3 space-y-3">
+            {pendingItems.length ? pendingItems.map(item => <article key={item.source + item.id} className="border-l-2 border-amber-400 pl-3">
+              <p className="text-xs font-semibold text-slate-500">{item.source} · {dateLabel(item.date)}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-800">{item.title}</p>
+              {item.detail ? <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{item.detail}</p> : null}
+              <span className="mt-2 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">{item.status}</span>
+            </article>) : <p className="text-sm text-slate-500">No hay seguimientos o citaciones pendientes en este ciclo.</p>}
+          </div>
+        </div>
+      </section>
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4">
         <div><p className="font-semibold text-violet-950">Informe individual del ciclo {selectedYear.name}</p><p className="text-sm text-violet-800">{timeline.length} registros · fuentes originales, sin duplicación</p></div>
-        <PrefectFollowupPdf institution={institution.display_name} filters={[`Alumno: ${studentName}`, `División: ${divisionName}`, `Ciclo lectivo: ${selectedYear.name}`, `Período: ${from} a ${to}`]} rows={timeline.map(item => ({
-          date: item.date, kind: labels[item.kind], categoryKey: item.kind, division: item.division,
-          student: studentName, title: item.title, status: item.status, detail: item.detail, extra: item.extra,
-        }))}/>
+        <PrefectFollowupPdf institution={institution.display_name}
+          filters={[`Alumno: ${studentName}`, `División: ${divisionName}`, `Ciclo lectivo: ${selectedYear.name}`, `Período: ${from} a ${to}`]}
+          sections={[
+            { title: "Evolución por trimestre", items: quarterlyEvolution.map((period, index) => `${period.name || `Trimestre ${index + 1}`}: ${period.concept}. Novedades: ${period.novelties}; citaciones: ${period.appointments}; actas: ${period.minutes}.${period.observation ? ` Observación: ${period.observation}` : ""}`) },
+            { title: "Acuerdos registrados", items: agreements.map(item => `${dateLabel(item.date)} · Acta ${item.folio} · ${item.title}: ${item.agreement}`) },
+            { title: "Seguimientos pendientes", items: pendingItems.map(item => `${item.source} · ${dateLabel(item.date)} · ${item.title}: ${item.detail} (${item.status})`) },
+          ]}
+          rows={timeline.map(item => ({
+            date: item.date, kind: labels[item.kind], categoryKey: item.kind, division: item.division,
+            student: studentName, title: item.title, status: item.status, detail: item.detail, extra: item.extra,
+          }))}/>
       </section>
       <section className="space-y-3">
         <h2 className="text-xl font-bold text-slate-900">Historial del alumno</h2>
