@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, ClipboardCheck, FileText, PlusCircle } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, ClipboardCheck, FileText, Megaphone, MessagesSquare, PlusCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 import { createAdministrativeRecord, updateAdministrativeRecord } from "./actions";
@@ -64,6 +64,27 @@ export default async function AdministrativeWorkspace({
           <h1 className="mt-4 text-3xl font-bold">Gestión administrativa</h1>
           <p className="mt-2 text-sm text-indigo-100">{institution.display_name} · Documentación, trámites y registros internos.</p>
         </header>
+
+        <section className="grid gap-3 md:grid-cols-3">
+          {permissions.has("communications.manage") && <Link href={`/dashboard/${slug}/announcements`} className="group rounded-2xl border border-amber-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md">
+            <div className="mb-3 inline-flex rounded-xl bg-amber-50 p-3 text-amber-700"><Megaphone size={21}/></div>
+            <h2 className="font-semibold text-slate-900">Comunicados</h2>
+            <p className="mt-1 text-sm leading-5 text-slate-600">Publicá novedades para estudiantes y familias: cuotas, matrículas, inscripciones y promociones</p>
+            <span className="mt-3 inline-flex text-sm font-semibold text-amber-800">Abrir comunicaciones →</span>
+          </Link>}
+          <Link href={`/dashboard/${slug}/messages`} className="group rounded-2xl border border-violet-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md">
+            <div className="mb-3 inline-flex rounded-xl bg-violet-50 p-3 text-violet-700"><MessagesSquare size={21}/></div>
+            <h2 className="font-semibold text-slate-900">Mensajería</h2>
+            <p className="mt-1 text-sm leading-5 text-slate-600">Contactá al personal institucional y a los tutores, sin iniciar conversaciones con alumnos</p>
+            <span className="mt-3 inline-flex text-sm font-semibold text-violet-800">Abrir mensajes →</span>
+          </Link>
+          {permissions.has("grades.read") && <Link href={`/dashboard/${slug}/report-cards`} className="group rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
+            <div className="mb-3 inline-flex rounded-xl bg-emerald-50 p-3 text-emerald-700"><BookOpenCheck size={21}/></div>
+            <h2 className="font-semibold text-slate-900">Boletines trimestrales</h2>
+            <p className="mt-1 text-sm leading-5 text-slate-600">Consultá los boletines aprobados y habilitá su publicación para los tutores</p>
+            <span className="mt-3 inline-flex text-sm font-semibold text-emerald-800">Gestionar boletines →</span>
+          </Link>}
+        </section>
 
         <section className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pendientes</p><p className="mt-2 text-3xl font-bold">{openCount ?? 0}</p></div>

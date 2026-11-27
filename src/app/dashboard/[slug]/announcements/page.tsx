@@ -66,6 +66,7 @@ export default async function AnnouncementsPage({
   ]);
   const roleKeys = (roleRows ?? []).map((row) => row.roles?.key).filter(Boolean);
   const canManageCommunications = permissions.has("communications.manage");
+  const isAdministrative = roleKeys.includes("administrative");
   const canPublishInstitutionWide = roleKeys.includes("institution_admin") || roleKeys.includes("director");
 
   const [{ data: announcementRows, error: announcementsError }, divisionsResult] = await Promise.all([
@@ -153,10 +154,20 @@ export default async function AnnouncementsPage({
                     className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal">
                     <option value="institution">Toda la institución</option>
                     <option value="staff">Personal</option>
-                    <option value="families">Familias</option>
+                    <option value="families">Familias / tutores</option>
                     <option value="students">Estudiantes</option>
                     <option value="course">Un curso o división</option>
                   </select>
+                </label>
+              ) : isAdministrative ? (
+                <label className="block text-sm font-medium text-slate-700">
+                  Destinatarios
+                  <select name="audience" required defaultValue="families"
+                    className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal">
+                    <option value="families">Familias / tutores</option>
+                    <option value="students">Estudiantes</option>
+                  </select>
+                  <span className="mt-1 block text-xs font-normal text-slate-500">El perfil Administrativo puede publicar comunicados para familias y estudiantes.</span>
                 </label>
               ) : (
                 <>
