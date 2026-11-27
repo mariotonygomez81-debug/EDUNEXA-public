@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BookOpen, CalendarCheck, ClipboardList, FileText, GraduationCap, Users } from "lucide-react";
+import { ArrowLeft, BookOpen, BookOpenCheck, CalendarCheck, ClipboardList, FileText, GraduationCap, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 
@@ -117,7 +117,7 @@ export default async function DirectorDashboard({params}:{params:Promise<{slug:s
         <Link href={`/dashboard/${slug}/students`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 font-semibold text-slate-700 hover:border-violet-300"><GraduationCap className="text-violet-700"/> Alumnos</Link>
         <Link href={`/dashboard/${slug}/attendance`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 font-semibold text-slate-700 hover:border-violet-300"><CalendarCheck className="text-violet-700"/> Asistencia</Link>
         <Link href={`/dashboard/${slug}/grades`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 font-semibold text-slate-700 hover:border-violet-300"><ClipboardList className="text-violet-700"/> Calificaciones</Link>
-        <Link href={`/dashboard/${slug}/report-cards`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 font-semibold text-slate-700 hover:border-violet-300"><FileText className="text-violet-700"/> Boletines</Link>
+        <Link href={`/dashboard/${slug}/report-cards`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 font-semibold text-slate-700 hover:border-violet-300"><FileText className="text-violet-700"/> Boletines</Link>\n        <Link href={`/dashboard/${slug}/direction/conduct`} className="flex items-center gap-3 rounded-xl border border-violet-200 bg-white p-4 font-semibold text-slate-700 hover:border-violet-300"><BookOpenCheck className="text-violet-700"/> Informe conductual</Link>
       </section>
       <p className="text-xs leading-relaxed text-slate-500">Los indicadores se calculan con los registros disponibles y los permisos efectivos de tu perfil. Este panel es de consulta: no modifica asistencia ni calificaciones.</p>
     </div>
