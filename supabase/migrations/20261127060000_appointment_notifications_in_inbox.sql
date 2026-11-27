@@ -3,13 +3,13 @@ alter table public.notifications
   drop constraint if exists notifications_notification_type_check;
 alter table public.notifications
   add constraint notifications_notification_type_check
-  check (notification_type in ('announcement','message','grade','attendance','support','appointment'));
+  check (notification_type in ('announcement','message','grade','attendance','support','appointment','assignment_due'));
 
 alter table public.notifications
   drop constraint if exists notifications_resource_type_check;
 alter table public.notifications
   add constraint notifications_resource_type_check
-  check (resource_type in ('announcement','conversation','grade','attendance','support_ticket','appointment'));
+  check (resource_type in ('announcement','conversation','grade','attendance','support_ticket','appointment','assignment'));
 
 alter table public.notification_preferences
   drop constraint if exists notification_preferences_notification_type_check;
