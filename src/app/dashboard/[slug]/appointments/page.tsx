@@ -293,6 +293,17 @@ export default async function AppointmentsPage({
                                                                 <span className="font-semibold text-rose-700">Requiere seguimiento: la fecha ya pasó</span>
                                                               ) : null}
                                                             </div>
+                                                            {isOpenCommitment(commitment) ? (
+                                                              <form action={updateAppointmentCommitmentStatus} className="mt-3 border-t border-violet-100 pt-3">
+                                                                <input type="hidden" name="slug" value={slug}/>
+                                                                <input type="hidden" name="commitment_id" value={commitment.commitment_id}/>
+                                                                <input type="hidden" name="status" value="completed"/>
+                                                                <p className="text-xs text-slate-600">Si ya realizaste este acuerdo, podés confirmar su cumplimiento. El equipo institucional verá el estado actualizado.</p>
+                                                                <button type="submit" className="mt-2 inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
+                                                                  <Check size={15}/> Confirmar que cumplí
+                                                                </button>
+                                                              </form>
+                                                            ) : null}
                                                           </article>
                                                         );
                               );
