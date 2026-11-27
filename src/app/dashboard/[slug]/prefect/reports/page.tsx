@@ -203,7 +203,7 @@ export default async function PrefectReportsPage({ params, searchParams }: {
         </form>
       </section>
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4">
-        <div><p className="font-semibold text-violet-950">Informe según los filtros aplicados</p><p className="text-sm text-violet-800">{filtered.length} registros · orden cronológico y agrupación por fecha y categoría</p></div>
+        <div><p className="font-semibold text-violet-950">Informe según los filtros aplicados</p><p className="text-sm text-violet-800">{filtered.length} registros · orden cronológico y agrupación por fecha y categoría</p>{filters.student && studentNames.has(filters.student) ? <Link href={`/dashboard/${slug}/prefect/reports/${filters.student}`} className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-violet-800 underline underline-offset-2">Abrir informe individual del alumno</Link> : null}</div>
         <PrefectFollowupPdf institution={institution.display_name} filters={appliedFilters} rows={filtered.map(item => ({
           date: item.date, kind: kindLabels[item.kind], categoryKey: item.kind, division: divisionNames.get(item.divisionId) ?? "División",
           student: item.studentId ? (studentNames.get(item.studentId) ?? "Alumno") : "Toda la división",
