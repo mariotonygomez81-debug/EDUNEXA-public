@@ -1,9 +1,9 @@
-  const pluralLabels: Record<string,string> = { novelty: "Novedades", conduct: "Conceptos conductuales", appointment: "Citaciones", minute: "Actas" };
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, ClipboardList, History, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
+import PrefectFollowupPdf from "./report-pdf";
 
 type Assignment = { division_id: string; starts_on: string | null; ends_on: string | null };
 type Division = { id: string; name: string; course_id: string };
@@ -147,6 +147,15 @@ export default async function PrefectReportsPage({ params, searchParams }: {
     (!validDate(filters.to) || item.date.slice(0,10) <= filters.to!) &&
     (selectedKind === "all" || selectedKind === item.kind)
   ).sort((a,b) => b.date.localeCompare(a.date));
+  const countByKind = (kind: TimelineItem["kind"]) => timeline.filter(item => item.kind === kind).length;
+  const pluralLabels: Record<string,string> = { novelty: "Novedades", conduct: "Conceptos conductuales", appointment: "Citaciones", minute: "Actas" };
+  const appliedFilters = [
+    filters.division ? `División: ${divisionNames.get(filters.division) ?? "seleccionada"}` : "División: todas las asignadas",
+    filters.student ? `Alumno: ${studentNames.get(filters.student) ?? "seleccionado"}` : "Alumnos: todos",
+    validDate(filters.from) ? `Desde: ${dateLabel(filters.from!)}` : "Desde: sin límite",
+    validDate(filters.to) ? `Hasta: ${dateLabel(filters.to!)}` : "Hasta: sin límite",
+    selectedKind === "all" ? "Tipo: todos" : `Tipo: ${kindLabels[selectedKind as TimelineItem["kind"]]}`,
+  ];
 
   return <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
     <div className="mx-auto max-w-6xl space-y-6">
@@ -192,6 +201,14 @@ export default async function PrefectReportsPage({ params, searchParams }: {
             <Link href={`/dashboard/${slug}/prefect/reports`} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Limpiar</Link>
           </div>
         </form>
+      </section>
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4">
+        <div><p className="font-semibold text-violet-950">Informe según los filtros aplicados</p><p className="text-sm text-violet-800">{filtered.length} registros · orden cronológico y agrupación por fecha y categoría</p></div>
+        <PrefectFollowupPdf institution={institution.display_name} filters={appliedFilters} rows={filtered.map(item => ({
+          date: item.date, kind: kindLabels[item.kind], categoryKey: item.kind, division: divisionNames.get(item.divisionId) ?? "División",
+          student: item.studentId ? (studentNames.get(item.studentId) ?? "Alumno") : "Toda la división",
+          title: item.title, status: item.status, detail: item.detail, extra: item.extra ?? "",
+        }))} />
       </section>
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-2">
