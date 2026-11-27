@@ -63,17 +63,17 @@ export default async function AdministratorConsole({ params }: { params: Promise
   const roleKeys = (roleRows ?? []).map((row) => row.roles?.key).filter(Boolean);
   if (!roleKeys.includes("institution_admin")) redirect(`/dashboard/${slug}`);
 
-  const scopedCount = (table: string, filters: Record<string, string> = {}) => {
-    let query = supabase.from(table).select("id", { count: "exact", head: true }).eq("institution_id", institution.id);
-    for (const [column, value] of Object.entries(filters)) query = query.eq(column, value);
-    return query;
-  };
   const [members, invitations, students, activeStudents, courses, divisions, subjects, classrooms, grades, years] = await Promise.all([
-    scopedCount("memberships"), scopedCount("memberships", { status: "invited" }),
-    scopedCount("students"), scopedCount("students", { status: "active" }),
-    scopedCount("courses"), scopedCount("divisions"), scopedCount("subjects"),
-    scopedCount("virtual_classrooms"), scopedCount("grade_records"),
-    scopedCount("academic_years", { status: "active" }),
+    supabase.from("memberships").select("id", { count: "exact", head: true }).eq("institution_id", institution.id),
+    supabase.from("memberships").select("id", { count: "exact", head: true }).eq("institution_id", institution.id).eq("status", "invited"),
+    supabase.from("students").select("id", { count: "exact", head: true }).eq("institution_id", institution.id),
+    supabase.from("students").select("id", { count: "exact", head: true }).eq("institution_id", institution.id).eq("status", "active"),
+    supabase.from("courses").select("id", { count: "exact", head: true }).eq("institution_id", institution.id),
+    supabase.from("divisions").select("id", { count: "exact", head: true }).eq("institution_id", institution.id),
+    supabase.from("subjects").select("id", { count: "exact", head: true }).eq("institution_id", institution.id),
+    supabase.from("virtual_classrooms").select("id", { count: "exact", head: true }).eq("institution_id", institution.id),
+    supabase.from("grade_records").select("id", { count: "exact", head: true }).eq("institution_id", institution.id),
+    supabase.from("academic_years").select("id", { count: "exact", head: true }).eq("institution_id", institution.id).eq("status", "active"),
   ]) as CountResult[];
 
   const count = (result: CountResult) => result.count ?? 0;
