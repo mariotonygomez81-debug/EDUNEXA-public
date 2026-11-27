@@ -354,6 +354,19 @@ export default async function AppointmentsPage({
                                       <span><strong>Responsable:</strong> {commitment.responsible === "guardian" ? "Tutor" : "Familia"}</span>
                                       <span><strong>Fecha de seguimiento:</strong> {commitmentDateLabel(commitment.due_date)}</span>
                                     </div>
+                                    {scopedAppointments.some((item) => item.appointment_id === commitment.appointment_id) ? (
+                                      <a
+                                        href={scopedAppointments.some((item) => item.appointment_id === commitment.appointment_id && item.conversation?.length)
+                                          ? `#appointment-conversation-${commitment.appointment_id}`
+                                          : `#appointment-${commitment.appointment_id}`}
+                                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-violet-700 underline-offset-4 hover:underline"
+                                      >
+                                        Ver entrevista{scopedAppointments.some((item) => item.appointment_id === commitment.appointment_id && item.conversation?.length) ? " y conversación" : ""}
+                                        <span aria-hidden="true">→</span>
+                                      </a>
+                                    ) : (
+                                      <p className="mt-3 text-xs text-slate-500">La entrevista asociada no está disponible en esta vista.</p>
+                                    )}
                                   </article>
                                 ))}
                               </div>
@@ -372,7 +385,7 @@ export default async function AppointmentsPage({
               <>
                 {index === 0 && activeAppointments.length ? <h2 className="pt-3 text-lg font-semibold text-slate-900">Seguimiento actual</h2> : null}
                 {index === activeAppointments.length && historyAppointments.length ? <h2 className="pt-6 text-lg font-semibold text-slate-900">Historial de entrevistas</h2> : null}
-              <article key={appointment.appointment_id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <article id={`appointment-${appointment.appointment_id}`} key={appointment.appointment_id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 {(() => { appointment.commitments = commitmentsByAppointment.get(appointment.appointment_id) ?? []; return null; })()}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -519,7 +532,7 @@ export default async function AppointmentsPage({
                   </section>
                 ) : null}
                 {appointment.conversation?.length ? (
-                  <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <details id={`appointment-conversation-${appointment.appointment_id}`} className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <summary className="cursor-pointer text-sm font-semibold text-slate-700">
                       Ver historial de coordinación · {appointment.conversation.length} {appointment.conversation.length === 1 ? "movimiento" : "movimientos"}
                     </summary>
