@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BookOpen, Building2, CalendarDays, GraduationCap, Plus, Users } from "lucide-react";
+import { ArrowLeft, BookOpen, Building2, CalendarDays, GraduationCap, History, Plus, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 import {
@@ -21,6 +21,7 @@ type Orientation = { id: string; education_level_id: string; name: string; is_ac
 type Division = { id: string; course_id: string; academic_year_id: string; campus_id: string | null; name: string; capacity: number | null };
 type Subject = { id: string; name: string; code: string | null };
 type CourseSubject = { id: string; course_id: string; subject_id: string; weekly_hours: number | null };
+type CourseOrientationHistory = { course_id: string; course_name: string; history_id: number; previous_orientation_name: string; new_orientation_name: string; actor_user_id: string; actor_name: string; changed_at: string };
 type Staff = { membership_id: string; display_name: string; role_keys: string[] };
 type StaffAssignment = { id: string; membership_id: string; assignment_type: string; division_id: string | null; course_subject_id: string | null; starts_on: string | null; ends_on: string | null };
 
@@ -81,6 +82,7 @@ export default async function AcademicStructurePage({
     assignmentsResult,
     staffResult,
     orientationsResult,
+    orientationHistoryResult,
   ] = await Promise.all([
     supabase.from("education_levels").select("id,name").eq("institution_id", institution.id).order("name"),
     supabase.from("academic_years").select("id,name,status,starts_on,ends_on").eq("institution_id", institution.id).order("starts_on", { ascending: false }),
@@ -92,6 +94,7 @@ export default async function AcademicStructurePage({
     supabase.from("staff_assignments").select("id,membership_id,assignment_type,division_id,course_subject_id,starts_on,ends_on").eq("institution_id", institution.id).order("created_at", { ascending: false }),
     supabase.rpc("list_assignable_staff_members", { p_institution_id: institution.id }),
     supabase.from("education_orientations").select("id,education_level_id,name,is_active").eq("institution_id", institution.id).order("name"),
+    supabase.rpc("list_institution_course_orientation_history", { p_institution_id: institution.id, p_limit_per_course: 15 }),
   ]);
 
   const levels = (levelsResult.data ?? []) as NamedRow[];
@@ -104,6 +107,13 @@ export default async function AcademicStructurePage({
   const assignments = (assignmentsResult.data ?? []) as StaffAssignment[];
   const staff = (staffResult.data ?? []) as Staff[];
   const orientations = (orientationsResult.data ?? []) as Orientation[];
+  const orientationHistory = (orientationHistoryResult.data ?? []) as CourseOrientationHistory[];
+  const orientationHistoryByCourse = new Map<string, CourseOrientationHistory[]>();
+  for (const event of orientationHistory) {
+    const items = orientationHistoryByCourse.get(event.course_id) ?? [];
+    items.push(event);
+    orientationHistoryByCourse.set(event.course_id, items);
+  }
   const orientationMap = new Map(orientations.map((item) => [item.id, item.name]));
 
   const levelMap = new Map(levels.map((item) => [item.id, item.name]));
@@ -121,7 +131,8 @@ export default async function AcademicStructurePage({
       : query.created === "course" ? "El curso se creó correctamente."
         : query.created === "division" ? "La división se creó correctamente."
       : query.created === "subject" ? "La materia se creó correctamente."
-        : query.saved === "course-subject" ? "La materia quedó asignada al curso."
+        : query.saved === "course_orientation" ? "La orientación del curso se actualizó y el cambio quedó registrado en el historial."
+          : query.saved === "course-subject" ? "La materia quedó asignada al curso."
           : query.saved === "staff" ? "La asignación del personal se guardó."
             : query.saved === "ended" ? "La asignación se finalizó conservando su historial."
               : null;
@@ -283,6 +294,24 @@ export default async function AcademicStructurePage({
                     <button className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700">Guardar orientación</button>
                   </form>
                   <p className="mt-2 text-[11px] text-slate-500">El cambio conserva divisiones, materias, matrículas y registros históricos.</p>
+                  <div className="mt-3 border-t border-slate-200 pt-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-600"><History size={14}/> Historial de orientaciones</h4>
+                      <Link href={"/dashboard/" + slug + "/admin/auditoria?action=education.course.orientation.updated"} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900">Ver bitácora institucional →</Link>
+                    </div>
+                    {(orientationHistoryByCourse.get(course.id) ?? []).length ? (
+                      <ol className="mt-3 space-y-3 border-l-2 border-indigo-100 pl-4">
+                        {(orientationHistoryByCourse.get(course.id) ?? []).map((event) => (
+                          <li key={event.history_id} className="relative">
+                            <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-indigo-500"/>
+                            <p className="text-sm font-medium text-slate-800">{event.previous_orientation_name} <span className="px-1 text-slate-400">→</span> {event.new_orientation_name}</p>
+                            <p className="mt-1 text-xs text-slate-500">{event.actor_name} · {new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(event.changed_at))}</p>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : <p className="mt-2 text-xs text-slate-500">Todavía no hay cambios de orientación registrados.</p>}
+                    {(orientationHistoryByCourse.get(course.id) ?? []).length >= 15 ? <p className="mt-2 text-[11px] text-slate-400">Se muestran los últimos 15 cambios. La bitácora institucional conserva el registro completo.</p> : null}
+                  </div>
                 </div>
               ))}
             </div>
