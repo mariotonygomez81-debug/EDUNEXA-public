@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BookOpenCheck, CalendarCheck, CalendarClock, ClipboardList, FileText, GraduationCap, Users } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, CalendarCheck, CalendarClock, ClipboardList, FileText, GraduationCap, History, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 
@@ -110,7 +110,7 @@ export default async function PrefectWorkspace({ params }: { params: Promise<{ s
                   <Link href={`/dashboard/${slug}/prefect/minutes`} className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100">
                     <FileText size={15} /> Actas PDF
                   </Link>
-                  <Link href={`/dashboard/${slug}/appointments`} className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100">
+                  <Link href={`/dashboard/${slug}/prefect/reports`} className="inline-flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 hover:bg-teal-100">\n                    <History size={15} /> Informes e historial\n                  </Link>\n                  <Link href={`/dashboard/${slug}/appointments`} className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100">
                     <CalendarClock size={15} /> Citaciones a tutores
                   </Link>
                 </div>
