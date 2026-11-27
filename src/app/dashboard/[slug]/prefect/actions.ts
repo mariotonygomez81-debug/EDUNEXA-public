@@ -100,3 +100,62 @@ export async function savePrefectConductConcept(formData: FormData) {
   revalidatePath(`/dashboard/${slug}/prefect/conduct`);
   redirect(`/dashboard/${slug}/prefect/conduct?saved=1`);
 }
+
+export async function createPrefectMinute(formData: FormData) {
+  const slug = field(formData, "slug");
+  const divisionId = field(formData, "division_id");
+  const studentId = field(formData, "student_id");
+  const meetingDate = field(formData, "meeting_date");
+  const actType = field(formData, "act_type");
+  const subject = field(formData, "subject");
+  const participants = field(formData, "participants");
+  const development = field(formData, "development");
+  const agreements = field(formData, "agreements");
+  const noveltyId = field(formData, "related_novelty_id");
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(meetingDate) &&
+    !Number.isNaN(new Date(meetingDate + "T12:00:00Z").getTime()) &&
+    new Date(meetingDate + "T12:00:00Z").toISOString().slice(0,10) === meetingDate;
+  const types = ["seguimiento","convivencia","reunion_familiar","acuerdo","intervencion"];
+  if (!slug || !uuid.test(divisionId) || (studentId && !uuid.test(studentId)) ||
+      (noveltyId && !uuid.test(noveltyId)) || !validDate || !types.includes(actType) ||
+      subject.length < 3 || subject.length > 180 || !development || development.length > 6000 ||
+      participants.length > 2000 || agreements.length > 4000) {
+    redirect(`/dashboard/${encodeURIComponent(slug)}/prefect/minutes?error=invalid`);
+  }
+
+  const { supabase, institution, membership } = await getContext(slug, "prefect_minutes.manage");
+  let sourceSnapshot: Record<string, unknown> = {};
+  if (noveltyId) {
+    const { data: novelty, error: noveltyError } = await supabase.from("prefect_novelties")
+      .select("id,division_id,student_id,category,title,description,event_date,status,follow_up,follow_up_due_on")
+      .eq("id", noveltyId).eq("institution_id", institution.id)
+      .eq("division_id", divisionId).maybeSingle();
+    if (noveltyError || !novelty || (novelty.student_id && studentId && novelty.student_id !== studentId)) {
+      redirect(`/dashboard/${slug}/prefect/minutes?error=source`);
+    }
+    sourceSnapshot = {
+      category: novelty.category, title: novelty.title, description: novelty.description,
+      event_date: novelty.event_date, status: novelty.status,
+      follow_up: novelty.follow_up, follow_up_due_on: novelty.follow_up_due_on,
+    };
+  }
+
+  const { error } = await supabase.from("prefect_minutes").insert({
+    institution_id: institution.id,
+    division_id: divisionId,
+    student_id: studentId || null,
+    meeting_date: meetingDate,
+    act_type: actType,
+    subject,
+    participants,
+    development,
+    agreements,
+    related_novelty_id: noveltyId || null,
+    source_novelty_snapshot: sourceSnapshot,
+    created_by_membership_id: membership.id,
+  });
+  if (error) redirect(`/dashboard/${slug}/prefect/minutes?error=save`);
+  revalidatePath(`/dashboard/${slug}/prefect/minutes`);
+  redirect(`/dashboard/${slug}/prefect/minutes?saved=1`);
+}
