@@ -295,6 +295,26 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                   {student.is_self ? (
                     <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">Este historial está disponible en el perfil de tutor vinculado al alumno.</p>
                   ) : (studentConversationsByStudent.get(student.student_id) ?? []).length ? (
+                    <>
+                      {(() => {
+                        const authorizedConversations = studentConversationsByStudent.get(student.student_id) ?? [];
+                        const unreadTotal = authorizedConversations.reduce(
+                          (total, item) => total + Math.max(0, conversationSummaryById.get(item.conversation_id)?.unread_count ?? 0),
+                          0,
+                        );
+                        return (
+                          <div className="mt-3 grid grid-cols-2 gap-2" aria-label="Resumen de conversaciones del alumno">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                              <p className="text-[11px] font-medium text-slate-500">Conversaciones privadas</p>
+                              <p className="mt-1 text-xl font-bold tabular-nums text-slate-900">{authorizedConversations.length}</p>
+                            </div>
+                            <div className={`rounded-xl border px-3 py-2 ${unreadTotal > 0 ? "border-violet-200 bg-violet-50" : "border-slate-200 bg-slate-50"}`}>
+                              <p className={`text-[11px] font-medium ${unreadTotal > 0 ? "text-violet-700" : "text-slate-500"}`}>Mensajes sin leer</p>
+                              <p className={`mt-1 text-xl font-bold tabular-nums ${unreadTotal > 0 ? "text-violet-900" : "text-slate-900"}`}>{unreadTotal}</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     <ul className="mt-3 space-y-2">
                       {[...(studentConversationsByStudent.get(student.student_id) ?? [])]
                         .sort((a, b) => {
@@ -342,6 +362,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                         );
                       })}
                     </ul>
+                    </>
                   ) : (
                     <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">Todavía no hay conversaciones privadas vinculadas a este alumno.</p>
                   )}
