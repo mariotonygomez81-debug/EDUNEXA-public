@@ -17,6 +17,7 @@ const modules: { name: string; detail: string; icon: string; href: string; permi
   { name: "Citaciones", detail: "Solicitudes y respuestas entre docentes y tutores", icon: "appointments", href: "appointments", permission: "institution.read", roles: ["teacher", "guardian"], category: "Comunidad" as const },
   { name: "Preceptoría", detail: "Divisiones asignadas, nóminas y seguimiento", icon: "prefect", href: "prefect", permission: "attendance.read", roles: ["prefect"], category: "Académico" as const },
   { name: "Usuarios y accesos", detail: "Perfiles y permisos institucionales", icon: "users", href: "users", permission: "memberships.manage", category: "Gestión" as const },
+  { name: "Centro de administración", detail: "Control operativo y configuración general del colegio", icon: "users", href: "admin", permission: "institution.manage", roles: ["institution_admin"], category: "Gestión" as const },
   { name: "Calendario académico", detail: "Ciclos lectivos y períodos de evaluación", icon: "calendar", href: "settings/academic-calendar", permission: "institution.manage", roles: ["institution_admin"], category: "Gestión" as const },
   { name: "Ayuda y soporte", detail: "Consultas y seguimiento de solicitudes", icon: "support", href: "support", permission: "support.create", category: "Comunidad" as const },
   { name: "Mi portal", detail: "Seguimiento académico personal y familiar", icon: "portal", href: "portal", permission: "institution.read", roles: ["student", "guardian"], category: "Comunidad" as const },
@@ -86,6 +87,7 @@ export default async function InstitutionWorkspace({ params }: { params: Promise
   if (currentAssignmentCount > 0) addQuick("Mis asignaciones", "Funciones, divisiones y materias", "teaching", "classroom", "quick-green");
   if (permissions.has("admin_documents.read")) addQuick("Documentación", "Archivos institucionales autorizados", "admin-documents", "administrative", "quick-cyan");
   if (permissions.has("memberships.manage")) addQuick("Usuarios y accesos", "Perfiles y permisos institucionales", "users", "users", "quick-indigo");
+  if (roleKeys.includes("institution_admin") && permissions.has("institution.manage")) addQuick("Centro de administración", "Panel general, prioridades y configuración del colegio", "admin", "users", "quick-indigo");
   if (permissions.has("institution.manage")) {
     addQuick("Calendario académico", "Ciclos y períodos lectivos", "settings/academic-calendar", "calendar", "quick-orange");
     addQuick("Estructura académica", "Niveles, cursos y asignaciones", "settings/academic-structure", "structure", "quick-violet");
