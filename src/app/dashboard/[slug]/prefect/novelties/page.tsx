@@ -26,10 +26,15 @@ export default async function PrefectNoveltiesPage({
   params, searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ error?: string; saved?: string; updated?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string; updated?: string; status?: string; category?: string; division?: string; due?: string; q?: string }>;
 }) {
   const { slug } = await params;
   const query = await searchParams;
+  const selectedStatus = ["open", "in_progress", "resolved"].includes(query.status ?? "") ? query.status! : "";
+  const selectedCategory = ["convivencia", "asistencia", "academica", "familia", "salud", "otra"].includes(query.category ?? "") ? query.category! : "";
+  const selectedDivision = query.division ?? "";
+  const selectedDue = ["overdue", "today", "upcoming", "without_date"].includes(query.due ?? "") ? query.due! : "";
+  const search = (query.q ?? "").replace(/[^a-zA-Z0-9À-ÿ\\s_-]/g, "").trim().slice(0, 80);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -81,6 +86,41 @@ export default async function PrefectNoveltiesPage({
     studentNames.set(student.id,`${student.last_name}, ${student.first_name}`);
   }
   const divisionNames = new Map((divisions ?? []).map(d => [d.id,`${courseNames.get(d.course_id) ?? "Curso"} · ${d.name}`]));
+  const allNovelties = novelties ?? [];
+  const matchesDue = (novelty: Novelty) => {
+    if (!selectedDue) return true;
+    if (selectedDue === "without_date") return !novelty.follow_up_due_on && novelty.status !== "resolved";
+    if (!novelty.follow_up_due_on || novelty.status === "resolved") return false;
+    if (selectedDue === "overdue") return novelty.follow_up_due_on < today;
+    if (selectedDue === "today") return novelty.follow_up_due_on === today;
+    return novelty.follow_up_due_on > today;
+  };
+  const filteredNovelties = allNovelties.filter((novelty) => {
+    if (selectedStatus && novelty.status !== selectedStatus) return false;
+    if (selectedCategory && novelty.category !== selectedCategory) return false;
+    if (selectedDivision && novelty.division_id !== selectedDivision) return false;
+    if (!matchesDue(novelty)) return false;
+    if (search) {
+      const haystack = [novelty.title, novelty.description, novelty.follow_up ?? "",
+        novelty.student_id ? studentNames.get(novelty.student_id) ?? "" : "",
+        divisionNames.get(novelty.division_id) ?? ""].join(" ").toLocaleLowerCase("es");
+      if (!haystack.includes(search.toLocaleLowerCase("es"))) return false;
+    }
+    return true;
+  }).sort((a, b) => {
+    const aOpen = a.status !== "resolved";
+    const bOpen = b.status !== "resolved";
+    if (aOpen !== bOpen) return aOpen ? -1 : 1;
+    if (a.follow_up_due_on && b.follow_up_due_on) return a.follow_up_due_on.localeCompare(b.follow_up_due_on);
+    if (a.follow_up_due_on) return -1;
+    if (b.follow_up_due_on) return 1;
+    return b.event_date.localeCompare(a.event_date);
+  });
+  const overdueCount = allNovelties.filter(n => n.status !== "resolved" && n.follow_up_due_on && n.follow_up_due_on < today).length;
+  const dueTodayCount = allNovelties.filter(n => n.status !== "resolved" && n.follow_up_due_on === today).length;
+  const upcomingCount = allNovelties.filter(n => n.status !== "resolved" && n.follow_up_due_on && n.follow_up_due_on > today).length;
+  const withoutDateCount = allNovelties.filter(n => n.status !== "resolved" && !n.follow_up_due_on).length;
+
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
@@ -135,9 +175,53 @@ export default async function PrefectNoveltiesPage({
           ) : <p className="mt-3 text-sm text-slate-500">No tenés divisiones vigentes asignadas para registrar novedades.</p>}
         </section>
 
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Link href={`/dashboard/${slug}/prefect/novelties?due=overdue`} className="rounded-xl border border-rose-200 bg-white p-4 hover:bg-rose-50">
+            <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">Acciones vencidas</p><p className="mt-1 text-2xl font-bold text-slate-900">{overdueCount}</p>
+          </Link>
+          <Link href={`/dashboard/${slug}/prefect/novelties?due=today`} className="rounded-xl border border-amber-200 bg-white p-4 hover:bg-amber-50">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Vencen hoy</p><p className="mt-1 text-2xl font-bold text-slate-900">{dueTodayCount}</p>
+          </Link>
+          <Link href={`/dashboard/${slug}/prefect/novelties?due=upcoming`} className="rounded-xl border border-sky-200 bg-white p-4 hover:bg-sky-50">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Próximas acciones</p><p className="mt-1 text-2xl font-bold text-slate-900">{upcomingCount}</p>
+          </Link>
+          <Link href={`/dashboard/${slug}/prefect/novelties?due=without_date`} className="rounded-xl border border-slate-200 bg-white p-4 hover:bg-slate-50">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Sin fecha asignada</p><p className="mt-1 text-2xl font-bold text-slate-900">{withoutDateCount}</p>
+          </Link>
+        </section>
+
         <section className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold">Novedades registradas</h2><span className="text-sm text-slate-500">{novelties?.length ?? 0} registros recientes · máximo 200</span></div><PrefectNoveltiesPdf institution={institution.display_name} rows={(novelties ?? []).map(n => ({ date: n.event_date, division: divisionNames.get(n.division_id) ?? "División", student: n.student_id ? studentNames.get(n.student_id) ?? "Alumno" : "División completa", category: categoryLabels[n.category] ?? n.category, title: n.title, description: n.description, status: statusLabels[n.status] ?? n.status, followUp: n.follow_up ?? "", followUpDueOn: n.follow_up_due_on ?? "" }))} /></div>
-          {novelties?.length ? novelties.map(n => (
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold">Agenda de seguimiento</h2><span className="text-sm text-slate-500">{filteredNovelties.length} de {allNovelties.length} novedades recientes · máximo 200</span></div><PrefectNoveltiesPdf institution={institution.display_name} rows={filteredNovelties.map(n => ({ date: n.event_date, division: divisionNames.get(n.division_id) ?? "División", student: n.student_id ? studentNames.get(n.student_id) ?? "Alumno" : "División completa", category: categoryLabels[n.category] ?? n.category, title: n.title, description: n.description, status: statusLabels[n.status] ?? n.status, followUp: n.follow_up ?? "", followUpDueOn: n.follow_up_due_on ?? "" }))} /></div>
+          <form method="get" className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
+            <label className="grid gap-1 text-xs font-semibold text-slate-600">Buscar
+              <input name="q" defaultValue={search} placeholder="Alumno, novedad o acción" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"/>
+            </label>
+            <label className="grid gap-1 text-xs font-semibold text-slate-600">División
+              <select name="division" defaultValue={selectedDivision} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal">
+                <option value="">Todas mis divisiones</option>{(divisions ?? []).map(d=><option key={d.id} value={d.id}>{divisionNames.get(d.id)}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-semibold text-slate-600">Estado
+              <select name="status" defaultValue={selectedStatus} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal">
+                <option value="">Todos</option><option value="open">Pendiente</option><option value="in_progress">En seguimiento</option><option value="resolved">Resuelta</option>
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-semibold text-slate-600">Categoría
+              <select name="category" defaultValue={selectedCategory} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal">
+                <option value="">Todas</option>{Object.entries(categoryLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-semibold text-slate-600">Fecha de acción
+              <select name="due" defaultValue={selectedDue} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal">
+                <option value="">Todas</option><option value="overdue">Vencidas</option><option value="today">Vencen hoy</option><option value="upcoming">Próximas</option><option value="without_date">Sin fecha</option>
+              </select>
+            </label>
+            <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-5">
+              <button className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white">Aplicar filtros</button>
+              <Link href={`/dashboard/${slug}/prefect/novelties`} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600">Limpiar</Link>
+            </div>
+          </form>
+          {filteredNovelties.length ? filteredNovelties.map(n => (
             <article key={n.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -169,7 +253,7 @@ export default async function PrefectNoveltiesPage({
                 <button className="rounded-lg border border-violet-200 px-4 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-50">Actualizar</button>
               </form>
             </article>
-          )) : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">Todavía no hay novedades registradas para tus divisiones.</div>}
+          )) : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">{allNovelties.length ? "No hay novedades que coincidan con los filtros seleccionados." : "Todavía no hay novedades registradas para tus divisiones."}</div>}
         </section>
       </div>
     </main>
