@@ -80,7 +80,7 @@ export default async function ConversationPage({
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
       <div className="mx-auto max-w-4xl space-y-5">
         <Link
-          href={studentContext ? `/dashboard/${slug}/portal#student-${studentContext.student_id}-conversations` : `/dashboard/${slug}/messages`}
+          href={studentContext ? `/dashboard/${slug}/portal#conversation-${conversationId}` : `/dashboard/${slug}/messages`}
           className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-violet-700"
         >
           <ArrowLeft size={16} /> {studentContext ? "Volver al historial del alumno" : "Volver a mensajes"}
