@@ -17,7 +17,7 @@ type PublishedReportCard = {
 
 type FamilyAnnouncement = { id: string; title: string; body: string; published_at: string | null; expires_at: string | null };
 type StudentConversation = { conversation_id: string; student_id: string; student_name: string };
-type ConversationSummary = { conversation_id: string; counterpart_name: string; last_message_body: string | null; last_message_at: string | null };
+type ConversationSummary = { conversation_id: string; counterpart_name: string; last_message_body: string | null; last_message_at: string | null; unread_count?: number | null };
 
 type PortalStudent = {
   student_id: string;
@@ -296,10 +296,18 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                     <ul className="mt-3 space-y-2">
                       {(studentConversationsByStudent.get(student.student_id) ?? []).map((item) => {
                         const counterpart = conversationSummaries.find((conversation) => conversation.conversation_id === item.conversation_id);
+                        const unreadCount = counterpart?.unread_count ?? 0;
                         return (
                           <li key={item.conversation_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-slate-800">{counterpart?.counterpart_name ?? "Contacto escolar autorizado"}</p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="truncate text-sm font-semibold text-slate-800">{counterpart?.counterpart_name ?? "Contacto escolar autorizado"}</p>
+                                {unreadCount > 0 ? (
+                                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-800" aria-label={`${unreadCount} mensajes sin leer`}>
+                                    {unreadCount} sin leer
+                                  </span>
+                                ) : null}
+                              </div>
                               <p className="mt-1 text-xs text-slate-500">{counterpart?.last_message_body ? counterpart.last_message_body.slice(0, 110) : "Conversación privada sin mensajes todavía"}{counterpart?.last_message_body && counterpart.last_message_body.length > 110 ? "…" : ""}</p>
                             </div>
                             <Link href={`/dashboard/${slug}/messages/${item.conversation_id}`} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50">
