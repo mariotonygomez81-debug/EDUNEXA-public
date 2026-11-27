@@ -194,3 +194,42 @@ begin
   return true;
 end;
 $function$;
+
+
+-- Allow members to control the new appointment notification category.
+create or replace function private.set_notification_preference_impl(
+  p_institution_id uuid,p_notification_type text,p_in_app_enabled boolean
+) returns boolean
+language plpgsql
+security definer
+set search_path=''
+as $function$
+declare v_membership_id uuid;
+begin
+  if (select auth.uid()) is null then
+    raise exception 'Authentication required' using errcode='28000';
+  end if;
+  if p_institution_id is null or p_notification_type is null
+    or p_notification_type not in ('announcement','message','grade','attendance','support','appointment')
+    or p_in_app_enabled is null then
+    raise exception 'Invalid notification preference' using errcode='22023';
+  end if;
+  select m.id into v_membership_id
+  from public.memberships m
+  where m.user_id=(select auth.uid())
+    and m.institution_id=p_institution_id and m.status='active'
+  limit 1;
+  if v_membership_id is null then
+    raise exception 'Active membership required' using errcode='42501';
+  end if;
+  insert into public.notification_preferences(
+    institution_id,membership_id,notification_type,in_app_enabled
+  ) values(p_institution_id,v_membership_id,p_notification_type,p_in_app_enabled)
+  on conflict (institution_id,membership_id,notification_type)
+  do update set in_app_enabled=excluded.in_app_enabled,updated_at=now();
+  return true;
+end;
+$function$;
+
+revoke all on function private.set_notification_preference_impl(uuid,text,boolean) from public,anon;
+grant execute on function private.set_notification_preference_impl(uuid,text,boolean) to authenticated;
