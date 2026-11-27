@@ -306,6 +306,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                   </section>
                 )}
 
+                <style>{`li[id^="conversation-"]:target .conversation-open-label { display: inline-flex; }`}</style>
                 <section id={`student-${student.student_id}-conversations`} className="scroll-mt-6 border-t border-slate-100 px-5 py-4 transition-colors duration-300 target:rounded-xl target:border-violet-300 target:bg-violet-50/80 target:ring-2 target:ring-violet-200 target:ring-inset has-[li:target]:rounded-xl has-[li:target]:border-violet-300 has-[li:target]:bg-violet-50/80 has-[li:target]:ring-2 has-[li:target]:ring-violet-200 has-[li:target]:ring-inset" aria-label="Historial de conversaciones del alumno">
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -365,6 +366,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="truncate text-sm font-semibold text-slate-800">{counterpart?.counterpart_name ?? "Contacto escolar autorizado"}</p>
+                                <span className="conversation-open-label hidden rounded-full border border-violet-300 bg-white px-2 py-0.5 text-[11px] font-bold text-violet-800" role="status" aria-label="Esta es la conversación que acabás de visitar">Conversación abierta</span>
                                 {(counterpart?.counterpart_role_keys ?? []).length ? (
                                   (counterpart?.counterpart_role_keys ?? []).map((roleKey) => (
                                     <span key={roleKey} className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
