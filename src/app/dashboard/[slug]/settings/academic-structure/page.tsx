@@ -310,7 +310,7 @@ export default async function AcademicStructurePage({
                         ))}
                       </ol>
                     ) : <p className="mt-2 text-xs text-slate-500">Todavía no hay cambios de orientación registrados.</p>}
-                    {(orientationHistoryByCourse.get(course.id) ?? []).length >= 15 ? <p className="mt-2 text-[11px] text-slate-400">Se muestran los últimos 15 cambios. La bitácora institucional conserva el registro completo.</p> : null}
+                    <Link href={"/dashboard/" + slug + "/settings/academic-structure/history?course_id=" + course.id} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-indigo-700 hover:text-indigo-900">Consultar historial completo <span aria-hidden="true">→</span></Link>
                   </div>
                 </div>
               ))}
