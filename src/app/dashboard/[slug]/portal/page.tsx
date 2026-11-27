@@ -290,7 +290,17 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                       <h3 className="text-sm font-semibold text-slate-800">Conversaciones sobre este alumno</h3>
                       <p className="mt-1 text-xs text-slate-500">Historial privado con docentes y preceptores autorizados</p>
                     </div>
-                    <MessageCircle size={18} className="text-violet-600" />
+                    {!student.is_self ? (
+                      <Link
+                        href={`/dashboard/${slug}/messages?student=${student.student_id}`}
+                        className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-violet-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-violet-800"
+                        aria-label={`Iniciar una conversación vinculada a ${student.first_name} ${student.last_name}`}
+                      >
+                        <Plus size={14} /> Nueva conversación
+                      </Link>
+                    ) : (
+                      <MessageCircle size={18} className="text-violet-600" />
+                    )}
                   </div>
                   {student.is_self ? (
                     <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">Este historial está disponible en el perfil de tutor vinculado al alumno.</p>
@@ -386,8 +396,8 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                     <BookOpen size={15} /> Aula virtual
                   </Link>
                   <Link href={`/dashboard/${slug}/messages?student=${student.student_id}`}
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                    <MessageCircle size={15} /> Mensajes
+                    className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100">
+                    <MessageCircle size={15} /> Ver mensajería del alumno
                   </Link>
                   <Link href={`/dashboard/${slug}/appointments?student=${student.student_id}`}
                     className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100">
