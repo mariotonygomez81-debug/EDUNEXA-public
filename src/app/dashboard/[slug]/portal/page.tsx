@@ -308,21 +308,21 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
 
                 <style>{`li[id^="conversation-"]:target .conversation-open-label { display: inline-flex; }`}</style>
                 <section id={`student-${student.student_id}-conversations`} className="scroll-mt-6 border-t border-slate-100 px-5 py-4 transition-colors duration-300 target:rounded-xl target:border-violet-300 target:bg-violet-50/80 target:ring-2 target:ring-violet-200 target:ring-inset has-[li:target]:rounded-xl has-[li:target]:border-violet-300 has-[li:target]:bg-violet-50/80 has-[li:target]:ring-2 has-[li:target]:ring-violet-200 has-[li:target]:ring-inset" aria-label="Historial de conversaciones del alumno">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
+                  <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
                       <h3 className="text-sm font-semibold text-slate-800">Conversaciones sobre este alumno</h3>
-                      <p className="mt-1 text-xs text-slate-500">Historial privado con docentes y preceptores autorizados</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">Historial privado con docentes y preceptores autorizados</p>
                     </div>
                     {!student.is_self ? (
                       <Link
                         href={`/dashboard/${slug}/messages?student=${student.student_id}`}
-                        className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-violet-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-violet-800"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-violet-700 px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-violet-800 sm:w-auto sm:shrink-0"
                         aria-label={`Iniciar una conversación vinculada a ${student.first_name} ${student.last_name}`}
                       >
                         <Plus size={14} /> Nueva conversación
                       </Link>
                     ) : (
-                      <MessageCircle size={18} className="text-violet-600" />
+                      <MessageCircle size={18} className="self-end text-violet-600 sm:self-auto" />
                     )}
                   </div>
                   {student.is_self ? (
