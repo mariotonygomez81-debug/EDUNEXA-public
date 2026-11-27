@@ -297,11 +297,18 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                       {(studentConversationsByStudent.get(student.student_id) ?? []).map((item) => {
                         const counterpart = conversationSummaries.find((conversation) => conversation.conversation_id === item.conversation_id);
                         const unreadCount = counterpart?.unread_count ?? 0;
+                        const hasMessages = Boolean(counterpart?.last_message_at || counterpart?.last_message_body);
                         return (
                           <li key={item.conversation_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="truncate text-sm font-semibold text-slate-800">{counterpart?.counterpart_name ?? "Contacto escolar autorizado"}</p>
+                                <span className={hasMessages
+                                  ? "rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
+                                  : "rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-600"}
+                                >
+                                  {hasMessages ? "Activa" : "Sin mensajes"}
+                                </span>
                                 {unreadCount > 0 ? (
                                   <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-800" aria-label={`${unreadCount} mensajes sin leer`}>
                                     {unreadCount} sin leer
