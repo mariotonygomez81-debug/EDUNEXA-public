@@ -62,11 +62,12 @@ export async function sendConversationMessage(formData: FormData) {
   const slug = field(formData, "slug");
   const conversationId = field(formData, "conversation_id");
   const body = field(formData, "body");
+  const studentId = field(formData, "student_id");
 
   if (!/^[a-z0-9-]{2,80}$/i.test(slug) ||
       !/^[0-9a-f-]{36}$/i.test(conversationId) ||
       body.length < 1 || body.length > 5000) {
-    redirect(`/dashboard/${encodeURIComponent(slug)}/messages/${conversationId}?error=invalid`);
+    redirect(`/dashboard/${encodeURIComponent(slug)}/messages/${conversationId}${/^[0-9a-f-]{36}$/i.test(studentId) ? `?student=${studentId}&error=invalid` : "?error=invalid"}`);
   }
 
   const { supabase, institution } = await getInstitutionContext(slug);
@@ -76,17 +77,18 @@ export async function sendConversationMessage(formData: FormData) {
     p_body: body,
   });
   if (error) {
-    redirect(`/dashboard/${encodeURIComponent(slug)}/messages/${conversationId}?error=send`);
+    redirect(`/dashboard/${encodeURIComponent(slug)}/messages/${conversationId}${/^[0-9a-f-]{36}$/i.test(studentId) ? `?student=${studentId}&error=send` : "?error=send"}`);
   }
 
   revalidatePath(`/dashboard/${slug}/messages`);
   revalidatePath(`/dashboard/${slug}/messages/${conversationId}`);
-  redirect(`/dashboard/${slug}/messages/${conversationId}?sent=1`);
+  redirect(`/dashboard/${slug}/messages/${conversationId}${/^[0-9a-f-]{36}$/i.test(studentId) ? `?student=${studentId}&sent=1` : "?sent=1"}`);
 }
 
 export async function markConversationRead(formData: FormData) {
   const slug = field(formData, "slug");
   const conversationId = field(formData, "conversation_id");
+  const studentId = field(formData, "student_id");
   if (!/^[a-z0-9-]{2,80}$/i.test(slug) || !/^[0-9a-f-]{36}$/i.test(conversationId)) {
     redirect(`/dashboard/${encodeURIComponent(slug)}/messages?error=invalid`);
   }
@@ -97,10 +99,10 @@ export async function markConversationRead(formData: FormData) {
     p_conversation_id: conversationId,
   });
   if (error) {
-    redirect(`/dashboard/${encodeURIComponent(slug)}/messages/${conversationId}?error=read`);
+    redirect(`/dashboard/${encodeURIComponent(slug)}/messages/${conversationId}${/^[0-9a-f-]{36}$/i.test(studentId) ? `?student=${studentId}&error=read` : "?error=read"}`);
   }
 
   revalidatePath(`/dashboard/${slug}/messages`);
   revalidatePath(`/dashboard/${slug}/messages/${conversationId}`);
-  redirect(`/dashboard/${slug}/messages/${conversationId}?read=1`);
+  redirect(`/dashboard/${slug}/messages/${conversationId}${/^[0-9a-f-]{36}$/i.test(studentId) ? `?student=${studentId}&read=1` : "?read=1"}`);
 }

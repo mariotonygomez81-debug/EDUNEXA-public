@@ -75,13 +75,6 @@ export default async function ConversationPage({
   const studentContext = ((studentContextRows ?? []) as StudentContext[])[0] ?? null;
   const messages = (messageRows ?? []) as ConversationMessage[];
 
-  /* legacy query removed */
-  const legacyMessageRows = null;
-  /* const { data: messageRows, error: messagesError } = await supabase.rpc(
-    "list_conversation_messages",
-    { p_institution_id: institution.id, p_conversation_id: conversationId, p_limit: 100 },
-  );
-  const messages = (messageRows ?? []) as ConversationMessage[]; */
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
@@ -102,12 +95,31 @@ export default async function ConversationPage({
             <form action={markConversationRead}>
               <input type="hidden" name="slug" value={slug} />
               <input type="hidden" name="conversation_id" value={conversationId} />
+              {studentContext ? <input type="hidden" name="student_id" value={studentContext.student_id} /> : null}
               <button type="submit" className="inline-flex items-center gap-2 rounded-lg border border-violet-200 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50">
                 <CheckCheck size={15} /> Marcar {conversation.unread_count} como leídos
               </button>
             </form>
           ) : null}
         </header>
+
+        {studentContext ? (
+          <section aria-label="Alumno asociado a la conversación" className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Conversación vinculada a un alumno</p>
+            <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">{studentContext.last_name}, {studentContext.first_name}</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {studentContext.student_number ? `Legajo: ${studentContext.student_number}` : "Legajo no registrado"}
+                  {studentContext.course_name || studentContext.division_name ? ` · ${[studentContext.course_name, studentContext.division_name].filter(Boolean).join(" ")}` : ""}
+                </p>
+              </div>
+              {studentContext.academic_year_name ? <span className="rounded-full border border-violet-200 bg-white px-3 py-1 text-xs font-medium text-violet-800">Ciclo lectivo {studentContext.academic_year_name}</span> : null}
+            </div>
+          </section>
+        ) : studentContextError ? (
+          <p className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-500">No se pudo recuperar el contexto escolar asociado. La conversación se mantiene disponible según los permisos generales de mensajería.</p>
+        ) : null}
 
         {query.sent ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800" role="status">
@@ -153,6 +165,7 @@ export default async function ConversationPage({
         <form action={sendConversationMessage} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <input type="hidden" name="slug" value={slug} />
           <input type="hidden" name="conversation_id" value={conversationId} />
+          {studentContext ? <input type="hidden" name="student_id" value={studentContext.student_id} /> : null}
           <label className="block text-sm font-medium text-slate-700">
             Escribí tu mensaje
             <textarea name="body" required minLength={1} maxLength={5000} rows={4}
