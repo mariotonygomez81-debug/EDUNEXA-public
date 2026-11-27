@@ -128,3 +128,28 @@ export async function createAppointment(formData: FormData) {
   revalidatePath(path);
   redirect(`${path}?created=1`);
 }
+
+
+export async function saveAppointmentObservation(formData: FormData) {
+  const slug = value(formData, "slug");
+  const appointmentId = value(formData, "appointment_id");
+  const observation = value(formData, "observation");
+  const path = `/dashboard/${encodeURIComponent(slug)}/appointments`;
+  if (!/^[a-z0-9-]{2,80}$/i.test(slug) ||
+      !/^[0-9a-f-]{36}$/i.test(appointmentId) ||
+      observation.length < 3 || observation.length > 1500) {
+    redirect(`${path}?error=observation`);
+  }
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data, error } = await supabase.rpc("save_teacher_guardian_appointment_observation", {
+    p_appointment_id: appointmentId,
+    p_observation: observation,
+  });
+  if (error || !data) redirect(`${path}?error=observation`);
+  revalidatePath(path);
+  revalidatePath(`/dashboard/${slug}/portal`);
+  revalidatePath(`/dashboard/${slug}/notifications`);
+  redirect(`${path}?updated=1`);
+}

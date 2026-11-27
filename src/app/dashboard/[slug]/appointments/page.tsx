@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, CalendarClock, Check, CircleX, ClipboardCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { acceptAppointmentProposal, respondToAppointment, updateAppointmentStatus } from "./actions";
+import { acceptAppointmentProposal, respondToAppointment, saveAppointmentObservation, updateAppointmentStatus } from "./actions";
 
 type Appointment = {
   appointment_id: string;
@@ -67,6 +67,9 @@ export default async function AppointmentsPage({
   const { data, error } = await supabase.rpc("list_my_teacher_guardian_appointment_details");
   if (error) throw new Error("No se pudieron cargar las citaciones.");
   const appointments = (data ?? []) as unknown as Appointment[];
+  const activeAppointments = appointments.filter((item) => ["requested", "confirmed", "rejected", "declined"].includes(item.status));
+  const historyAppointments = appointments.filter((item) => ["completed", "cancelled"].includes(item.status));
+  const displayAppointments = [...activeAppointments, ...historyAppointments];
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
@@ -96,7 +99,15 @@ export default async function AppointmentsPage({
 
         {appointments.length ? (
           <section className="space-y-3">
-            {appointments.map((appointment) => (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Pendientes / en curso</p><p className="mt-1 text-2xl font-bold text-amber-950">{activeAppointments.length}</p></div>
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Realizadas</p><p className="mt-1 text-2xl font-bold text-emerald-950">{historyAppointments.filter((item) => item.status === "completed").length}</p></div>
+              <div className="rounded-xl border border-slate-200 bg-slate-100 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Canceladas</p><p className="mt-1 text-2xl font-bold text-slate-900">{historyAppointments.filter((item) => item.status === "cancelled").length}</p></div>
+            </div>
+            {displayAppointments.map((appointment, index) => (
+              <>
+                {index === 0 ? <h2 className="pt-3 text-lg font-semibold text-slate-900">Seguimiento actual</h2> : null}
+                {index === activeAppointments.length && historyAppointments.length ? <h2 className="pt-6 text-lg font-semibold text-slate-900">Historial de entrevistas</h2> : null}
               <article key={appointment.appointment_id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -145,6 +156,27 @@ export default async function AppointmentsPage({
                     <button className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800"><CalendarClock size={16}/> Aceptar horario alternativo y reenviar</button>
                   </form>
                 ) : null}
+                {appointment.status === "completed" ? (
+                  <section className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
+                    <h3 className="text-sm font-semibold text-emerald-900">Observación final del docente</h3>
+                    {(() => {
+                      const finalObservation = [...(appointment.conversation ?? [])].reverse().find((event) => event.event_type === "teacher_final_observation");
+                      return finalObservation ? (
+                        <div className="mt-2">
+                          <p className="whitespace-pre-wrap text-sm leading-6 text-emerald-950">{finalObservation.body}</p>
+                          <p className="mt-2 text-xs text-emerald-700">{finalObservation.actor_name} · {dateLabel(finalObservation.created_at)}</p>
+                        </div>
+                      ) : isTeacher ? (
+                        <form action={saveAppointmentObservation} className="mt-3 space-y-2">
+                          <input type="hidden" name="slug" value={slug}/>
+                          <input type="hidden" name="appointment_id" value={appointment.appointment_id}/>
+                          <textarea name="observation" required minLength={3} maxLength={1500} rows={3} placeholder="Registrá los acuerdos, orientaciones o próximos pasos de la entrevista..." className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-800"/>
+                          <button className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800">Guardar observación final</button>
+                        </form>
+                      ) : <p className="mt-2 text-sm text-emerald-800">El docente todavía no registró una observación final.</p>;
+                    })()}
+                  </section>
+                ) : null}
                 {appointment.conversation?.length ? (
                   <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <summary className="cursor-pointer text-sm font-semibold text-slate-700">Historial de coordinación ({appointment.conversation.length})</summary>
@@ -178,6 +210,7 @@ export default async function AppointmentsPage({
                   </div>
                 ) : null}
               </article>
+              </>
             ))}
           </section>
         ) : (
