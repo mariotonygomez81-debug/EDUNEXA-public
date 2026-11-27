@@ -105,7 +105,7 @@ export default async function PrefectMinutesPage({params,searchParams}:{
             <select name="student_id" className="rounded-lg border border-slate-300 px-3 py-2">
               <option value="">Acta general de la división</option>
               {divisions.map(d=><optgroup key={d.id} label={divisionNames.get(d.id)}>
-                {(studentsByDivision.get(d.id)??[]).map(s=><option key={s.id} value={s.id}>{s.last_name}, {s.first_name}{s.student_number?` · ${s.student_number}`:""}</option>)}
+                {(studentsByDivision.get(d.id)??[]).map(s=><option key={s.id} value={`${d.id}|${s.id}`}>{s.last_name}, {s.first_name}{s.student_number?` · ${s.student_number}`:""}</option>)}
               </optgroup>)}
             </select>
           </label>

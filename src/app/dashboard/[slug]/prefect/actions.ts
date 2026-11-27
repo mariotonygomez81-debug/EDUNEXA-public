@@ -104,7 +104,8 @@ export async function savePrefectConductConcept(formData: FormData) {
 export async function createPrefectMinute(formData: FormData) {
   const slug = field(formData, "slug");
   const divisionId = field(formData, "division_id");
-  const studentId = field(formData, "student_id");
+  const studentSelection = field(formData, "student_id");
+  const [selectedDivisionId, studentId] = studentSelection ? studentSelection.split("|") : ["", ""];
   const meetingDate = field(formData, "meeting_date");
   const actType = field(formData, "act_type");
   const subject = field(formData, "subject");
@@ -117,7 +118,7 @@ export async function createPrefectMinute(formData: FormData) {
     !Number.isNaN(new Date(meetingDate + "T12:00:00Z").getTime()) &&
     new Date(meetingDate + "T12:00:00Z").toISOString().slice(0,10) === meetingDate;
   const types = ["seguimiento","convivencia","reunion_familiar","acuerdo","intervencion"];
-  if (!slug || !uuid.test(divisionId) || (studentId && !uuid.test(studentId)) ||
+  if (!slug || !uuid.test(divisionId) || (studentId && (!uuid.test(studentId) || selectedDivisionId !== divisionId)) ||
       (noveltyId && !uuid.test(noveltyId)) || !validDate || !types.includes(actType) ||
       subject.length < 3 || subject.length > 180 || !development || development.length > 6000 ||
       participants.length > 2000 || agreements.length > 4000) {
