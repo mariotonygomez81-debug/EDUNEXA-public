@@ -75,7 +75,9 @@ export default async function AppointmentsPage({
   const roles = (roleRows ?? []).map((row) => row.roles?.key);
   const isGuardian = roles.includes("guardian");
   const isTeacher = roles.includes("teacher");
-  if (!isGuardian && !isTeacher) redirect(`/dashboard/${slug}`);
+  const isPrefect = roles.includes("prefect");
+  const canManageAppointments = isTeacher || isPrefect;
+  if (!isGuardian && !canManageAppointments) redirect(`/dashboard/${slug}`);
 
   const { data, error } = await supabase.rpc("list_my_teacher_guardian_appointment_details");
   if (error) throw new Error("No se pudieron cargar las citaciones.");
@@ -83,7 +85,9 @@ export default async function AppointmentsPage({
   const activeAppointments = appointments.filter((item) => ["requested", "confirmed", "rejected", "declined"].includes(item.status));
   const historyAppointments = appointments.filter((item) => ["completed", "cancelled"].includes(item.status));
   const displayAppointments = [...activeAppointments, ...historyAppointments];
-  const { data: commitmentRows, error: commitmentError } = await supabase.rpc("list_my_teacher_guardian_appointment_commitments");
+  const { data: commitmentRows, error: commitmentError } = isTeacher
+    ? await supabase.rpc("list_my_teacher_guardian_appointment_commitments")
+    : { data: [], error: null };
   if (commitmentError) throw new Error("No se pudieron cargar los acuerdos de las entrevistas.");
   const commitments = (commitmentRows ?? []) as unknown as Commitment[];
   const commitmentsByAppointment = new Map<string, Commitment[]>();
@@ -96,7 +100,7 @@ export default async function AppointmentsPage({
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
-        <Link href={isGuardian ? `/dashboard/${slug}/portal` : `/dashboard/${slug}/teaching`}
+        <Link href={isGuardian ? `/dashboard/${slug}/portal` : isPrefect && !isTeacher ? `/dashboard/${slug}/prefect` : `/dashboard/${slug}/teaching`}
           className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-violet-700">
           <ArrowLeft size={16} /> Volver
         </Link>
@@ -105,7 +109,7 @@ export default async function AppointmentsPage({
             <CalendarClock size={14} /> COMUNICACIÓN INSTITUCIONAL
           </span>
           <h1 className="mt-5 text-3xl font-bold tracking-tight">{isGuardian ? "Mis citaciones" : "Seguimiento de citaciones"}</h1>
-          <p className="mt-2 text-sm leading-6 text-indigo-100">{institution.display_name} · Solicitudes de entrevista entre docentes y familias.</p>
+          <p className="mt-2 text-sm leading-6 text-indigo-100">{institution.display_name} · Solicitudes de entrevista entre el equipo institucional y las familias.</p>
           {isTeacher ? (
             <div className="mt-5">
               <Link href={`/dashboard/${slug}/appointments/new`} className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-indigo-950 shadow-sm transition hover:bg-indigo-50">
@@ -172,7 +176,7 @@ export default async function AppointmentsPage({
                     <p className="text-xs text-slate-500">Si no podés asistir, podés sugerir una fecha alternativa. El docente recibirá tu respuesta para coordinar.</p>
                   </form>
                 ) : null}
-                {isTeacher && appointment.status === "rejected" && appointment.guardian_proposed_at ? (
+                {canManageAppointments && appointment.status === "rejected" && appointment.guardian_proposed_at ? (
                   <form action={acceptAppointmentProposal} className="mt-4">
                     <input type="hidden" name="slug" value={slug}/>
                     <input type="hidden" name="appointment_id" value={appointment.appointment_id}/>
@@ -280,7 +284,7 @@ export default async function AppointmentsPage({
                     </ol>
                   </details>
                 ) : null}
-                {isTeacher && (appointment.status === "confirmed" || appointment.status === "requested") ? (
+                {canManageAppointments && (appointment.status === "confirmed" || appointment.status === "requested") ? (
                   <div className="mt-4 flex flex-wrap gap-2">
                     {appointment.status === "confirmed" ? (
                       <form action={updateAppointmentStatus}>

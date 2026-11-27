@@ -116,7 +116,7 @@ export async function createAppointment(formData: FormData) {
   if (!membership) redirect("/dashboard");
   const { data: roles } = await supabase.from("membership_roles")
     .select("roles(key)").eq("membership_id", membership.id).eq("institution_id", institution.id);
-  if (!(roles ?? []).some((row) => row.roles?.key === "teacher")) redirect(`/dashboard/${slug}`);
+  if (!(roles ?? []).some((row) => ["teacher", "prefect"].includes(row.roles?.key))) redirect(`/dashboard/${slug}`);
 
   const { error } = await supabase.rpc("create_teacher_guardian_appointment", {
     p_student_id: match[1],
