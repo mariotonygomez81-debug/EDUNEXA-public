@@ -362,10 +362,10 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                         const isRecent = lastMessageTime >= recentMessageCutoff && lastMessageTime <= Date.now();
                         const hasMessages = Boolean(counterpart?.last_message_at || counterpart?.last_message_body);
                         return (
-                          <li id={`conversation-${item.conversation_id}`} key={item.conversation_id} className={`scroll-mt-8 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-3 transition-[background-color,border-color,box-shadow] duration-300 target:border-violet-400 target:bg-violet-100 target:ring-2 target:ring-violet-300 target:shadow-md ${isRecent ? "border-violet-200 bg-violet-50/70" : "border-slate-200 bg-slate-50"}`}>
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="truncate text-sm font-semibold text-slate-800">{counterpart?.counterpart_name ?? "Contacto escolar autorizado"}</p>
+                          <li id={`conversation-${item.conversation_id}`} key={item.conversation_id} className={`scroll-mt-8 flex flex-col items-stretch gap-3 rounded-xl border px-3 py-3 transition-[background-color,border-color,box-shadow] duration-300 target:border-violet-400 target:bg-violet-100 target:ring-2 target:ring-violet-300 target:shadow-md sm:flex-row sm:items-center sm:justify-between ${isRecent ? "border-violet-200 bg-violet-50/70" : "border-slate-200 bg-slate-50"}`}>
+                            <div className="min-w-0 w-full flex-1">
+                              <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                                <p className="max-w-full break-words text-sm font-semibold leading-5 text-slate-900">{counterpart?.counterpart_name ?? "Contacto escolar autorizado"}</p>
                                 <span className="conversation-open-label hidden rounded-full border border-violet-300 bg-white px-2 py-0.5 text-[11px] font-bold text-violet-800" role="status" aria-label="Esta es la conversación que acabás de visitar">Conversación abierta</span>
                                 {(counterpart?.counterpart_role_keys ?? []).length ? (
                                   (counterpart?.counterpart_role_keys ?? []).map((roleKey) => (
@@ -400,7 +400,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                                 <p className="mt-1 text-[11px] text-slate-400">Último mensaje: {dateTimeLabel(counterpart.last_message_at)}</p>
                               ) : null}
                             </div>
-                            <Link href={`/dashboard/${slug}/messages/${item.conversation_id}?student=${student.student_id}`} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50">
+                            <Link href={`/dashboard/${slug}/messages/${item.conversation_id}?student=${student.student_id}`} className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-50 sm:w-auto sm:self-center">
                               Abrir conversación <MessageCircle size={14} />
                             </Link>
                           </li>
