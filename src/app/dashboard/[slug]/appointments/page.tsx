@@ -106,7 +106,7 @@ export default async function AppointmentsPage({
             </div>
             {displayAppointments.map((appointment, index) => (
               <>
-                {index === 0 ? <h2 className="pt-3 text-lg font-semibold text-slate-900">Seguimiento actual</h2> : null}
+                {index === 0 && activeAppointments.length ? <h2 className="pt-3 text-lg font-semibold text-slate-900">Seguimiento actual</h2> : null}
                 {index === activeAppointments.length && historyAppointments.length ? <h2 className="pt-6 text-lg font-semibold text-slate-900">Historial de entrevistas</h2> : null}
               <article key={appointment.appointment_id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
