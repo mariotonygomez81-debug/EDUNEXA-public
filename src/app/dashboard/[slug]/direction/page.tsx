@@ -76,7 +76,7 @@ export default async function DirectorDashboard({params}:{params:Promise<{slug:s
   const [{ data: allDivisions }, { data: periodsForBoard }, { data: activeEnrollments }] = await Promise.all([
     supabase.from("divisions").select("id,name,course_id").eq("institution_id", institution.id).order("name"),
     supabase.from("grading_periods").select("id,name,starts_on,ends_on,status")
-      .eq("institution_id", institution.id).order("starts_on", { ascending: false }).limit(1),
+      .eq("institution_id", institution.id).order("starts_on", { ascending: false }).limit(20),
     supabase.from("enrollments").select("division_id,student_id")
       .eq("institution_id", institution.id).eq("status", "active"),
   ]);
@@ -104,20 +104,30 @@ export default async function DirectorDashboard({params}:{params:Promise<{slug:s
   if (boardSessionIds.length) {
     for (let offset = 0; offset < boardSessionIds.length; offset += 500) {
       const batch = boardSessionIds.slice(offset, offset + 500);
-      const { data: boardRecords } = await supabase.from("attendance_records")
-        .select("session_id,status").eq("institution_id", institution.id).in("session_id", batch).limit(10000);
       const sessionDivision = new Map(boardSessionRows.map((row) => [row.id, row.division_id]));
-      for (const record of boardRecords ?? []) {
-        const divisionId = sessionDivision.get(record.session_id);
-        if (!divisionId || !["present", "absent", "late", "justified", "early_departure"].includes(record.status)) continue;
-        const counts = attendanceCounts.get(divisionId) ?? { present: 0, absent: 0, late: 0, justified: 0, early_departure: 0 };
-        counts[record.status as keyof typeof counts] += 1;
-        attendanceCounts.set(divisionId, counts);
+      for (let recordOffset = 0; recordOffset < 50000; recordOffset += 1000) {
+        const { data: boardRecords } = await supabase.from("attendance_records")
+          .select("session_id,status").eq("institution_id", institution.id).in("session_id", batch)
+          .range(recordOffset, recordOffset + 999);
+        for (const record of boardRecords ?? []) {
+          const divisionId = sessionDivision.get(record.session_id);
+          if (!divisionId || !["present", "absent", "late", "justified", "early_departure"].includes(record.status)) continue;
+          const counts = attendanceCounts.get(divisionId) ?? { present: 0, absent: 0, late: 0, justified: 0, early_departure: 0 };
+          counts[record.status as keyof typeof counts] += 1;
+          attendanceCounts.set(divisionId, counts);
+        }
+        if ((boardRecords ?? []).length < 1000) break;
       }
     }
   }
 
-  const currentBoardPeriod = periodsForBoard?.[0] ?? null;
+  const todayForBoard = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
+  const boardPeriods = periodsForBoard ?? [];
+  const currentBoardPeriod = boardPeriods.find((period) => period.starts_on <= todayForBoard && period.ends_on >= todayForBoard)
+    ?? boardPeriods.find((period) => period.status === "open")
+    ?? boardPeriods.find((period) => period.ends_on <= todayForBoard)
+    ?? boardPeriods[0]
+    ?? null;
   let gradeSummary = new Map<string, { subject: string; total: number; count: number }>();
   let conductSummary = new Map<string, { muy_satisfactorio: number; satisfactorio: number; en_proceso: number; requiere_acompanamiento: number }>();
   let conductAvailable = permissions.has("prefect_conduct.manage");
