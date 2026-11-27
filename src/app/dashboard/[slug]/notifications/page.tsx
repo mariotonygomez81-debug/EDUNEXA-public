@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Bell, CheckCheck, Settings2, ShieldCheck, MessageCircle, Megaphone, CalendarCheck, FileText } from "lucide-react";
+import { ArrowLeft, Bell, CheckCheck, Settings2, ShieldCheck, MessageCircle, Megaphone, CalendarCheck, FileText, LifeBuoy } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { markNotificationRead, setNotificationPreference } from "./actions";
 
@@ -95,6 +95,7 @@ export default async function NotificationsPage({
     { key: "announcement", label: "Comunicados", icon: Megaphone, description: "Avisos institucionales" },
     { key: "appointment", label: "Citaciones", icon: CalendarCheck, description: "Entrevistas y sus novedades" },
     { key: "grade", label: "Boletines", icon: FileText, description: "Publicación de calificaciones" },
+    { key: "support", label: "Soporte", icon: LifeBuoy, description: "Tickets asignados y cambios de responsable" },
   ];
   const selectedCategory = categories.some((item) => item.key === query.category) ? query.category! : "all";
   const selectedStatus = query.status === "unread" ? "unread" : "all";
@@ -249,6 +250,10 @@ export default async function NotificationsPage({
                     ) : notification.resource_type === "appointment" ? (
                       <Link href={`/dashboard/${slug}/appointments`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
                         Ver citaciones y entrevistas
+                      </Link>
+                    ) : notification.resource_type === "support_assignment" ? (
+                      <Link href={`/dashboard/${slug}/support`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
+                        Abrir Soporte institucional
                       </Link>
                     ) : notification.notification_type === "grade" ? (
                       <Link href={`/dashboard/${slug}/report-cards`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">
