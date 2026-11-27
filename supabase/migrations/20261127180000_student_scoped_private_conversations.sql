@@ -113,6 +113,74 @@ $function$;
 revoke all on function private.has_current_conversation_access(uuid,uuid,uuid) from public,anon;
 grant execute on function private.has_current_conversation_access(uuid,uuid,uuid) to authenticated;
 
+
+create or replace function private.get_conversation_student_context_impl(
+  p_institution_id uuid,p_conversation_id uuid
+)
+returns table(
+  student_id uuid,first_name text,last_name text,student_number text,
+  course_name text,division_name text,academic_year_name text
+)
+language plpgsql stable security definer set search_path=''
+as $function$
+declare
+  v_membership_id uuid;
+begin
+  if (select auth.uid()) is null then
+    raise exception 'Authentication required' using errcode='28000';
+  end if;
+
+  select m.id into v_membership_id
+  from public.memberships m
+  where m.user_id=(select auth.uid())
+    and m.institution_id=p_institution_id and m.status='active'
+  limit 1;
+
+  if v_membership_id is null or not private.has_current_conversation_access(
+    p_institution_id,p_conversation_id,v_membership_id
+  ) then
+    raise exception 'Conversation access denied' using errcode='42501';
+  end if;
+
+  return query
+  select st.id,st.first_name,st.last_name,st.student_number,
+    enrollment.course_name,enrollment.division_name,enrollment.academic_year_name
+  from public.conversations c
+  join public.students st
+    on st.id=c.student_id and st.institution_id=c.institution_id
+  left join lateral (
+    select cource.name as course_name,d.name as division_name,ay.name as academic_year_name
+    from public.enrollments e
+    join public.divisions d on d.id=e.division_id and d.institution_id=e.institution_id
+    join public.courses cource on cource.id=d.course_id and cource.institution_id=d.institution_id
+    left join public.academic_years ay on ay.id=d.academic_year_id and ay.institution_id=d.institution_id
+    where e.student_id=st.id and e.institution_id=st.institution_id
+      and e.status='active' and e.enrolled_on<=current_date
+      and (e.ended_on is null or e.ended_on>=current_date)
+    order by e.enrolled_on desc limit 1
+  ) enrollment on true
+  where c.id=p_conversation_id and c.institution_id=p_institution_id
+    and c.student_id is not null;
+end;
+$function$;
+
+create or replace function public.get_conversation_student_context(
+  p_institution_id uuid,p_conversation_id uuid
+)
+returns table(
+  student_id uuid,first_name text,last_name text,student_number text,
+  course_name text,division_name text,academic_year_name text
+)
+language sql stable set search_path=''
+as $function$
+  select * from private.get_conversation_student_context_impl(p_institution_id,p_conversation_id);
+$function$;
+
+revoke all on function private.get_conversation_student_context_impl(uuid,uuid) from public,anon;
+grant execute on function private.get_conversation_student_context_impl(uuid,uuid) to authenticated;
+revoke all on function public.get_conversation_student_context(uuid,uuid) from public,anon;
+grant execute on function public.get_conversation_student_context(uuid,uuid) to authenticated;
+
 create or replace function private.create_student_direct_conversation_impl(
   p_institution_id uuid,p_recipient_membership_id uuid,p_student_id uuid,p_subject text default null
 )

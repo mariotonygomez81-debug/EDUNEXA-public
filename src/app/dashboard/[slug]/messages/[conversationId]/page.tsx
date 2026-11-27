@@ -15,6 +15,8 @@ type Conversation = {
   unread_count: number;
 };
 
+type StudentContext = { student_id: string; first_name: string; last_name: string; student_number: string | null; course_name: string | null; division_name: string | null; academic_year_name: string | null };
+
 type ConversationMessage = {
   id: string;
   sender_membership_id: string;
@@ -66,11 +68,20 @@ export default async function ConversationPage({
     .find((item) => item.conversation_id === conversationId);
   if (!conversation) notFound();
 
-  const { data: messageRows, error: messagesError } = await supabase.rpc(
+  const [{ data: studentContextRows, error: studentContextError }, { data: messageRows, error: messagesError }] = await Promise.all([
+    supabase.rpc("get_conversation_student_context", { p_institution_id: institution.id, p_conversation_id: conversationId }),
+    supabase.rpc("list_conversation_messages", { p_institution_id: institution.id, p_conversation_id: conversationId, p_limit: 100 }),
+  ]);
+  const studentContext = ((studentContextRows ?? []) as StudentContext[])[0] ?? null;
+  const messages = (messageRows ?? []) as ConversationMessage[];
+
+  /* legacy query removed */
+  const legacyMessageRows = null;
+  /* const { data: messageRows, error: messagesError } = await supabase.rpc(
     "list_conversation_messages",
     { p_institution_id: institution.id, p_conversation_id: conversationId, p_limit: 100 },
   );
-  const messages = (messageRows ?? []) as ConversationMessage[];
+  const messages = (messageRows ?? []) as ConversationMessage[]; */
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
