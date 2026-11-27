@@ -2,6 +2,10 @@
 alter table public.teacher_guardian_appointment_events
   drop constraint if exists teacher_guardian_appointment_events_event_type_check;
 alter table public.teacher_guardian_appointment_events
+  drop constraint if exists teacher_guardian_appointment_events_body_length;
+alter table public.teacher_guardian_appointment_events
+  add constraint teacher_guardian_appointment_events_body_length check (body is null or length(body)<=1500);
+alter table public.teacher_guardian_appointment_events
   add constraint teacher_guardian_appointment_events_event_type_check
   check (event_type in (
     'guardian_confirmed','guardian_declined','teacher_accepted_proposal',
