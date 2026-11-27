@@ -12,6 +12,7 @@ import {
   createEducationLevel,
   createSubject,
   endStaffAssignment,
+  updateCourseOrientation,
 } from "./actions";
 
 type NamedRow = { id: string; name: string };
@@ -79,6 +80,7 @@ export default async function AcademicStructurePage({
     courseSubjectsResult,
     assignmentsResult,
     staffResult,
+    orientationsResult,
   ] = await Promise.all([
     supabase.from("education_levels").select("id,name").eq("institution_id", institution.id).order("name"),
     supabase.from("academic_years").select("id,name,status,starts_on,ends_on").eq("institution_id", institution.id).order("starts_on", { ascending: false }),
@@ -89,7 +91,7 @@ export default async function AcademicStructurePage({
     supabase.from("course_subjects").select("id,course_id,subject_id,weekly_hours").eq("institution_id", institution.id),
     supabase.from("staff_assignments").select("id,membership_id,assignment_type,division_id,course_subject_id,starts_on,ends_on").eq("institution_id", institution.id).order("created_at", { ascending: false }),
     supabase.rpc("list_assignable_staff_members", { p_institution_id: institution.id }),
-    supabase.from("education_orientations").select("id,education_level_id,name,is_active").eq("institution_id", institution.id).eq("is_active", true).order("name"),
+    supabase.from("education_orientations").select("id,education_level_id,name,is_active").eq("institution_id", institution.id).order("name"),
   ]);
 
   const levels = (levelsResult.data ?? []) as NamedRow[];
@@ -268,9 +270,19 @@ export default async function AcademicStructurePage({
             <div className="mt-5 space-y-2 border-t border-slate-100 pt-4">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Cursos existentes ({courses.length})</h3>
               {courses.map((course) => (
-                <div key={course.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                  <span className="font-medium text-slate-800">{course.name}</span>
-                  <span className="text-xs text-slate-500">{levelMap.get(course.level_id) ?? "Nivel"}{course.orientation_id ? ` · ${orientationMap.get(course.orientation_id) ?? "Orientación"}` : ""} · {course.grade_number ?? "—"} · {course.shift ? shiftLabels[course.shift] : "Turno sin definir"}</span>
+                <div key={course.id} className="rounded-xl bg-slate-50 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium text-slate-800">{course.name}</span><span className="text-xs text-slate-500">{levelMap.get(course.level_id) ?? "Nivel"} · {course.grade_number ?? "—"} · {course.shift ? shiftLabels[course.shift] : "Turno sin definir"}</span></div>
+                  <form action={updateCourseOrientation} className="mt-3 flex flex-wrap items-end gap-2">
+                    <input type="hidden" name="slug" value={slug}/><input type="hidden" name="course_id" value={course.id}/>
+                    <label className="min-w-56 flex-1 text-xs font-medium text-slate-600">Orientación del curso
+                      <select name="orientation_id" defaultValue={course.orientation_id ?? ""} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal">
+                        <option value="">Sin orientación</option>
+                        {orientations.filter(o=>o.education_level_id===course.level_id && (o.is_active || o.id===course.orientation_id)).map(o=><option key={o.id} value={o.id}>{o.name}{!o.is_active?" · Inactiva (actual)":""}</option>)}
+                      </select>
+                    </label>
+                    <button className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700">Guardar orientación</button>
+                  </form>
+                  <p className="mt-2 text-[11px] text-slate-500">El cambio conserva divisiones, materias, matrículas y registros históricos.</p>
                 </div>
               ))}
             </div>

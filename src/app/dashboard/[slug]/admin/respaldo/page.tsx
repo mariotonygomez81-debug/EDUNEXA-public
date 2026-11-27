@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, Archive, Download, FileUp, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
-import { createAcademicYearBackup,restoreAcademicYearBackup } from "../actions";
+import { createAcademicYearBackup } from "../actions";
+import BackupRestorer from "./backup-restorer";
 type Year={id:string;name:string;status:string};
 type Backup={id:string;created_at:string;schema_version:number;created_by:string};
 export default async function AdministratorBackupsPage({params,searchParams}:{params:Promise<{slug:string}>;searchParams:Promise<Record<string,string|undefined>>}){
@@ -27,8 +28,8 @@ export default async function AdministratorBackupsPage({params,searchParams}:{pa
  {backups.length>0&&<div className="mt-5 border-t pt-4"><h3 className="text-sm font-semibold">Respaldos recientes del ciclo {years.find(y=>y.id===selected)?.name}</h3><div className="mt-3 space-y-2">{backups.map(b=><div key={b.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><p className="text-sm font-semibold text-slate-900">{stamp(b.created_at)}</p><p className="text-xs text-slate-500">Paquete EDUNEXA · versión {b.schema_version} · {b.id}</p></div><a href={\`/dashboard/\${slug}/admin/respaldo/\${b.id}\`} className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 px-3 py-2 text-sm font-semibold text-indigo-700"><Download size={15}/> Descargar JSON</a></div>)}</div></div>}
  </section>
  <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><span className="rounded-xl bg-amber-50 p-3 text-amber-700"><FileUp size={20}/></span><div><h2 className="font-bold text-slate-950">Restaurar un paquete EDUNEXA</h2><p className="text-sm text-slate-500">Importá un archivo de respaldo generado por EDUNEXA para el mismo colegio y ciclo.</p></div></div>
- <form action={restoreAcademicYearBackup} className="mt-4 space-y-3"><input type="hidden" name="slug" value={slug}/><label className="block text-sm font-medium">Ciclo lectivo de destino<select name="academic_year_id" required defaultValue={selected} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2">{years.map(y=><option key={y.id} value={y.id}>{y.name}</option>)}</select></label><label className="block text-sm font-medium">Archivo JSON de respaldo<input type="file" name="backup_file" accept=".json,application/json" required className="mt-1 block w-full rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-sm"/></label><button disabled={!years.length} className="rounded-xl bg-amber-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">Reconocer y restaurar paquete</button></form>
+ <BackupRestorer key={selected} slug={slug} years={years} selectedYearId={selected}/>
  </section>
- <p className="flex items-start gap-2 rounded-xl bg-indigo-50 p-4 text-xs leading-5 text-indigo-900"><ShieldCheck size={16} className="mt-0.5 shrink-0"/> La restauración exige coincidencia de institución, ciclo, formato y versión. Opera en modo de incorporación: no sobrescribe filas existentes. Las credenciales de autenticación y los archivos binarios de Storage no forman parte del paquete JSON; se preservan fuera de este respaldo.</p>
+ <p className="flex items-start gap-2 rounded-xl bg-indigo-50 p-4 text-xs leading-5 text-indigo-900"><ShieldCheck size={16} className="mt-0.5 shrink-0"/> La restauración exige coincidencia de institución, ciclo, formato y versión. Opera en modo de incorporación: no sobrescribe filas existentes. Los archivos privados de Storage se exportan dentro del paquete JSON en Base64 (hasta 100 MB en total) y se restauran mediante permisos temporales por ruta. La restauración incorpora registros faltantes sin sobrescribir los existentes. Las credenciales de autenticación no forman parte del paquete.</p>
  </div></main>;
 }

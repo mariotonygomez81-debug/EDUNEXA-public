@@ -263,3 +263,13 @@ export async function createCampus(formData: FormData) {
   revalidatePath(`/dashboard/${slug}/settings/academic-structure`);
   back(slug, "created=campus");
 }
+
+export async function updateCourseOrientation(formData:FormData){
+ const slug=field(formData,"slug"),courseId=field(formData,"course_id"),orientationId=field(formData,"orientation_id");
+ if(!slug||!/^[0-9a-f-]{36}$/i.test(courseId)||(orientationId&&!/^[0-9a-f-]{36}$/i.test(orientationId)))back(slug,"error=invalid");
+ const {supabase,institution}=await adminContext(slug);
+ const {error}=await supabase.rpc("update_course_orientation",{p_institution_id:institution.id,p_course_id:courseId,p_orientation_id:orientationId||null});
+ if(error)saveError(slug,error.code);
+ revalidatePath("/dashboard/"+slug+"/settings/academic-structure");
+ back(slug,"saved=course_orientation");
+}

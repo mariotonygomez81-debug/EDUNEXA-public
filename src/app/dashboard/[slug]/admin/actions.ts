@@ -49,6 +49,21 @@ export async function createAcademicYearBackup(d:FormData){
  const slug=field(d,"slug");const {supabase,institution}=await adminContext(slug);const {data,error}=await supabase.rpc("create_academic_year_backup",{p_institution_id:institution.id,p_academic_year_id:field(d,"academic_year_id")});
  if(error||!data)redirect(`/dashboard/${slug}/admin/respaldo?error=backup`);revalidatePath(`/dashboard/${slug}/admin/respaldo`);redirect(`/dashboard/${slug}/admin/respaldo?created=${data}&year=${field(d,"academic_year_id")}`);
 }
+export async function prepareAcademicYearBackupStorageRestore(slug:string,yearId:string,snapshot:Record<string,unknown>){
+ const {supabase,institution}=await adminContext(slug);
+ const {data,error}=await supabase.rpc("create_academic_backup_storage_restore_intents",{p_institution_id:institution.id,p_academic_year_id:yearId,p_snapshot:snapshot});
+ if(error)return {ok:false,message:"No se pudo autorizar la restauración de adjuntos."};
+ return {ok:true,count:Number(data??0)};
+}
+export async function finishAcademicYearBackupRestore(slug:string,yearId:string,snapshot:Record<string,unknown>){
+ const {supabase,institution}=await adminContext(slug);
+ const {data,error}=await supabase.rpc("restore_academic_year_backup_package",{p_institution_id:institution.id,p_academic_year_id:yearId,p_snapshot:snapshot});
+ if(error||!data?.restored)return {ok:false,message:"No se pudo incorporar el paquete de datos."};
+ const files=Array.isArray(snapshot.storage_files)?snapshot.storage_files as {bucket_id:string;object_path:string}[]:[];
+ for(const file of files){const {error:completeError}=await supabase.rpc("complete_academic_backup_storage_restore_intent",{p_bucket_id:file.bucket_id,p_object_path:file.object_path});if(completeError)return {ok:false,message:"Los datos se restauraron, pero quedaron adjuntos pendientes de finalizar."};}
+ revalidatePath("/dashboard/"+slug+"/admin/respaldo");revalidatePath("/dashboard/"+slug+"/students");
+ return {ok:true,files:files.length};
+}
 export async function restoreAcademicYearBackup(d:FormData){
  const slug=field(d,"slug"),yearId=field(d,"academic_year_id"),file=d.get("backup_file");
  if(!(file instanceof File)||file.size<1||file.size>25*1024*1024)redirect(`/dashboard/${slug}/admin/respaldo?error=file`);
