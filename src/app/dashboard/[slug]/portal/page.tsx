@@ -188,7 +188,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
         ) : students.length ? (
           <div className="grid gap-5 lg:grid-cols-2">
             {students.map((student) => (
-              <article key={student.student_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <article id={`student-${student.student_id}`} key={student.student_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 bg-slate-50/70 p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
