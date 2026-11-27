@@ -16,7 +16,7 @@ alter table public.notifications
   add constraint notifications_resource_type_check
   check (resource_type = any (array[
     'announcement','conversation','grade','attendance','support_ticket','assignment','membership'
-  ]::text[]);
+  ]::text[]));
 
 create index if not exists memberships_pending_invitation_idx
   on public.memberships(institution_id,created_at desc)
