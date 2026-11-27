@@ -2,7 +2,19 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, CalendarClock, Check, CircleX, ClipboardCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { acceptAppointmentProposal, respondToAppointment, saveAppointmentObservation, updateAppointmentStatus } from "./actions";
+import { acceptAppointmentProposal, createAppointmentCommitment, respondToAppointment, saveAppointmentObservation, updateAppointmentCommitmentStatus, updateAppointmentStatus } from "./actions";
+
+type Commitment = {
+  commitment_id: string;
+  appointment_id: string;
+  title: string;
+  details: string | null;
+  responsible: "teacher" | "guardian" | "student" | "family";
+  due_date: string | null;
+  status: "pending" | "in_progress" | "completed" | "cancelled";
+  created_at: string;
+  updated_at: string;
+};
 
 type Appointment = {
   appointment_id: string;
@@ -18,6 +30,7 @@ type Appointment = {
   guardian_response_note: string | null;
   guardian_proposed_at: string | null;
   conversation: { id: string; event_type: string; body: string | null; proposed_at: string | null; created_at: string; actor_name: string }[];
+  commitments: Commitment[];
 };
 
 const statusLabels: Record<Appointment["status"], string> = {
@@ -70,6 +83,15 @@ export default async function AppointmentsPage({
   const activeAppointments = appointments.filter((item) => ["requested", "confirmed", "rejected", "declined"].includes(item.status));
   const historyAppointments = appointments.filter((item) => ["completed", "cancelled"].includes(item.status));
   const displayAppointments = [...activeAppointments, ...historyAppointments];
+  const { data: commitmentRows, error: commitmentError } = await supabase.rpc("list_my_teacher_guardian_appointment_commitments");
+  if (commitmentError) throw new Error("No se pudieron cargar los acuerdos de las entrevistas.");
+  const commitments = (commitmentRows ?? []) as unknown as Commitment[];
+  const commitmentsByAppointment = new Map<string, Commitment[]>();
+  for (const commitment of commitments) {
+    const current = commitmentsByAppointment.get(commitment.appointment_id) ?? [];
+    current.push(commitment);
+    commitmentsByAppointment.set(commitment.appointment_id, current);
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
@@ -109,6 +131,7 @@ export default async function AppointmentsPage({
                 {index === 0 && activeAppointments.length ? <h2 className="pt-3 text-lg font-semibold text-slate-900">Seguimiento actual</h2> : null}
                 {index === activeAppointments.length && historyAppointments.length ? <h2 className="pt-6 text-lg font-semibold text-slate-900">Historial de entrevistas</h2> : null}
               <article key={appointment.appointment_id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                {(() => { appointment.commitments = commitmentsByAppointment.get(appointment.appointment_id) ?? []; return null; })()}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">{appointment.student_name}</h2>
@@ -175,6 +198,72 @@ export default async function AppointmentsPage({
                         </form>
                       ) : <p className="mt-2 text-sm text-emerald-800">El docente todavía no registró una observación final.</p>;
                     })()}
+                  </section>
+                ) : null}
+                {appointment.status === "completed" ? (
+                  <section className="mt-4 rounded-xl border border-violet-200 bg-violet-50/60 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-semibold text-violet-950">Acuerdos y compromisos familiares</h3>
+                        <p className="mt-1 text-xs text-violet-800">Acciones acordadas durante esta entrevista y su seguimiento.</p>
+                      </div>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-violet-800">{appointment.commitments.length} registrado(s)</span>
+                    </div>
+                    {appointment.commitments.length ? (
+                      <div className="mt-3 space-y-3">
+                        {appointment.commitments.map((commitment) => (
+                          <div key={commitment.commitment_id} className="rounded-xl border border-violet-100 bg-white p-3">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div>
+                                <p className="font-semibold text-slate-900">{commitment.title}</p>
+                                {commitment.details ? <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{commitment.details}</p> : null}
+                              </div>
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${commitment.status === "completed" ? "bg-emerald-100 text-emerald-800" : commitment.status === "cancelled" ? "bg-slate-100 text-slate-600" : commitment.status === "in_progress" ? "bg-sky-100 text-sky-800" : "bg-amber-100 text-amber-800"}`}>
+                                {commitment.status === "completed" ? "Cumplido" : commitment.status === "cancelled" ? "Cancelado" : commitment.status === "in_progress" ? "En seguimiento" : "Pendiente"}
+                              </span>
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                              <span>Responsable: {commitment.responsible === "teacher" ? "Docente" : commitment.responsible === "guardian" ? "Tutor" : commitment.responsible === "student" ? "Alumno" : "Familia"}</span>
+                              <span>Fecha de seguimiento: {commitment.due_date ? new Intl.DateTimeFormat("es-AR",{dateStyle:"medium",timeZone:"America/Argentina/Buenos_Aires"}).format(new Date(`${commitment.due_date}T12:00:00-03:00`)) : "Sin fecha"}</span>
+                            </div>
+                            {(commitment.status === "pending" || commitment.status === "in_progress") ? (
+                              <form action={updateAppointmentCommitmentStatus} className="mt-3 flex flex-wrap items-center gap-2">
+                                <input type="hidden" name="slug" value={slug}/>
+                                <input type="hidden" name="commitment_id" value={commitment.commitment_id}/>
+                                <select name="status" defaultValue={commitment.status} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
+                                  <option value="pending">Pendiente</option><option value="in_progress">En seguimiento</option><option value="completed">Cumplido</option><option value="cancelled">Cancelado</option>
+                                </select>
+                                <button className="rounded-lg bg-violet-700 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-800">Actualizar estado</button>
+                              </form>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="mt-3 rounded-lg bg-white p-3 text-sm text-slate-500">Todavía no hay compromisos registrados para esta entrevista.</p>}
+                    {isTeacher ? (
+                      <form action={createAppointmentCommitment} className="mt-4 space-y-3 rounded-xl border border-violet-200 bg-white p-3">
+                        <input type="hidden" name="slug" value={slug}/>
+                        <input type="hidden" name="appointment_id" value={appointment.appointment_id}/>
+                        <p className="text-sm font-semibold text-slate-800">Registrar un nuevo compromiso</p>
+                        <label className="block text-xs font-semibold text-slate-600">Acuerdo o acción
+                          <input name="title" required minLength={3} maxLength={160} placeholder="Ej.: acompañar la rutina de lectura" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"/>
+                        </label>
+                        <label className="block text-xs font-semibold text-slate-600">Detalle (opcional)
+                          <textarea name="details" maxLength={1000} rows={2} placeholder="Precisiones, recursos o pasos acordados..." className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"/>
+                        </label>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <label className="block text-xs font-semibold text-slate-600">Responsable
+                            <select name="responsible" defaultValue="guardian" className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal">
+                              <option value="guardian">Tutor</option><option value="family">Familia</option><option value="student">Alumno</option><option value="teacher">Docente</option>
+                            </select>
+                          </label>
+                          <label className="block text-xs font-semibold text-slate-600">Fecha de seguimiento
+                            <input name="due_date" type="date" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"/>
+                          </label>
+                        </div>
+                        <button className="rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800">Guardar compromiso</button>
+                      </form>
+                    ) : null}
                   </section>
                 ) : null}
                 {appointment.conversation?.length ? (

@@ -153,3 +153,58 @@ export async function saveAppointmentObservation(formData: FormData) {
   revalidatePath(`/dashboard/${slug}/notifications`);
   redirect(`${path}?updated=1`);
 }
+
+
+export async function createAppointmentCommitment(formData: FormData) {
+  const slug = value(formData, "slug");
+  const appointmentId = value(formData, "appointment_id");
+  const title = value(formData, "title");
+  const details = value(formData, "details");
+  const responsible = value(formData, "responsible");
+  const dueDate = value(formData, "due_date");
+  const path = `/dashboard/${encodeURIComponent(slug)}/appointments`;
+  if (!/^[a-z0-9-]{2,80}$/i.test(slug) || !/^[0-9a-f-]{36}$/i.test(appointmentId) ||
+      title.length < 3 || title.length > 160 || details.length > 1000 ||
+      !["teacher", "guardian", "student", "family"].includes(responsible) ||
+      (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate))) {
+    redirect(`${path}?error=commitment`);
+  }
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data, error } = await supabase.rpc("create_teacher_guardian_appointment_commitment", {
+    p_appointment_id: appointmentId,
+    p_title: title,
+    p_details: details || null,
+    p_responsible: responsible,
+    p_due_date: dueDate || null,
+  });
+  if (error || !data) redirect(`${path}?error=commitment`);
+  revalidatePath(path);
+  revalidatePath(`/dashboard/${slug}/portal`);
+  revalidatePath(`/dashboard/${slug}/notifications`);
+  redirect(`${path}?updated=1`);
+}
+
+export async function updateAppointmentCommitmentStatus(formData: FormData) {
+  const slug = value(formData, "slug");
+  const commitmentId = value(formData, "commitment_id");
+  const status = value(formData, "status");
+  const path = `/dashboard/${encodeURIComponent(slug)}/appointments`;
+  if (!/^[a-z0-9-]{2,80}$/i.test(slug) || !/^[0-9a-f-]{36}$/i.test(commitmentId) ||
+      !["pending", "in_progress", "completed", "cancelled"].includes(status)) {
+    redirect(`${path}?error=commitment`);
+  }
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data, error } = await supabase.rpc("update_teacher_guardian_appointment_commitment_status", {
+    p_commitment_id: commitmentId,
+    p_status: status,
+  });
+  if (error || !data) redirect(`${path}?error=commitment`);
+  revalidatePath(path);
+  revalidatePath(`/dashboard/${slug}/portal`);
+  revalidatePath(`/dashboard/${slug}/notifications`);
+  redirect(`${path}?updated=1`);
+}
