@@ -9,8 +9,9 @@ function field(formData: FormData, key: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function back(slug: string, query: string): never {
-  redirect(`/dashboard/${encodeURIComponent(slug)}/messages?${query}`);
+function back(slug: string, query: string, studentId = ""): never {
+  const context = /^[0-9a-f-]{36}$/i.test(studentId) ? `&student=${encodeURIComponent(studentId)}` : "";
+  redirect(`/dashboard/${encodeURIComponent(slug)}/messages?${query}${context}`);
 }
 
 async function getInstitutionContext(slug: string) {
@@ -39,7 +40,7 @@ export async function createDirectConversation(formData: FormData) {
   if (!/^[a-z0-9-]{2,80}$/i.test(slug) ||
       !/^[0-9a-f-]{36}$/i.test(recipientMembershipId) ||
       subject.length > 120 || (studentId && !/^[0-9a-f-]{36}$/i.test(studentId))) {
-    back(slug, "error=invalid");
+    back(slug, "error=invalid", studentId);
   }
 
   const { supabase, institution } = await getInstitutionContext(slug);
@@ -51,7 +52,7 @@ export async function createDirectConversation(formData: FormData) {
   const { data, error } = studentId
     ? await supabase.rpc("create_student_direct_conversation", { ...args, p_student_id: studentId })
     : await supabase.rpc("create_direct_conversation", args);
-  if (error || !data) back(slug, error?.code === "42501" ? "error=scope" : "error=create");
+  if (error || !data) back(slug, error?.code === "42501" ? "error=scope" : "error=create", studentId);
 
   revalidatePath(`/dashboard/${slug}/messages`);
   redirect(`/dashboard/${slug}/messages/${data}${studentId ? `?student=${studentId}` : ""}`);
