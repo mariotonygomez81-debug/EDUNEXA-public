@@ -188,7 +188,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
         ) : students.length ? (
           <div className="grid gap-5 lg:grid-cols-2">
             {students.map((student) => (
-              <article id={`student-${student.student_id}`} key={student.student_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <article id={`student-${student.student_id}`} key={student.student_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-[box-shadow,border-color] duration-300 has-[section:target]:border-violet-400 has-[section:target]:ring-2 has-[section:target]:ring-violet-300 has-[section:target]:shadow-lg">
                 <div className="border-b border-slate-100 bg-slate-50/70 p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -284,7 +284,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                   </section>
                 )}
 
-                <section className="border-t border-slate-100 px-5 py-4" aria-label="Historial de conversaciones del alumno">
+                <section id={`student-${student.student_id}-conversations`} className="scroll-mt-6 border-t border-slate-100 px-5 py-4 transition-colors duration-300 target:rounded-xl target:border-violet-300 target:bg-violet-50/80 target:ring-2 target:ring-violet-200 target:ring-inset" aria-label="Historial de conversaciones del alumno">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold text-slate-800">Conversaciones sobre este alumno</h3>
