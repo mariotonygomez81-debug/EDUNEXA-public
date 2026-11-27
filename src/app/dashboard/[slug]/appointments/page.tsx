@@ -47,6 +47,17 @@ function dateLabel(value: string) {
     .format(new Date(value));
 }
 
+function appointmentEventLabel(eventType: string) {
+  const labels: Record<string, string> = {
+    guardian_confirmed: "Tutor confirmó la entrevista",
+    guardian_declined: "Tutor rechazó la propuesta",
+    teacher_accepted_proposal: "Horario alternativo aceptado",
+    interview_completed: "Entrevista realizada",
+    appointment_cancelled: "Citación cancelada",
+  };
+  return labels[eventType] ?? "Actualización de la citación";
+}
+
 export default async function AppointmentsPage({
   params,
   searchParams,
@@ -290,15 +301,25 @@ export default async function AppointmentsPage({
                 ) : null}
                 {appointment.conversation?.length ? (
                   <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <summary className="cursor-pointer text-sm font-semibold text-slate-700">Historial de coordinación ({appointment.conversation.length})</summary>
-                    <ol className="mt-3 space-y-3">
-                      {appointment.conversation.map((event) => (
-                        <li key={event.id} className="border-l-2 border-violet-200 pl-3">
-                          <p className="text-xs font-semibold text-slate-700">{event.actor_name} · {dateLabel(event.created_at)}</p>
-                          {event.body ? <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{event.body}</p> : null}
-                          {event.proposed_at ? <p className="mt-1 text-xs font-semibold text-violet-700">Horario: {dateLabel(event.proposed_at)}</p> : null}
-                        </li>
-                      ))}
+                    <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                      Ver historial de coordinación · {appointment.conversation.length} {appointment.conversation.length === 1 ? "movimiento" : "movimientos"}
+                    </summary>
+                    <ol className="mt-3 space-y-4">
+                      {[...appointment.conversation]
+                        .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+                        .map((event, index) => (
+                          <li key={event.id} className="relative border-l-2 border-violet-200 pb-1 pl-4 last:border-l-transparent">
+                            <span className="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-violet-500" aria-hidden="true" />
+                            <p className="text-sm font-semibold text-slate-800">{appointmentEventLabel(event.event_type)}</p>
+                            <p className="mt-1 text-xs text-slate-500">{event.actor_name} · {dateLabel(event.created_at)}</p>
+                            {event.body ? <p className="mt-2 whitespace-pre-wrap text-sm leading-5 text-slate-600">{event.body}</p> : null}
+                            {event.proposed_at ? (
+                              <p className="mt-2 rounded-lg border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-violet-800">
+                                Horario alternativo: {dateLabel(event.proposed_at)}
+                              </p>
+                            ) : null}
+                          </li>
+                        ))}
                     </ol>
                   </details>
                 ) : null}
