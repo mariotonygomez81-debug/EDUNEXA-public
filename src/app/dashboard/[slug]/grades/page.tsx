@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAssessment, saveGrades, saveAssessmentWeight, importGradesSpreadsheet } from "./actions";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 import GradeAuditPdf from "./grade-audit-pdf";
+import GradebookExcel from "./gradebook-excel";
 
 type Division = { id: string; name: string; course_id: string };
 type Course = { id: string; name: string };
@@ -243,6 +244,27 @@ export default async function GradesPage({
                     {assessment.description && <p className="mt-2 text-sm text-slate-600">{assessment.description}</p>}
                   </div>
                   <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">Máximo: {assessment.max_score}</span>
+                  <GradebookExcel
+                    institution={institution.display_name}
+                    assessment={assessment.title}
+                    division={divisionNames.get(assessment.division_id) ?? "División"}
+                    subject={subjectNames.get(courseSubjects.find((item) => item.id === assessment.course_subject_id)?.subject_id ?? "") ?? "Materia"}
+                    period={periodNames.get(assessment.grading_period_id) ?? "Período"}
+                    assessmentDate={assessment.assessment_date}
+                    maxScore={Number(assessment.max_score)}
+                    weightPercent={assessment.weight_percent}
+                    rows={students.map((student) => {
+                      const grade = grades.get(student.id);
+                      const periodResult = finalGrades.get([assessment.division_id,assessment.course_subject_id,assessment.grading_period_id,student.id].join(":"));
+                      return {
+                        studentName: `${student.last_name}, ${student.first_name}`,
+                        studentNumber: student.student_number,
+                        score: grade?.score === null || grade?.score === undefined ? null : Number(grade.score),
+                        comment: grade?.comment ?? null,
+                        periodResult: periodResult === null || periodResult === undefined ? null : periodResult,
+                      };
+                    })}
+                  />
                   {isEditable && <form action={saveAssessmentWeight} className="flex items-center gap-2"><input type="hidden" name="slug" value={slug} /><input type="hidden" name="assessment_id" value={assessment.id} /><label className="text-xs text-slate-500">Ponderación % <input aria-label="Ponderación porcentual" name="weight_percent" type="number" min="0.01" max="100" step="0.01" defaultValue={assessment.weight_percent ?? ""} placeholder="Sin ponderar" className="ml-1 w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-800" /></label><button className="rounded-md border border-violet-200 px-2 py-1.5 text-xs font-semibold text-violet-700">Guardar</button></form>}</div>
                 </div>
               </div>
