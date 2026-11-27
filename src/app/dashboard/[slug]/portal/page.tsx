@@ -17,7 +17,7 @@ type PublishedReportCard = {
 
 type FamilyAnnouncement = { id: string; title: string; body: string; published_at: string | null; expires_at: string | null };
 type StudentConversation = { conversation_id: string; student_id: string; student_name: string };
-type ConversationSummary = { conversation_id: string; counterpart_name: string; last_message_body: string | null; last_message_at: string | null; unread_count?: number | null };
+type ConversationSummary = { conversation_id: string; counterpart_name: string; counterpart_role_keys?: string[] | null; last_message_body: string | null; last_message_at: string | null; unread_count?: number | null };
 
 type PortalStudent = {
   student_id: string;
@@ -52,6 +52,28 @@ function dateLabel(value: string | null) {
 function dateTimeLabel(value: string | null) {
   if (!value) return "Fecha no disponible";
   return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(value));
+}
+
+function roleLabel(roleKey: string) {
+  const normalized = roleKey.trim().toLowerCase().replace(/[.\\s-]+/g, "_");
+  const labels: Record<string, string> = {
+    docente: "Docente",
+    teacher: "Docente",
+    preceptor: "Preceptor",
+    preceptoria: "Preceptoría",
+    directivo: "Directivo",
+    directivos: "Directivos",
+    rector: "Rector",
+    vicerrector: "Vicerrector",
+    administrativo: "Administrativo",
+    administrativos: "Administrativos",
+    tutor: "Tutor",
+    alumno: "Alumno",
+    estudiante: "Alumno",
+    administrador: "Administrador",
+    superadministrador: "Superadministrador",
+  };
+  return labels[normalized] ?? normalized.split("_").filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 }
 
 export default async function StudentFamilyPortal({ params }: { params: Promise<{ slug: string }> }) {
@@ -343,6 +365,17 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="truncate text-sm font-semibold text-slate-800">{counterpart?.counterpart_name ?? "Contacto escolar autorizado"}</p>
+                                {(counterpart?.counterpart_role_keys ?? []).length ? (
+                                  (counterpart?.counterpart_role_keys ?? []).map((roleKey) => (
+                                    <span key={roleKey} className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                                      {roleLabel(roleKey)}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                                    Perfil institucional
+                                  </span>
+                                )}
                                 <span className={hasMessages
                                   ? "rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
                                   : "rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-600"}
