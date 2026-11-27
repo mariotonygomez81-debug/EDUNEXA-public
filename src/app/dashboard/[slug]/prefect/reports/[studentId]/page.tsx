@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, FileText, History } from "lucide-react";
+import { ArrowLeft, History } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 import PrefectFollowupPdf from "../report-pdf";
@@ -168,7 +168,7 @@ export default async function PrefectStudentReportPage({ params, searchParams }:
       </section>
       <section className="grid gap-3 sm:grid-cols-4">
         {counts.map(item => <div key={item.kind} className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-semibold uppercase text-slate-500">{item.label === "Concepto conductual" ? "Conceptos" : item.label + (item.kind === "novelty" ? "s" : "")}</p>
+          <p className="text-xs font-semibold uppercase text-slate-500">{item.kind === "novelty" ? "Novedades" : item.kind === "conduct" ? "Conceptos conductuales" : item.kind === "appointment" ? "Citaciones" : "Actas"}</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{item.count}</p>
         </div>)}
       </section>
