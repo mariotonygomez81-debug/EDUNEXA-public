@@ -8,7 +8,7 @@ alter table public.notifications
   add constraint notifications_notification_type_check
   check (notification_type = any (array[
     'announcement','message','grade','attendance','support','assignment_due','account_access'
-  ]::text[]);
+  ]::text[]));
 
 alter table public.notifications
   drop constraint if exists notifications_resource_type_check;
