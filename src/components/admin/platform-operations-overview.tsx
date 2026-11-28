@@ -43,7 +43,11 @@ const statusText: Record<string,string> = {
 
 export default function PlatformOperationsOverview() {
   const [items,setItems] = useState<Item[]>([]);
-  const [alerts,setAlerts] = useState<AlertItem[]>([]);\n  const [auditEvents,setAuditEvents] = useState<AuditEvent[]>([]);
+  const [alerts,setAlerts] = useState<AlertItem[]>([]);
+  const [auditEvents,setAuditEvents] = useState<AuditEvent[]>([]);
+  const [selectedIncident,setSelectedIncident] = useState<AuditEvent|null>(null);
+  const [incidentLoading,setIncidentLoading] = useState(false);
+  const [incidentError,setIncidentError] = useState("");
   const [loading,setLoading] = useState(false);
   const [error,setError] = useState("");
   const [filter,setFilter] = useState<"all"|"pending"|"running"|"attention">("all");
@@ -54,7 +58,8 @@ export default function PlatformOperationsOverview() {
       const paths = ["/api/platform/clones","/api/platform/delegations","/api/platform/copilot/plans","/api/platform/superadmins/requests?limit=100","/api/platform/audit?limit=100"];
       const responses = await Promise.all(paths.map(path => fetch(path,{cache:"no-store"})));
       if (responses.some(response => !response.ok)) throw new Error("No se pudo recuperar el estado completo de las operaciones globales. No se muestran resultados parciales.");
-      const [cloneData,delegationData,planData,requestData,auditData] = await Promise.all(responses.map(response => response.json()));\n      const auditRows = Array.isArray(auditData.events) ? auditData.events as AuditEvent[] : [];
+      const [cloneData,delegationData,planData,requestData,auditData] = await Promise.all(responses.map(response => response.json()));
+      const auditRows = Array.isArray(auditData.events) ? auditData.events as AuditEvent[] : [];
       const next: Item[] = [];
       const nextAlerts: AlertItem[] = [];
       const add = (row: ApiRow, kind: Item["kind"], title: string, detail: string, href: string) => {
@@ -154,6 +159,20 @@ export default function PlatformOperationsOverview() {
       return { event, related };
     }).sort((a,b) => new Date(b.event.occurred_at).getTime()-new Date(a.event.occurred_at).getTime());
   },[auditEvents]);
+  const openIncident = useCallback(async (eventId: string) => {
+    setIncidentLoading(true); setIncidentError("");
+    try {
+      const response = await fetch("/api/platform/audit/"+encodeURIComponent(eventId),{cache:"no-store"});
+      if (!response.ok) throw new Error("No se pudo recuperar el detalle de auditoría del incidente.");
+      const payload = await response.json() as { event?: AuditEvent | AuditEvent[] | null };
+      const detail = Array.isArray(payload.event) ? payload.event[0] : payload.event;
+      if (!detail || detail.id !== eventId) throw new Error("El evento no está disponible en el detalle de auditoría.");
+      setSelectedIncident(detail);
+    } catch (cause) {
+      setSelectedIncident(null);
+      setIncidentError(cause instanceof Error?cause.message:"No se pudo abrir el incidente.");
+    } finally { setIncidentLoading(false); }
+  },[]);
   const visible = filter==="all"?items:items.filter(item=>item.lane===filter);
   const laneLabel = (lane: Item["lane"]) => lane==="pending"?"Pendiente":lane==="running"?"En curso":"Requiere acción";
   const kindLabel = (kind: Item["kind"]) => ({clone:"Clonación",delegation:"Acceso delegado",copilot:"Copiloto EDUNEXA",superadmin:"Privilegios globales"}[kind]);
@@ -190,6 +209,28 @@ export default function PlatformOperationsOverview() {
             </li>)}
           </ol>
           {related.length===1&&<p className="mt-2 text-[10px] text-amber-200/80">Sin eventos posteriores asociados en el tramo consultado de auditoría.</p>}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={()=>void openIncident(event.id)} disabled={incidentLoading} className="rounded-lg border border-cyan-200/20 px-3 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-200/10 disabled:opacity-50">
+              {incidentLoading&&selectedIncident?.id===event.id?"Cargando detalle…":"Ver detalle completo"}
+            </button>
+            {incidentError&&selectedIncident===null&&<p role="alert" className="text-xs text-rose-200">{incidentError}</p>}
+          </div>
+          {selectedIncident?.id===event.id&&<div className="mt-3 space-y-3 rounded-lg border border-cyan-200/15 bg-cyan-950/20 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-xs font-bold text-cyan-100">Detalle del incidente · evento {selectedIncident.id}</h4><button type="button" onClick={()=>setSelectedIncident(null)} className="text-xs text-slate-400 hover:text-white">Cerrar detalle</button></div>
+            <dl className="grid gap-2 text-xs sm:grid-cols-2">
+              <div><dt className="text-slate-500">Fecha</dt><dd className="mt-0.5 break-words text-slate-200">{date(selectedIncident.occurred_at)}</dd></div>
+              <div><dt className="text-slate-500">Acción</dt><dd className="mt-0.5 break-words text-slate-200">{selectedIncident.action}</dd></div>
+              <div><dt className="text-slate-500">Actor UUID</dt><dd className="mt-0.5 break-all text-slate-200">{selectedIncident.actor_user_id||"—"}</dd></div>
+              <div><dt className="text-slate-500">Objetivo</dt><dd className="mt-0.5 break-all text-slate-200">{selectedIncident.target_type||"—"} · {selectedIncident.target_id||"—"}</dd></div>
+              <div><dt className="text-slate-500">Institución UUID</dt><dd className="mt-0.5 break-all text-slate-200">{selectedIncident.institution_id||"—"}</dd></div>
+              <div><dt className="text-slate-500">Resultado</dt><dd className="mt-0.5 text-slate-200">{selectedIncident.outcome}</dd></div>
+              <div className="sm:col-span-2"><dt className="text-slate-500">Request ID</dt><dd className="mt-0.5 break-all font-mono text-slate-200">{selectedIncident.request_id||"—"}</dd></div>
+              <div className="sm:col-span-2"><dt className="text-slate-500">Motivo</dt><dd className="mt-0.5 whitespace-pre-wrap break-words text-slate-200">{selectedIncident.reason||"Sin motivo registrado"}</dd></div>
+            </dl>
+            <div><h5 className="text-xs font-semibold text-slate-300">Metadata redactada</h5>
+              <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-black/30 p-3 text-[10px] leading-5 text-slate-300">{JSON.stringify(selectedIncident.metadata_redacted??{},null,2)}</pre>
+            </div>
+          </div>}
         </article>)}</div>}
       <p className="text-[10px] leading-5 text-slate-600">Alcance: últimos 100 eventos globales disponibles. La relación se establece por tipo e identificador exactos del objetivo; no se presume que dos operaciones distintas estén vinculadas. La ausencia de eventos posteriores no demuestra que el incidente siga abierto.</p>
     </section>
