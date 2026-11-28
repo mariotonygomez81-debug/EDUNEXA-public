@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, CheckCircle2, Clock3, Loader2, RefreshCw, Search, ShieldAlert, X } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, Clock3, Download, Loader2, RefreshCw, Search, ShieldAlert, X } from "lucide-react";
 
 type Item = {
   id: string; kind: "clone" | "delegation" | "copilot" | "superadmin";
@@ -59,6 +59,8 @@ export default function PlatformOperationsOverview() {
   const [auditHasMore,setAuditHasMore] = useState(false);
   const [auditLoadingMore,setAuditLoadingMore] = useState(false);
   const [auditPageError,setAuditPageError] = useState("");
+  const [auditExporting,setAuditExporting] = useState(false);
+  const [auditExportMessage,setAuditExportMessage] = useState("");
   const [loading,setLoading] = useState(false);
   const [error,setError] = useState("");
   const [filter,setFilter] = useState<"all"|"pending"|"running"|"attention">("all");
@@ -167,6 +169,71 @@ export default function PlatformOperationsOverview() {
     finally {setAuditLoadingMore(false);}
   },[auditEvents,auditHasMore,auditLoadingMore,appliedAuditFilters]);
 
+  const exportIncidentHistory = useCallback(async () => {
+    setAuditExporting(true); setAuditExportMessage("");
+    try {
+      const filters=new URLSearchParams({limit:"100",
+        ...(appliedAuditFilters.action?{action:appliedAuditFilters.action}:{}),
+        ...(appliedAuditFilters.outcome?{outcome:appliedAuditFilters.outcome}:{}),
+        ...(appliedAuditFilters.actor?{actorUserId:appliedAuditFilters.actor}:{}),
+        ...(appliedAuditFilters.institution?{institutionId:appliedAuditFilters.institution}:{}),
+        ...(appliedAuditFilters.target?{search:appliedAuditFilters.target}:{}),
+      });
+      const rows: AuditEvent[]=[];
+      let cursor: AuditEvent|null=null;
+      while(true) {
+        const params=new URLSearchParams(filters);
+        if(cursor) { params.set("before",cursor.occurred_at); params.set("beforeId",cursor.id); }
+        const response=await fetch("/api/platform/audit?"+params.toString(),{cache:"no-store"});
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok) throw new Error(typeof payload.error==="string"?payload.error:"No se pudo recuperar el historial completo.");
+        const batch=Array.isArray(payload.events)?payload.events as AuditEvent[]:[];
+        if(batch.length===0) break;
+        const known=new Set(rows.map(event=>event.id));
+        const fresh=batch.filter(event=>!known.has(event.id));
+        if(fresh.length===0) throw new Error("La paginación no avanzó; se detuvo la exportación para evitar repetir registros.");
+        rows.push(...fresh);
+        if(batch.length<100) break;
+        const nextCursor=batch[batch.length-1];
+        if(cursor && nextCursor.id===cursor.id && nextCursor.occurred_at===cursor.occurred_at) {
+          throw new Error("El cursor de auditoría no avanzó; la exportación quedó incompleta.");
+        }
+        cursor=nextCursor;
+      }
+      const from=auditFrom?new Date(auditFrom+"T00:00:00").getTime():Number.NEGATIVE_INFINITY;
+      const to=auditTo?new Date(auditTo+"T23:59:59.999").getTime():Number.POSITIVE_INFINITY;
+      const selected=rows.filter(event=>{
+        const timestamp=new Date(event.occurred_at).getTime();
+        return timestamp>=from && timestamp<=to;
+      }).sort((a,b)=>new Date(a.occurred_at).getTime()-new Date(b.occurred_at).getTime()
+        || a.id.localeCompare(b.id));
+      if(selected.length===0) {
+        setAuditExportMessage("No hay eventos dentro del período y los filtros seleccionados.");
+        return;
+      }
+      const columns=["fecha_hora","evento_id","inicio_incidente_fallido","accion","resultado","actor_user_id","tipo_objetivo","objetivo_id","institucion_id","motivo","request_id","metadata_redactada"];
+      const cell=(value:unknown)=>{
+        let content=value==null?"":typeof value==="string"?value:JSON.stringify(value);
+        if(/^[=+\\-@\\t\\r]/.test(content)) content="'"+content;
+        return '"'+content.replace(/"/g,'""')+'"';
+      };
+      const csv="\\uFEFF"+[columns,...selected.map(event=>[
+        event.occurred_at,event.id,event.outcome==="failed"?"Sí":"No",event.action,event.outcome,
+        event.actor_user_id,event.target_type,event.target_id,event.institution_id,event.reason,
+        event.request_id,event.metadata_redacted??{},
+      ])].map(row=>row.map(cell).join(",")).join("\\r\\n");
+      const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+      const url=URL.createObjectURL(blob);
+      const anchor=document.createElement("a");
+      anchor.href=url;
+      anchor.download="edunexa-historial-incidentes-"+new Date().toISOString().slice(0,10)+".csv";
+      document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
+      setAuditExportMessage("CSV generado con "+selected.length.toLocaleString("es-AR")+" eventos cronológicos. Se recorrieron "+rows.length.toLocaleString("es-AR")+" registros coincidentes con los filtros; el período se aplicó al archivo.");
+    } catch(cause) {
+      setAuditExportMessage(cause instanceof Error?cause.message:"No se pudo exportar el historial.");
+    } finally { setAuditExporting(false); }
+  },[appliedAuditFilters,auditFrom,auditTo]);
+
   useEffect(() => { const timer=window.setTimeout(()=>{void refresh();},0); return ()=>window.clearTimeout(timer); },[refresh]);
   const counts = useMemo(() => ({
     pending: items.filter(item=>item.lane==="pending").length,
@@ -243,10 +310,12 @@ export default function PlatformOperationsOverview() {
         <div className="flex flex-wrap items-end gap-2 md:col-span-2 xl:col-span-4">
           <button type="button" onClick={()=>setAppliedAuditFilters({action:auditAction.trim(),outcome:auditOutcome,actor:auditActor.trim(),institution:auditInstitution.trim(),target:auditTarget.trim()})} disabled={loading} className="inline-flex items-center gap-2 rounded-md border border-cyan-200/20 px-3 py-2 text-xs font-semibold text-cyan-100 disabled:opacity-50"><Search size={13}/>Aplicar filtros</button>
           <button type="button" onClick={()=>{setAuditAction("");setAuditOutcome("");setAuditActor("");setAuditInstitution("");setAuditTarget("");setAuditFrom("");setAuditTo("");setAppliedAuditFilters({action:"",outcome:"",actor:"",institution:"",target:""});}} className="inline-flex items-center gap-1 rounded-md border border-white/10 px-3 py-2 text-xs text-slate-300"><X size={13}/>Limpiar</button>
+          <button type="button" onClick={()=>void exportIncidentHistory()} disabled={auditExporting||loading} className="inline-flex items-center gap-2 rounded-md border border-emerald-200/20 px-3 py-2 text-xs font-semibold text-emerald-100 disabled:opacity-50">{auditExporting?<Loader2 size={13} className="animate-spin"/>:<Download size={13}/>} {auditExporting?"Preparando CSV…":"Exportar historial CSV"}</button>
           <span className="text-[10px] text-slate-500">Filtros del servidor: acción, resultado, actor, institución y búsqueda de objetivo. El período se aplica sobre las páginas cargadas.</span>
         </div>
       </div>
       {auditPageError&&<p role="alert" className="text-xs text-rose-200">{auditPageError}</p>}
+      {auditExportMessage&&<p role="status" className="text-xs text-emerald-100">{auditExportMessage}</p>}
       {incidents.length===0
         ? <p className="rounded-lg border border-white/10 p-4 text-center text-xs text-slate-400">No hay eventos fallidos en los últimos 100 registros de auditoría consultados.</p>
         : <div className="space-y-3">{incidents.map(({event,related})=><article key={event.id} className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
