@@ -257,10 +257,12 @@ export default function PlatformOperationsOverview() {
     const failed = periodEvents.filter(event => event.outcome === "failed");
     return failed.map(event => {
       const related = auditEvents.filter(candidate => {
-        if (candidate.target_type !== event.target_type) return false;
-        if (event.target_id) return candidate.target_id === event.target_id
-          && new Date(candidate.occurred_at).getTime() >= new Date(event.occurred_at).getTime();
-        return candidate.request_id === event.request_id
+        const sameTarget = Boolean(event.target_id)
+          && candidate.target_type === event.target_type
+          && candidate.target_id === event.target_id;
+        const sameRequest = Boolean(event.request_id)
+          && candidate.request_id === event.request_id;
+        return (sameTarget || sameRequest)
           && new Date(candidate.occurred_at).getTime() >= new Date(event.occurred_at).getTime();
       }).sort((a,b) => new Date(a.occurred_at).getTime()-new Date(b.occurred_at).getTime());
       return { event, related };
@@ -290,8 +292,12 @@ export default function PlatformOperationsOverview() {
         const matching=batch.filter(candidate=>{
           const at=new Date(candidate.occurred_at).getTime();
           if(at<failedAt)return false;
-          if(detail.target_id) return candidate.target_type===detail.target_type && candidate.target_id===detail.target_id;
-          return Boolean(detail.request_id) && candidate.request_id===detail.request_id;
+          const sameTarget=Boolean(detail.target_id)
+            && candidate.target_type===detail.target_type
+            && candidate.target_id===detail.target_id;
+          const sameRequest=Boolean(detail.request_id)
+            && candidate.request_id===detail.request_id;
+          return sameTarget || sameRequest;
         });
         relatedRows.push(...matching);
         const oldest=batch[batch.length-1];
@@ -428,7 +434,7 @@ export default function PlatformOperationsOverview() {
               <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-black/30 p-3 text-[10px] leading-5 text-slate-300">{JSON.stringify(selectedIncident.metadata_redacted??{},null,2)}</pre>
             </div>            <div className="space-y-2 border-t border-white/10 pt-3">
               <div className="flex flex-wrap items-center justify-between gap-2"><h5 className="text-xs font-bold text-cyan-100">Comparación cronológica del incidente</h5><span className="text-[10px] text-slate-500">{incidentTimeline.length} evento{incidentTimeline.length===1?"":"s"} relacionados</span></div>
-              <p className="text-[10px] text-slate-500">Se comparan eventos del mismo objetivo exacto; si no hay objetivo identificado, se utiliza el mismo request ID. Cada valor se contrasta con el evento inmediatamente anterior.</p>
+              <p className="text-[10px] text-slate-500">Se agrupan eventos posteriores del mismo objetivo exacto y también los que comparten request ID, aunque afecten otros recursos. Cada valor se contrasta con el evento inmediatamente anterior.</p>
               {incidentTimeline.length===0?<p className="text-xs text-amber-200">No se pudo recuperar una cronología relacionada completa.</p>:<div className="space-y-3">{incidentTimeline.map((entry,index)=>{
                 const previous=index>0?incidentTimeline[index-1]:null;
                 const fields:[string,string,string][]=[
