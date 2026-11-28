@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Activity, KeyRound, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { Activity, Download, KeyRound, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 
 type Superadmin = { user_id: string; email: string | null; created_at: string; last_sign_in_at: string | null };
 type ChangeRequest = {
@@ -43,6 +43,7 @@ export default function PlatformGovernancePanel() {
   const [auditOutcome,setAuditOutcome] = useState("");
   const [auditHasMore,setAuditHasMore] = useState(false);
   const [selectedAuditEvent,setSelectedAuditEvent] = useState<AuditEvent|null>(null);
+  const [exportingAudit,setExportingAudit] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true); setLoadError("");
@@ -105,6 +106,63 @@ export default function PlatformGovernancePanel() {
     if(ok){setTargetUserId("");setReason("");}
   }
 
+  async function exportAudit() {
+    setExportingAudit(true); setMessage("");
+    try {
+      const filters = new URLSearchParams({
+        limit: "100",
+        ...(auditSearch.trim() ? { search: auditSearch.trim() } : {}),
+        ...(auditInstitution.trim() ? { institutionId: auditInstitution.trim() } : {}),
+        ...(auditAction.trim() ? { action: auditAction.trim() } : {}),
+        ...(auditActor.trim() ? { actorUserId: auditActor.trim() } : {}),
+        ...(auditOutcome ? { outcome: auditOutcome } : {}),
+      });
+      const rows: AuditEvent[] = [];
+      let before: AuditEvent | null = null;
+      let capped = false;
+      while (rows.length < 5000) {
+        const params = new URLSearchParams(filters);
+        if (before) {
+          params.set("before", before.occurred_at);
+          params.set("beforeId", before.id);
+        }
+        const response = await fetch("/api/platform/audit?" + params.toString(), { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "No se pudo recuperar la auditoría completa.");
+        const batch = Array.isArray(data.events) ? data.events as AuditEvent[] : [];
+        if (!batch.length) break;
+        rows.push(...batch.slice(0, 5000 - rows.length));
+        if (rows.length >= 5000) { capped = batch.length === 100; break; }
+        if (batch.length < 100) break;
+        before = batch[batch.length - 1];
+      }
+      if (!rows.length) { setMessage("No hay eventos para exportar con los filtros actuales."); return; }
+      const columns = ["fecha_hora", "evento_id", "actor_user_id", "accion", "resultado", "tipo_objetivo", "objetivo_id", "institucion_id", "motivo", "request_id", "metadata_redactada"];
+      const cell = (value: unknown) => {
+        let content = value == null ? "" : typeof value === "string" ? value : JSON.stringify(value);
+        if (["=", "+", "-", "@", "\t", "\r"].includes(content[0] ?? "")) content = "'" + content;
+        return '"' + content.replace(/"/g, '""') + '"';
+      };
+      const csv = "\uFEFF" + [columns, ...rows.map(event => [
+        event.occurred_at, event.id, event.actor_user_id, event.action, event.outcome,
+        event.target_type, event.target_id, event.institution_id, event.reason,
+        event.request_id, event.metadata_redacted,
+      ])].map(row => row.map(cell).join(",")).join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "edunexa-auditoria-global-" + new Date().toISOString().slice(0,10) + ".csv";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setMessage("Exportación generada: " + rows.length.toLocaleString("es-AR") + " eventos con los filtros aplicados." + (capped ? " Se alcanzó el límite de 5.000 registros; refiná los filtros para exportar el resto." : ""));
+    } catch(error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo exportar la auditoría.");
+    } finally { setExportingAudit(false); }
+  }
+
   const inputClass="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-cyan-300/40 focus:outline-none";
   return <div className="space-y-6">
     <section id="superadmin-governance" className="scroll-mt-6 space-y-4 rounded-2xl border border-amber-200/15 bg-amber-950/15 p-5">
@@ -154,7 +212,13 @@ export default function PlatformGovernancePanel() {
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] text-slate-500">{events.length} eventos cargados · Aplicá filtros para acotar la búsqueda</p>
-        <button type="button" onClick={()=>void refresh()} disabled={loading||!!busy} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 disabled:opacity-50">Aplicar filtros</button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={()=>void refresh()} disabled={loading||!!busy||exportingAudit} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 disabled:opacity-50">Aplicar filtros</button>
+          <button type="button" onClick={()=>void exportAudit()} disabled={loading||exportingAudit||!!loadError} className="inline-flex items-center gap-2 rounded-lg border border-cyan-200/25 bg-cyan-200/10 px-3 py-2 text-xs font-semibold text-cyan-100 disabled:opacity-50">
+            {exportingAudit?<Loader2 size={13} className="animate-spin"/>:<Download size={13}/>}
+            {exportingAudit?"Preparando CSV…":"Exportar resultados CSV"}
+          </button>
+        </div>
       </div>
       {events.length===0?<p className="rounded-xl border border-white/10 p-4 text-sm text-slate-500">No hay eventos para esos filtros.</p>:<div className="space-y-2">{events.map(event=><article key={event.id} className="grid gap-2 rounded-xl border border-white/10 bg-slate-950/40 p-3 md:grid-cols-[170px_1fr_auto]">
         <div><p className="text-xs font-semibold text-white">{dateLabel(event.occurred_at)}</p><p className="mt-1 text-[10px] text-slate-500">{event.outcome}</p></div>
