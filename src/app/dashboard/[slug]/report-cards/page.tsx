@@ -18,6 +18,7 @@ type GradingScale = { id: string; name: string; display_mode: "numeric" | "descr
 type GradingScaleLevel = { id: string; grading_scale_id: string; minimum_percentage: number; maximum_percentage: number; label: string; grade_value: number | null; is_passing: boolean; sort_order: number };
 type ReportCardWorkflow = { id: string; status: "draft" | "submitted" | "approved" | "published"; version_number: number; supersedes_workflow_id: string | null; rectification_reason: string | null; submitted_by_membership_id: string | null; submitted_at: string | null; approved_at: string | null; published_at: string | null };
 type WorkflowEvent = { id: string; from_status: "draft" | "submitted" | "approved" | "published" | null; to_status: "draft" | "submitted" | "approved" | "published"; created_at: string };
+type ReviewWorkflow = { id: string; student_id: string; grading_period_id: string; status: "submitted" | "approved"; version_number: number; submitted_at: string | null; submitted_by_membership_id: string | null };
 
 function percentage(score: number, maximum: number) {
   return maximum > 0 ? (score / maximum) * 100 : 0;
@@ -66,6 +67,26 @@ export default async function ReportCardsPage({
   const periods = (periodsRaw ?? []) as Period[];
   const selectedStudent = students.find((item) => item.id === selectedStudentId);
   const selectedPeriod = periods.find((item) => item.id === selectedPeriodId) ?? periods[0];
+
+  // Bandeja institucional: concentra boletines que esperan aprobación o publicación.
+  let reviewQueue: ReviewWorkflow[] = [];
+  const canUseReviewQueue = canManageGrades || canApproveReportCards || canPublishReportCards;
+  if (selectedPeriod && canUseReviewQueue) {
+    for (let offset = 0; ; offset += 500) {
+      const { data: queueRows, error: queueError } = await supabase.from("report_card_workflows")
+        .select("id,student_id,grading_period_id,status,version_number,submitted_at,submitted_by_membership_id")
+        .eq("institution_id", institution.id)
+        .eq("grading_period_id", selectedPeriod.id)
+        .in("status", ["submitted", "approved"])
+        .order("submitted_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(offset, offset + 499);
+      if (queueError) break;
+      reviewQueue.push(...((queueRows ?? []) as ReviewWorkflow[]));
+      if ((queueRows ?? []).length < 500) break;
+    }
+  }
+  const studentById = new Map(students.map((item) => [item.id, item]));
 
   let periodObservation: PeriodObservation | null = null;
   let workflow: ReportCardWorkflow | null = null;
@@ -268,6 +289,48 @@ export default async function ReportCardsPage({
         {period_action === "reopened" && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">El período se reabrió. Las correcciones quedarán registradas en el historial.</div>}
         {period_error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{period_error === "forbidden" ? "Tu perfil no tiene permiso para esta operación." : period_error === "invalid" || period_error === "reason" ? "El motivo debe tener entre 10 y 500 caracteres." : period_error === "not_ready" ? "No se puede cerrar: el período debe haber finalizado, tener evaluaciones y contar con todas las notas cargadas." : period_error === "reopen_blocked" ? "No se puede reabrir mientras haya boletines enviados o aprobados pendientes." : "No se pudo actualizar el estado del período."}</div>}
         {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error === "forbidden" ? "No tenés permiso para registrar observaciones en este curso." : error === "workflow_forbidden" ? "Tu perfil no tiene permiso para realizar esta etapa del circuito de boletines." : error === "workflow_state" ? "El boletín cambió de estado o no se encuentra en la etapa requerida." : error === "workflow_reason" ? "La rectificación requiere un motivo de al menos 10 caracteres." : error.startsWith("workflow_") ? "No se pudo actualizar el circuito del boletín. Verificá el estado y tus permisos." : "No se pudo guardar la observación. Verificá los datos y tu asignación docente."}</div>}
+
+        {canUseReviewQueue && selectedPeriod ? (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-slate-900">Bandeja de revisión institucional</h2>
+                <p className="mt-1 text-sm text-slate-500">Boletines del período {selectedPeriod.name} que todavía requieren una decisión institucional.</p>
+              </div>
+              <div className="flex gap-2 text-xs font-semibold">
+                <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-800">{reviewQueue.filter((item) => item.status === "submitted").length} para aprobar</span>
+                <span className="rounded-full bg-violet-50 px-3 py-1.5 text-violet-800">{reviewQueue.filter((item) => item.status === "approved").length} para publicar</span>
+              </div>
+            </div>
+            {reviewQueue.length ? (
+              <div className="mt-4 divide-y divide-slate-100">
+                {reviewQueue.map((item) => {
+                  const student = studentById.get(item.student_id);
+                  if (!student) return null;
+                  const awaitingApproval = item.status === "submitted";
+                  return (
+                    <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-800">{student.last_name}, {student.first_name}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {awaitingApproval ? "Enviado a revisión" : "Aprobado · pendiente de publicación"}
+                          {item.version_number > 1 ? ` · Versión ${item.version_number}` : ""}
+                          {item.submitted_at ? ` · ${new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.submitted_at))}` : ""}
+                        </p>
+                      </div>
+                      <Link href={`/dashboard/${slug}/report-cards?student=${encodeURIComponent(item.student_id)}&period=${encodeURIComponent(selectedPeriod.id)}`}
+                        className="shrink-0 rounded-lg border border-violet-200 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50">
+                        Abrir boletín →
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">No hay boletines pendientes de aprobación o publicación para este período.</p>
+            )}
+          </section>
+        ) : null}
 
         {selectedStudent && selectedPeriod ? (
           <section className="space-y-4">
