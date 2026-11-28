@@ -101,7 +101,7 @@ export default async function TeacherClassroomAgendaPage({
     .filter((item) => {
       const status = classify(item, today);
       if (filter === "all") return true;
-      if (filter === "upcoming") return status === "upcoming" || status === "later";
+      if (filter === "upcoming") return status === "upcoming";
       return status === filter;
     })
     .sort((a, b) => {
