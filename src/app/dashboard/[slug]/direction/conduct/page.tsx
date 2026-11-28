@@ -62,31 +62,39 @@ export default async function InstitutionalConductReport({ params, searchParams 
   const courseNames = new Map(((courses ?? []) as Course[]).map(c => [c.id, c.name]));
   const divisionNames = new Map(divisionRows.map(d => [d.id, `${courseNames.get(d.course_id) ?? "Curso"} · ${d.name}`]));
 
-  const [{ data: periods, error: periodError }, { data: enrollments, error: enrollmentError }] = await Promise.all([
+  const [{ data: periods, error: periodError }, { data: students, error: studentError }] = await Promise.all([
     supabase.from("grading_periods").select("id,name,starts_on,ends_on")
       .eq("institution_id", institution.id).order("starts_on", { ascending: true }),
-    supabase.from("enrollments").select("division_id,students(id,first_name,last_name,student_number)")
-      .eq("institution_id", institution.id).eq("status", "active"),
+    supabase.from("students").select("id,first_name,last_name,student_number")
+      .eq("institution_id", institution.id),
   ]);
-  if (periodError || enrollmentError) throw new Error("No se pudo cargar la información académica.");
-  const studentNames = new Map<string,string>();
-  for (const enrollment of enrollments ?? []) {
-    const student = enrollment.students as unknown as Student | null;
-    if (student) studentNames.set(student.id, `${student.last_name}, ${student.first_name}${student.student_number ? ` · Legajo ${student.student_number}` : ""}`);
+  if (periodError || studentError) throw new Error("No se pudo cargar la información académica.");
+  const studentNames = new Map(((students ?? []) as Student[]).map(student => [
+    student.id,
+    `${student.last_name}, ${student.first_name}${student.student_number ? ` · Legajo ${student.student_number}` : ""}`,
+  ]));
+
+  // Read the full institutional history in stable pages; a fixed limit could silently omit older records.
+  const conductRows: ConductRow[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    let conductQuery = supabase.from("prefect_conduct_concepts")
+      .select("id,division_id,student_id,grading_period_id,concept,observation,updated_at")
+      .eq("institution_id", institution.id)
+      .order("updated_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(offset, offset + 999);
+    if (selectedDivision) conductQuery = conductQuery.eq("division_id", selectedDivision);
+    const { data: batch, error: conductError } = await conductQuery;
+    if (conductError) throw new Error("No se pudo consultar el registro conductual institucional.");
+    conductRows.push(...((batch ?? []) as ConductRow[]));
+    if (!batch || batch.length < 1000) break;
   }
-  let conductQuery = supabase.from("prefect_conduct_concepts")
-    .select("id,division_id,student_id,grading_period_id,concept,observation,updated_at")
-    .eq("institution_id", institution.id).order("updated_at", { ascending: false }).limit(5000);
-  if (selectedDivision) conductQuery = conductQuery.eq("division_id", selectedDivision);
-  const { data: conductRows, error: conductError } = await conductQuery;
-  if (conductError) throw new Error("No se pudo consultar el registro conductual institucional.");
   const periodRows = (periods ?? []) as Period[];
-  const periodNames = new Map(periodRows.map(p => [p.id, p.name]));
   const periodOrder = new Map(periodRows.map((p, i) => [p.id, i]));
 
   // Keep only the most recently updated row for each student + division + grading period.
   const latest = new Map<string, ConductRow>();
-  for (const row of (conductRows ?? []) as ConductRow[]) {
+  for (const row of conductRows) {
     const key = [row.student_id, row.division_id, row.grading_period_id].join(":");
     if (!latest.has(key)) latest.set(key, row);
   }
