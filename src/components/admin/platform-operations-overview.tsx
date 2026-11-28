@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, CheckCircle2, Clock3, Loader2, RefreshCw, ShieldAlert } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, Clock3, Loader2, RefreshCw, Search, ShieldAlert, X } from "lucide-react";
 
 type Item = {
   id: string; kind: "clone" | "delegation" | "copilot" | "superadmin";
@@ -48,6 +48,16 @@ export default function PlatformOperationsOverview() {
   const [selectedIncident,setSelectedIncident] = useState<AuditEvent|null>(null);
   const [incidentLoading,setIncidentLoading] = useState(false);
   const [incidentError,setIncidentError] = useState("");
+  const [auditAction,setAuditAction] = useState("");
+  const [auditOutcome,setAuditOutcome] = useState("");
+  const [auditActor,setAuditActor] = useState("");
+  const [auditInstitution,setAuditInstitution] = useState("");
+  const [auditTarget,setAuditTarget] = useState("");
+  const [auditFrom,setAuditFrom] = useState("");
+  const [auditTo,setAuditTo] = useState("");
+  const [auditHasMore,setAuditHasMore] = useState(false);
+  const [auditLoadingMore,setAuditLoadingMore] = useState(false);
+  const [auditPageError,setAuditPageError] = useState("");
   const [loading,setLoading] = useState(false);
   const [error,setError] = useState("");
   const [filter,setFilter] = useState<"all"|"pending"|"running"|"attention">("all");
@@ -55,7 +65,12 @@ export default function PlatformOperationsOverview() {
   const refresh = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const paths = ["/api/platform/clones","/api/platform/delegations","/api/platform/copilot/plans","/api/platform/superadmins/requests?limit=100","/api/platform/audit?limit=100"];
+      const auditParams=new URLSearchParams({limit:"100",
+        ...(auditAction.trim()?{action:auditAction.trim()}:{}),...(auditOutcome?{outcome:auditOutcome}:{}),
+        ...(auditActor.trim()?{actorUserId:auditActor.trim()}:{}),...(auditInstitution.trim()?{institutionId:auditInstitution.trim()}:{}),
+        ...(auditTarget.trim()?{search:auditTarget.trim()}:{}),
+      });
+      const paths = ["/api/platform/clones","/api/platform/delegations","/api/platform/copilot/plans","/api/platform/superadmins/requests?limit=100","/api/platform/audit?"+auditParams.toString()];
       const responses = await Promise.all(paths.map(path => fetch(path,{cache:"no-store"})));
       if (responses.some(response => !response.ok)) throw new Error("No se pudo recuperar el estado completo de las operaciones globales. No se muestran resultados parciales.");
       const [cloneData,delegationData,planData,requestData,auditData] = await Promise.all(responses.map(response => response.json()));
@@ -127,12 +142,29 @@ export default function PlatformOperationsOverview() {
         const rank=(item:AlertItem)=>item.tone==="critical"?0:item.group==="expiry"?1:item.group==="action"?2:3;
         return rank(a)-rank(b) || new Date(a.timestamp).getTime()-new Date(b.timestamp).getTime();
       });
-      setItems(next); setAlerts(nextAlerts); setAuditEvents(auditRows);
+      setItems(next); setAlerts(nextAlerts); setAuditEvents(auditRows); setAuditHasMore(auditRows.length===100); setAuditPageError(""); setSelectedIncident(null);
     } catch (cause) {
       setError(cause instanceof Error?cause.message:"No se pudo actualizar el seguimiento.");
       setItems([]); setAlerts([]); setAuditEvents([]);
     } finally { setLoading(false); }
-  },[]);
+  },[auditAction,auditOutcome,auditActor,auditInstitution,auditTarget]);
+
+  const loadMoreAudit = useCallback(async () => {
+    const last=auditEvents[auditEvents.length-1]; if(!last||!auditHasMore||auditLoadingMore)return;
+    setAuditLoadingMore(true); setAuditPageError("");
+    try {
+      const params=new URLSearchParams({limit:"100",before:last.occurred_at,beforeId:last.id,
+        ...(auditAction.trim()?{action:auditAction.trim()}:{}),...(auditOutcome?{outcome:auditOutcome}:{}),
+        ...(auditActor.trim()?{actorUserId:auditActor.trim()}:{}),...(auditInstitution.trim()?{institutionId:auditInstitution.trim()}:{}),
+        ...(auditTarget.trim()?{search:auditTarget.trim()}:{}),});
+      const response=await fetch("/api/platform/audit?"+params.toString(),{cache:"no-store"});
+      if(!response.ok)throw new Error("No se pudo cargar la siguiente página de auditoría.");
+      const payload=await response.json(); const rows=Array.isArray(payload.events)?payload.events as AuditEvent[]:[];
+      setAuditEvents(current=>{const known=new Set(current.map(event=>event.id));return [...current,...rows.filter(event=>!known.has(event.id))];});
+      setAuditHasMore(rows.length===100);
+    } catch(cause) {setAuditPageError(cause instanceof Error?cause.message:"No se pudo ampliar el historial.");}
+    finally {setAuditLoadingMore(false);}
+  },[auditEvents,auditHasMore,auditLoadingMore,auditAction,auditOutcome,auditActor,auditInstitution,auditTarget]);
 
   useEffect(() => { const timer=window.setTimeout(()=>{void refresh();},0); return ()=>window.clearTimeout(timer); },[refresh]);
   const counts = useMemo(() => ({
@@ -146,8 +178,14 @@ export default function PlatformOperationsOverview() {
     failed:alerts.filter(item=>item.group==="failed").length,
     action:alerts.filter(item=>item.group==="action").length,
   }),[alerts]);
+  const periodEvents = useMemo(()=>auditEvents.filter(event=>{
+    const time=new Date(event.occurred_at).getTime();
+    if(auditFrom && time<new Date(auditFrom+"T00:00:00").getTime())return false;
+    if(auditTo && time>new Date(auditTo+"T23:59:59.999").getTime())return false;
+    return true;
+  }),[auditEvents,auditFrom,auditTo]);
   const incidents = useMemo(() => {
-    const failed = auditEvents.filter(event => event.outcome === "failed");
+    const failed = periodEvents.filter(event => event.outcome === "failed");
     return failed.map(event => {
       const related = auditEvents.filter(candidate => {
         if (candidate.target_type !== event.target_type) return false;
@@ -158,7 +196,7 @@ export default function PlatformOperationsOverview() {
       }).sort((a,b) => new Date(a.occurred_at).getTime()-new Date(b.occurred_at).getTime());
       return { event, related };
     }).sort((a,b) => new Date(b.event.occurred_at).getTime()-new Date(a.event.occurred_at).getTime());
-  },[auditEvents]);
+  },[periodEvents]);
   const openIncident = useCallback(async (eventId: string) => {
     setIncidentLoading(true); setIncidentError("");
     try {
@@ -193,6 +231,21 @@ export default function PlatformOperationsOverview() {
           <p className="mt-1 text-xs text-slate-400">Cada incidente parte de un evento fallido y reúne los eventos posteriores del mismo objetivo en la bitácora global.</p></div>
         <span className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-slate-400">{incidents.length} incidente{incidents.length===1?"":"s"}</span>
       </div>
+      <div className="grid gap-2 rounded-lg border border-white/10 bg-black/20 p-3 md:grid-cols-2 xl:grid-cols-4">
+        <label className="space-y-1 text-[11px] text-slate-400">Acción<input value={auditAction} onChange={e=>setAuditAction(e.target.value)} placeholder="Acción registrada" className="w-full rounded-md border border-white/10 bg-slate-900 px-2.5 py-2 text-xs text-white"/></label>
+        <label className="space-y-1 text-[11px] text-slate-400">Resultado<select value={auditOutcome} onChange={e=>setAuditOutcome(e.target.value)} className="w-full rounded-md border border-white/10 bg-slate-900 px-2.5 py-2 text-xs text-white"><option value="">Todos</option><option value="failed">Fallido</option><option value="success">Correcto</option><option value="started">Iniciado</option><option value="rejected">Rechazado</option></select></label>
+        <label className="space-y-1 text-[11px] text-slate-400">Actor (UUID)<input value={auditActor} onChange={e=>setAuditActor(e.target.value)} placeholder="UUID del actor" className="w-full rounded-md border border-white/10 bg-slate-900 px-2.5 py-2 text-xs text-white"/></label>
+        <label className="space-y-1 text-[11px] text-slate-400">Institución (UUID)<input value={auditInstitution} onChange={e=>setAuditInstitution(e.target.value)} placeholder="UUID de institución" className="w-full rounded-md border border-white/10 bg-slate-900 px-2.5 py-2 text-xs text-white"/></label>
+        <label className="space-y-1 text-[11px] text-slate-400 md:col-span-2">Objetivo / identificador<input value={auditTarget} onChange={e=>setAuditTarget(e.target.value)} placeholder="Tipo o ID de objetivo (búsqueda existente)" className="w-full rounded-md border border-white/10 bg-slate-900 px-2.5 py-2 text-xs text-white"/></label>
+        <label className="space-y-1 text-[11px] text-slate-400">Desde<input type="date" value={auditFrom} onChange={e=>setAuditFrom(e.target.value)} className="w-full rounded-md border border-white/10 bg-slate-900 px-2.5 py-2 text-xs text-white"/></label>
+        <label className="space-y-1 text-[11px] text-slate-400">Hasta<input type="date" value={auditTo} onChange={e=>setAuditTo(e.target.value)} className="w-full rounded-md border border-white/10 bg-slate-900 px-2.5 py-2 text-xs text-white"/></label>
+        <div className="flex flex-wrap items-end gap-2 md:col-span-2 xl:col-span-4">
+          <button type="button" onClick={()=>void refresh()} disabled={loading} className="inline-flex items-center gap-2 rounded-md border border-cyan-200/20 px-3 py-2 text-xs font-semibold text-cyan-100 disabled:opacity-50"><Search size={13}/>Aplicar filtros</button>
+          <button type="button" onClick={()=>{setAuditAction("");setAuditOutcome("");setAuditActor("");setAuditInstitution("");setAuditTarget("");setAuditFrom("");setAuditTo("");}} className="inline-flex items-center gap-1 rounded-md border border-white/10 px-3 py-2 text-xs text-slate-300"><X size={13}/>Limpiar</button>
+          <span className="text-[10px] text-slate-500">Filtros del servidor: acción, resultado, actor, institución y búsqueda de objetivo. El período se aplica sobre las páginas cargadas.</span>
+        </div>
+      </div>
+      {auditPageError&&<p role="alert" className="text-xs text-rose-200">{auditPageError}</p>}
       {incidents.length===0
         ? <p className="rounded-lg border border-white/10 p-4 text-center text-xs text-slate-400">No hay eventos fallidos en los últimos 100 registros de auditoría consultados.</p>
         : <div className="space-y-3">{incidents.map(({event,related})=><article key={event.id} className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
@@ -232,7 +285,8 @@ export default function PlatformOperationsOverview() {
             </div>
           </div>}
         </article>)}</div>}
-      <p className="text-[10px] leading-5 text-slate-600">Alcance: últimos 100 eventos globales disponibles. La relación se establece por tipo e identificador exactos del objetivo; no se presume que dos operaciones distintas estén vinculadas. La ausencia de eventos posteriores no demuestra que el incidente siga abierto.</p>
+      {auditHasMore&&<div className="flex justify-center"><button type="button" onClick={()=>void loadMoreAudit()} disabled={auditLoadingMore} className="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-200 disabled:opacity-50">{auditLoadingMore?"Cargando…":"Cargar más eventos"}</button></div>}
+      <p className="text-[10px] leading-5 text-slate-600">Se consultan páginas de hasta 100 eventos mediante el cursor compuesto de fecha e ID. El período se aplica a los eventos cargados; cargá páginas adicionales para ampliar el rango consultado.</p>
     </section>
 
     <section className="space-y-3">
