@@ -8,10 +8,25 @@ type PublishedReportCard = {
   student_id: string;
   created_at: string;
   snapshot: {
-    period?: { name?: string };
-    academic_year?: { name?: string };
+    period?: { name?: string; starts_on?: string; ends_on?: string };
+    academic_year?: { name?: string; starts_on?: string; ends_on?: string };
     published_at?: string;
     workflow_version?: number;
+    grading_scale?: { name?: string; display_mode?: string; passing_value?: number } | null;
+    subjects?: {
+      subject?: string;
+      course?: string;
+      division?: string;
+      assessments?: {
+        title?: string;
+        date?: string | null;
+        maximum_score?: number | null;
+        weight_percent?: number | null;
+        score?: number | null;
+        comment?: string | null;
+      }[];
+    }[];
+    general_observation?: string | null;
   };
 };
 
@@ -401,32 +416,102 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
 
                 {student.can_view_grades && (
                   <section className="border-t border-slate-100 px-5 py-4">
-                    <h3 className="text-sm font-semibold text-slate-800">Boletines oficiales publicados</h3>
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-800">{student.is_self ? "Mi trayectoria académica" : "Trayectoria académica"}</h3>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">Historial oficial por período, con el detalle de evaluaciones y observaciones tal como quedó publicado en cada boletín.</p>
+                    </div>
                     {publishedReportCards.filter((card) => card.student_id === student.student_id).length ? (
-                      <ul className="mt-3 space-y-2">
+                      <div className="mt-3 space-y-3">
                         {publishedReportCards
                           .filter((card) => card.student_id === student.student_id)
                           .map((card) => (
-                            <li key={card.workflow_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
-                              <div>
-                                <p className="text-sm font-medium text-slate-800">
-                                  {card.snapshot.period?.name ?? "Boletín académico"}
-                                  {card.snapshot.academic_year?.name ? ` · ${card.snapshot.academic_year.name}` : ""}
-                                  {card.snapshot.workflow_version && card.snapshot.workflow_version > 1 ? ` · v${card.snapshot.workflow_version}` : ""}
-                                </p>
-                                <p className="text-xs text-slate-500">Publicado: {dateLabel(card.snapshot.published_at ?? card.created_at)}</p>
+                            <details key={card.workflow_id} className="group overflow-hidden rounded-xl border border-slate-200 bg-white">
+                              <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 bg-slate-50 px-4 py-3 hover:bg-violet-50/60 [&::-webkit-details-marker]:hidden">
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-slate-900">
+                                    {card.snapshot.period?.name ?? "Período académico"}
+                                    {card.snapshot.academic_year?.name ? ` · ${card.snapshot.academic_year.name}` : ""}
+                                    {card.snapshot.workflow_version && card.snapshot.workflow_version > 1 ? ` · versión ${card.snapshot.workflow_version}` : ""}
+                                  </p>
+                                  <p className="mt-1 text-xs text-slate-500">Publicado oficialmente el {dateLabel(card.snapshot.published_at ?? card.created_at)}</p>
+                                </div>
+                                <span className="text-xs font-semibold text-violet-700 group-open:hidden">Ver detalle ↓</span>
+                                <span className="hidden text-xs font-semibold text-violet-700 group-open:inline">Cerrar detalle ↑</span>
+                              </summary>
+                              <div className="space-y-4 border-t border-slate-100 p-4">
+                                <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
+                                  {card.snapshot.period?.starts_on || card.snapshot.period?.ends_on ? (
+                                    <span>Período: {dateLabel(card.snapshot.period.starts_on ?? null)} – {dateLabel(card.snapshot.period.ends_on ?? null)}</span>
+                                  ) : null}
+                                  {card.snapshot.grading_scale?.name ? <span>Escala: {card.snapshot.grading_scale.name}</span> : null}
+                                  {card.snapshot.grading_scale?.passing_value !== undefined ? <span>Aprobación desde: {card.snapshot.grading_scale.passing_value}</span> : null}
+                                </div>
+                                {card.snapshot.subjects?.length ? (
+                                  <div className="space-y-3">
+                                    {card.snapshot.subjects.map((subject, subjectIndex) => (
+                                      <article key={`${card.workflow_id}-${subject.subject ?? subjectIndex}`} className="rounded-lg border border-slate-200 p-3">
+                                        <div className="flex flex-wrap items-start justify-between gap-2">
+                                          <div>
+                                            <h4 className="font-semibold text-slate-900">{subject.subject ?? "Materia"}</h4>
+                                            <p className="mt-0.5 text-xs text-slate-500">{[subject.course, subject.division].filter(Boolean).join(" · ")}</p>
+                                          </div>
+                                          <span className="text-xs text-slate-500">{subject.assessments?.length ?? 0} evaluaciones registradas</span>
+                                        </div>
+                                        {subject.assessments?.length ? (
+                                          <div className="mt-3 divide-y divide-slate-100">
+                                            {subject.assessments.map((assessment, assessmentIndex) => {
+                                              const hasScore = assessment.score !== null && assessment.score !== undefined;
+                                              const hasMaximum = assessment.maximum_score !== null && assessment.maximum_score !== undefined && assessment.maximum_score > 0;
+                                              const percentage = hasScore && hasMaximum ? (assessment.score! / assessment.maximum_score!) * 100 : null;
+                                              return (
+                                                <div key={`${card.workflow_id}-${subjectIndex}-${assessmentIndex}`} className="py-3 first:pt-0 last:pb-0">
+                                                  <div className="flex flex-wrap items-start justify-between gap-2">
+                                                    <div className="min-w-0">
+                                                      <p className="text-sm font-medium text-slate-800">{assessment.title ?? "Evaluación"}</p>
+                                                      {assessment.date ? <p className="mt-0.5 text-xs text-slate-500">{dateLabel(assessment.date)}</p> : null}
+                                                    </div>
+                                                    <div className="text-right">
+                                                      <p className="text-sm font-semibold tabular-nums text-slate-900">
+                                                        {hasScore ? `${assessment.score}${hasMaximum ? ` / ${assessment.maximum_score}` : ""}` : "Sin calificación"}
+                                                      </p>
+                                                      {percentage !== null ? <p className="text-xs text-slate-500">{percentage.toLocaleString("es-AR", { maximumFractionDigits: 1 })}% del puntaje</p> : null}
+                                                      {assessment.weight_percent !== null && assessment.weight_percent !== undefined ? <p className="text-xs text-slate-400">Ponderación: {assessment.weight_percent}%</p> : null}
+                                                    </div>
+                                                  </div>
+                                                  {assessment.comment ? <p className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">{assessment.comment}</p> : null}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        ) : (
+                                          <p className="mt-3 text-xs text-slate-500">No hay evaluaciones detalladas en este registro.</p>
+                                        )}
+                                      </article>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500">Este boletín no contiene un detalle de materias.</p>
+                                )}
+                                {card.snapshot.general_observation ? (
+                                  <div className="rounded-lg border border-violet-100 bg-violet-50/70 p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">Observación general</p>
+                                    <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">{card.snapshot.general_observation}</p>
+                                  </div>
+                                ) : null}
+                                <div className="flex justify-end border-t border-slate-100 pt-3">
+                                  <Link
+                                    href={`/dashboard/${slug}/report-cards/${card.workflow_id}/pdf`}
+                                    className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50"
+                                  >
+                                    <FileText size={14} /> Descargar boletín oficial PDF
+                                  </Link>
+                                </div>
                               </div>
-                              <Link
-                                href={`/dashboard/${slug}/report-cards/${card.workflow_id}/pdf`}
-                                className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50"
-                              >
-                                <FileText size={14} /> Descargar PDF
-                              </Link>
-                            </li>
+                            </details>
                           ))}
-                      </ul>
+                      </div>
                     ) : (
-                      <p className="mt-2 text-xs text-slate-500">Todavía no hay boletines oficiales publicados para este estudiante.</p>
+                      <p className="mt-3 rounded-lg bg-slate-50 p-4 text-sm text-slate-500">Todavía no hay boletines oficiales publicados para este estudiante. La trayectoria se completará a medida que la institución publique los períodos.</p>
                     )}
                   </section>
                 )}
