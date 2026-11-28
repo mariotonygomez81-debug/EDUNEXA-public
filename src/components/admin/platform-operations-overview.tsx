@@ -55,6 +55,7 @@ export default function PlatformOperationsOverview() {
   const [auditTarget,setAuditTarget] = useState("");
   const [auditFrom,setAuditFrom] = useState("");
   const [auditTo,setAuditTo] = useState("");
+  const [appliedAuditFilters,setAppliedAuditFilters] = useState({action:"",outcome:"",actor:"",institution:"",target:""});
   const [auditHasMore,setAuditHasMore] = useState(false);
   const [auditLoadingMore,setAuditLoadingMore] = useState(false);
   const [auditPageError,setAuditPageError] = useState("");
@@ -66,9 +67,9 @@ export default function PlatformOperationsOverview() {
     setLoading(true); setError("");
     try {
       const auditParams=new URLSearchParams({limit:"100",
-        ...(auditAction.trim()?{action:auditAction.trim()}:{}),...(auditOutcome?{outcome:auditOutcome}:{}),
-        ...(auditActor.trim()?{actorUserId:auditActor.trim()}:{}),...(auditInstitution.trim()?{institutionId:auditInstitution.trim()}:{}),
-        ...(auditTarget.trim()?{search:auditTarget.trim()}:{}),
+        ...(appliedAuditFilters.action?{action:appliedAuditFilters.action}:{}),...(appliedAuditFilters.outcome?{outcome:appliedAuditFilters.outcome}:{}),
+        ...(appliedAuditFilters.actor?{actorUserId:appliedAuditFilters.actor}:{}),...(appliedAuditFilters.institution?{institutionId:appliedAuditFilters.institution}:{}),
+        ...(appliedAuditFilters.target?{search:appliedAuditFilters.target}:{}),
       });
       const paths = ["/api/platform/clones","/api/platform/delegations","/api/platform/copilot/plans","/api/platform/superadmins/requests?limit=100","/api/platform/audit?"+auditParams.toString()];
       const responses = await Promise.all(paths.map(path => fetch(path,{cache:"no-store"})));
@@ -147,16 +148,16 @@ export default function PlatformOperationsOverview() {
       setError(cause instanceof Error?cause.message:"No se pudo actualizar el seguimiento.");
       setItems([]); setAlerts([]); setAuditEvents([]);
     } finally { setLoading(false); }
-  },[auditAction,auditOutcome,auditActor,auditInstitution,auditTarget]);
+  },[appliedAuditFilters]);
 
   const loadMoreAudit = useCallback(async () => {
     const last=auditEvents[auditEvents.length-1]; if(!last||!auditHasMore||auditLoadingMore)return;
     setAuditLoadingMore(true); setAuditPageError("");
     try {
       const params=new URLSearchParams({limit:"100",before:last.occurred_at,beforeId:last.id,
-        ...(auditAction.trim()?{action:auditAction.trim()}:{}),...(auditOutcome?{outcome:auditOutcome}:{}),
-        ...(auditActor.trim()?{actorUserId:auditActor.trim()}:{}),...(auditInstitution.trim()?{institutionId:auditInstitution.trim()}:{}),
-        ...(auditTarget.trim()?{search:auditTarget.trim()}:{}),});
+        ...(appliedAuditFilters.action?{action:appliedAuditFilters.action}:{}),...(appliedAuditFilters.outcome?{outcome:appliedAuditFilters.outcome}:{}),
+        ...(appliedAuditFilters.actor?{actorUserId:appliedAuditFilters.actor}:{}),...(appliedAuditFilters.institution?{institutionId:appliedAuditFilters.institution}:{}),
+        ...(appliedAuditFilters.target?{search:appliedAuditFilters.target}:{}),});
       const response=await fetch("/api/platform/audit?"+params.toString(),{cache:"no-store"});
       if(!response.ok)throw new Error("No se pudo cargar la siguiente página de auditoría.");
       const payload=await response.json(); const rows=Array.isArray(payload.events)?payload.events as AuditEvent[]:[];
@@ -164,7 +165,7 @@ export default function PlatformOperationsOverview() {
       setAuditHasMore(rows.length===100);
     } catch(cause) {setAuditPageError(cause instanceof Error?cause.message:"No se pudo ampliar el historial.");}
     finally {setAuditLoadingMore(false);}
-  },[auditEvents,auditHasMore,auditLoadingMore,auditAction,auditOutcome,auditActor,auditInstitution,auditTarget]);
+  },[auditEvents,auditHasMore,auditLoadingMore,appliedAuditFilters]);
 
   useEffect(() => { const timer=window.setTimeout(()=>{void refresh();},0); return ()=>window.clearTimeout(timer); },[refresh]);
   const counts = useMemo(() => ({
@@ -240,8 +241,8 @@ export default function PlatformOperationsOverview() {
         <label className="space-y-1 text-[11px] text-slate-400">Desde<input type="date" value={auditFrom} onChange={e=>setAuditFrom(e.target.value)} className="w-full rounded-md border border-white/10 bg-slate-900 px-2.5 py-2 text-xs text-white"/></label>
         <label className="space-y-1 text-[11px] text-slate-400">Hasta<input type="date" value={auditTo} onChange={e=>setAuditTo(e.target.value)} className="w-full rounded-md border border-white/10 bg-slate-900 px-2.5 py-2 text-xs text-white"/></label>
         <div className="flex flex-wrap items-end gap-2 md:col-span-2 xl:col-span-4">
-          <button type="button" onClick={()=>void refresh()} disabled={loading} className="inline-flex items-center gap-2 rounded-md border border-cyan-200/20 px-3 py-2 text-xs font-semibold text-cyan-100 disabled:opacity-50"><Search size={13}/>Aplicar filtros</button>
-          <button type="button" onClick={()=>{setAuditAction("");setAuditOutcome("");setAuditActor("");setAuditInstitution("");setAuditTarget("");setAuditFrom("");setAuditTo("");}} className="inline-flex items-center gap-1 rounded-md border border-white/10 px-3 py-2 text-xs text-slate-300"><X size={13}/>Limpiar</button>
+          <button type="button" onClick={()=>setAppliedAuditFilters({action:auditAction.trim(),outcome:auditOutcome,actor:auditActor.trim(),institution:auditInstitution.trim(),target:auditTarget.trim()})} disabled={loading} className="inline-flex items-center gap-2 rounded-md border border-cyan-200/20 px-3 py-2 text-xs font-semibold text-cyan-100 disabled:opacity-50"><Search size={13}/>Aplicar filtros</button>
+          <button type="button" onClick={()=>{setAuditAction("");setAuditOutcome("");setAuditActor("");setAuditInstitution("");setAuditTarget("");setAuditFrom("");setAuditTo("");setAppliedAuditFilters({action:"",outcome:"",actor:"",institution:"",target:""});}} className="inline-flex items-center gap-1 rounded-md border border-white/10 px-3 py-2 text-xs text-slate-300"><X size={13}/>Limpiar</button>
           <span className="text-[10px] text-slate-500">Filtros del servidor: acción, resultado, actor, institución y búsqueda de objetivo. El período se aplica sobre las páginas cargadas.</span>
         </div>
       </div>
