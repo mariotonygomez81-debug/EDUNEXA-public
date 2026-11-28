@@ -134,46 +134,58 @@ export default async function AttendanceReportsPage({
   let records: { student_id: string; status: string; session_id: string }[] = [];
   let students: { id: string; student_number: string | null; first_name: string; last_name: string }[] = [];
   let loadError = false;
-  let dataLimitReached = false;
   if (!invalidRange) {
-    const sessionQuery = supabase.from("attendance_sessions")
-      .select("id,division_id,held_on").eq("institution_id", institution.id)
-      .gte("held_on", from).lte("held_on", to)
-      .order("held_on", { ascending: false }).limit(500);
     const selectedDivisionAllowed = !divisionFilter || accessibleDivisionIds.includes(divisionFilter);
-    const { data: sessionRows, error: sessionError } = !selectedDivisionAllowed
-      ? { data: [], error: null }
-      : divisionFilter
-        ? await sessionQuery.eq("division_id", divisionFilter)
-        : await sessionQuery;
-    if (sessionError) loadError = true;
-    sessions = sessionRows ?? [];
-    if (sessions.length === 500) dataLimitReached = true;
+    if (selectedDivisionAllowed) {
+      // Recuperar todas las sesiones del período en páginas estables, no solo las primeras 500.
+      for (let offset = 0; ; offset += 500) {
+        let sessionQuery = supabase.from("attendance_sessions")
+          .select("id,division_id,held_on").eq("institution_id", institution.id)
+          .gte("held_on", from).lte("held_on", to)
+          .order("held_on", { ascending: false }).order("id", { ascending: false })
+          .range(offset, offset + 499);
+        if (divisionFilter) sessionQuery = sessionQuery.eq("division_id", divisionFilter);
+        const { data: sessionRows, error: sessionError } = await sessionQuery;
+        if (sessionError) {
+          loadError = true;
+          break;
+        }
+        sessions.push(...(sessionRows ?? []));
+        if ((sessionRows ?? []).length < 500) break;
+      }
+    }
 
-    const sessionIds = sessions.map((session) => session.id);
-    if (sessionIds.length) {
-      const collectedRecords: typeof records = [];
-      for (let offset = 0; offset < 5000; offset += 1000) {
+    const collectedRecords: typeof records = [];
+    // Mantener los filtros institucionales y dividir los IDs para evitar consultas IN excesivas.
+    for (let sessionOffset = 0; sessionOffset < sessions.length; sessionOffset += 100) {
+      const sessionIds = sessions.slice(sessionOffset, sessionOffset + 100).map((session) => session.id);
+      for (let offset = 0; ; offset += 1000) {
         const { data: recordRows, error: recordError } = await supabase.from("attendance_records")
           .select("student_id,status,session_id").eq("institution_id", institution.id)
-          .in("session_id", sessionIds).range(offset, offset + 999);
+          .in("session_id", sessionIds).order("session_id").order("student_id")
+          .range(offset, offset + 999);
         if (recordError) {
           loadError = true;
           break;
         }
         collectedRecords.push(...(recordRows ?? []));
         if ((recordRows ?? []).length < 1000) break;
-        if (offset === 4000) dataLimitReached = true;
       }
-      records = collectedRecords;
-      const studentIds = [...new Set(records.map((record) => record.student_id))];
-      if (studentIds.length) {
-        const { data: studentRows, error: studentError } = await supabase.from("students")
-          .select("id,student_number,first_name,last_name").eq("institution_id", institution.id)
-          .in("id", studentIds).order("last_name").order("first_name");
-        if (studentError) loadError = true;
-        students = studentRows ?? [];
+      if (loadError) break;
+    }
+    records = collectedRecords;
+
+    const studentIds = [...new Set(records.map((record) => record.student_id))];
+    for (let offset = 0; offset < studentIds.length; offset += 200) {
+      const batch = studentIds.slice(offset, offset + 200);
+      const { data: studentRows, error: studentError } = await supabase.from("students")
+        .select("id,student_number,first_name,last_name").eq("institution_id", institution.id)
+        .in("id", batch).order("last_name").order("first_name");
+      if (studentError) {
+        loadError = true;
+        break;
       }
+      students.push(...(studentRows ?? []));
     }
   }
 
@@ -242,7 +254,7 @@ export default async function AttendanceReportsPage({
 
         {invalidRange && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">El rango de fechas no es válido o supera los 366 días.</p>}
         {loadError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Algunos datos no pudieron cargarse por permisos o por un error de consulta. Revisá el período o las asignaciones.</p>}
-        {dataLimitReached && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">El reporte alcanzó el límite de consulta (500 sesiones o 5.000 registros). Acotá el rango de fechas o seleccioná una división para obtener un resultado completo.</p>}
+
 
         <div className="flex justify-end">
           <AttendanceReportExport institution={institution.display_name} from={from} to={to} totals={totals} rows={studentRows} />
