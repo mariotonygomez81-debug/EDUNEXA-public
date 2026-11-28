@@ -70,8 +70,9 @@ export async function updateAdministrativeRecord(formData: FormData) {
   const slug=value(formData,"slug");
   const id=value(formData,"record_id");
   const status=value(formData,"status");
+  const dueDate=value(formData,"due_date");
   const resolutionNotes=value(formData,"resolution_notes");
-  if(!slug || !id || !statuses.includes(status) || resolutionNotes.length<5 || resolutionNotes.length>1000) {
+  if(!slug || !id || !statuses.includes(status) || (dueDate && !isValidDate(dueDate)) || resolutionNotes.length<5 || resolutionNotes.length>1000) {
     redirect(`/dashboard/${encodeURIComponent(slug)}/administrative?error=invalid`);
   }
   const {supabase,institution,membership}=await context(slug);

@@ -21,12 +21,18 @@ export default async function AdministrativeWorkspace({
   params,searchParams,
 }:{
   params:Promise<{slug:string}>;
-  searchParams:Promise<{error?:string;created?:string;updated?:string;status?:string;q?:string}>;
+  searchParams:Promise<{error?:string;created?:string;updated?:string;status?:string;q?:string;category?:string;deadline?:string;page?:string}>;
 }) {
   const {slug}=await params;
   const query=await searchParams;
   const filterStatus=["open","in_progress","closed"].includes(query.status ?? "") ? query.status! : "";
+  const filterCategory=Object.keys(categoryLabels).includes(query.category ?? "") ? query.category! : "";
+  const deadlineFilter=["overdue","upcoming","without_date"].includes(query.deadline ?? "") ? query.deadline! : "";
+  const pageNumber=Math.max(1,Math.min(10000,Number.isInteger(Number(query.page)) ? Number(query.page) : 1));
+  const pageSize=50;
   const search=(query.q ?? "").replace(/[^a-zA-Z0-9À-ÿ\s_-]/g,"").trim().slice(0,80);
+  const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Argentina/Buenos_Aires"}).format(new Date());
+  const nextWeek=new Date(Date.parse(today+"T12:00:00-03:00")+7*86400000).toISOString().slice(0,10);
   const supabase=await createClient();
   const {data:{user}}=await supabase.auth.getUser();
   if(!user) redirect("/login");
@@ -41,19 +47,38 @@ export default async function AdministrativeWorkspace({
   if(!permissions.has("administrative_records.read")) redirect(`/dashboard/${slug}`);
   const canManage=permissions.has("administrative_records.manage");
 
-  let recordsQuery=supabase.from("administrative_records").select("*")
-    .eq("institution_id",institution.id).order("record_date",{ascending:false}).limit(100);
+  let recordsQuery=supabase.from("administrative_records").select("*",{count:"exact"})
+    .eq("institution_id",institution.id).order("record_date",{ascending:false}).order("id",{ascending:false});
   if(filterStatus) recordsQuery=recordsQuery.eq("status",filterStatus);
+  if(filterCategory) recordsQuery=recordsQuery.eq("category",filterCategory);
+  if(deadlineFilter==="overdue") recordsQuery=recordsQuery.lt("due_date",today).neq("status","closed");
+  if(deadlineFilter==="upcoming") recordsQuery=recordsQuery.gte("due_date",today).lte("due_date",nextWeek).neq("status","closed");
+  if(deadlineFilter==="without_date") recordsQuery=recordsQuery.is("due_date",null).neq("status","closed");
   if(search) recordsQuery=recordsQuery.or("title.ilike.%"+search+"%,record_code.ilike.%"+search+"%,description.ilike.%"+search+"%");
-  const {data:records,error:recordsError}=await recordsQuery;
+  const {data:records,error:recordsError,count:recordsCount}=await recordsQuery.range((pageNumber-1)*pageSize,pageNumber*pageSize-1);
   if(recordsError) throw new Error("No se pudieron cargar los registros administrativos.");
   const rows=(records ?? []) as RecordItem[];
+  const totalPages=Math.max(1,Math.ceil((recordsCount ?? 0)/pageSize));
+  const currentPage=Math.min(pageNumber,totalPages);
   const {count:openCount}=await supabase.from("administrative_records")
     .select("id",{count:"exact",head:true}).eq("institution_id",institution.id).eq("status","open");
   const {count:progressCount}=await supabase.from("administrative_records")
     .select("id",{count:"exact",head:true}).eq("institution_id",institution.id).eq("status","in_progress");
+  const {count:overdueCount}=await supabase.from("administrative_records").select("id",{count:"exact",head:true})
+    .eq("institution_id",institution.id).lt("due_date",today).neq("status","closed");
+  const {count:upcomingCount}=await supabase.from("administrative_records").select("id",{count:"exact",head:true})
+    .eq("institution_id",institution.id).gte("due_date",today).lte("due_date",nextWeek).neq("status","closed");
 
-  const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Argentina/Buenos_Aires"}).format(new Date());
+  const pageHref=(nextPage:number,deadline=deadlineFilter)=>{
+    const params=new URLSearchParams();
+    if(filterStatus) params.set("status",filterStatus);
+    if(filterCategory) params.set("category",filterCategory);
+    if(deadline) params.set("deadline",deadline);
+    if(search) params.set("q",search);
+    if(nextPage>1) params.set("page",String(nextPage));
+    const suffix=params.toString();
+    return `/dashboard/${slug}/administrative${suffix?`?${suffix}`:""}`;
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
@@ -97,10 +122,11 @@ export default async function AdministrativeWorkspace({
           </Link>}
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-3">
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Link href={pageHref(1,"overdue")} className="rounded-2xl border border-rose-200 bg-white p-5 hover:bg-rose-50"><p className="text-xs font-semibold uppercase tracking-wide text-rose-700">Vencidos sin cerrar</p><p className="mt-2 text-3xl font-bold text-rose-800">{overdueCount ?? 0}</p><span className="text-xs text-rose-700">Ver vencidos →</span></Link>
+          <Link href={pageHref(1,"upcoming")} className="rounded-2xl border border-amber-200 bg-white p-5 hover:bg-amber-50"><p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Vencen en 7 días</p><p className="mt-2 text-3xl font-bold text-amber-800">{upcomingCount ?? 0}</p><span className="text-xs text-amber-700">Ver próximos →</span></Link>
           <div className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pendientes</p><p className="mt-2 text-3xl font-bold">{openCount ?? 0}</p></div>
           <div className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">En proceso</p><p className="mt-2 text-3xl font-bold">{progressCount ?? 0}</p></div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Registros visibles</p><p className="mt-2 text-3xl font-bold">{rows.length}</p></div>
         </section>
 
         {query.error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{query.error==="invalid"?"Revisá los datos ingresados.": query.error==="history_full"?"La bitácora alcanzó su límite. Conservá la documentación en un nuevo registro relacionado.":"No se pudo guardar el registro. Verificá el código y los datos."}</p>}
@@ -136,15 +162,19 @@ export default async function AdministrativeWorkspace({
         </section>}
 
         <section className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">Registros y trámites</h2><span className="text-sm text-slate-500">Hasta 100 resultados</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">Registros y trámites</h2><span className="text-sm text-slate-500">{recordsCount ?? 0} registros · página {currentPage} de {totalPages}</span></div>
           <form method="get" className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4">
             <label className="min-w-[220px] flex-1 text-sm font-medium">Buscar
               <input name="q" defaultValue={search} maxLength={80} placeholder="Título, código o descripción" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"/>
             </label>
-            <label className="min-w-[170px] text-sm font-medium">Estado
-              <select name="status" defaultValue={filterStatus} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal">
-                <option value="">Todos</option><option value="open">Pendiente</option><option value="in_progress">En proceso</option><option value="closed">Cerrado</option>
-              </select>
+            <label className="min-w-[150px] text-sm font-medium">Estado
+              <select name="status" defaultValue={filterStatus} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="">Todos</option><option value="open">Pendiente</option><option value="in_progress">En proceso</option><option value="closed">Cerrado</option></select>
+            </label>
+            <label className="min-w-[160px] text-sm font-medium">Categoría
+              <select name="category" defaultValue={filterCategory} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="">Todas</option>{Object.entries(categoryLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>
+            </label>
+            <label className="min-w-[170px] text-sm font-medium">Vencimiento
+              <select name="deadline" defaultValue={deadlineFilter} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="">Todos</option><option value="overdue">Vencidos</option><option value="upcoming">Próximos 7 días</option><option value="without_date">Sin fecha límite</option></select>
             </label>
             <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Filtrar</button>
             <Link href={`/dashboard/${slug}/administrative`} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Limpiar</Link>
@@ -176,6 +206,13 @@ export default async function AdministrativeWorkspace({
             </article>
           )) : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500"><FileText size={30} className="mx-auto mb-3 text-slate-300"/>No hay registros que coincidan con la búsqueda.</div>}
         </section>
+        {totalPages>1 && <nav aria-label="Paginación de registros administrativos" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
+          <span className="text-sm text-slate-600">Mostrando {(currentPage-1)*pageSize+1}–{Math.min(currentPage*pageSize,recordsCount ?? 0)} de {recordsCount ?? 0}</span>
+          <div className="flex gap-2">
+            {currentPage>1 ? <Link href={pageHref(currentPage-1)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">Anterior</Link> : <span className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-400">Anterior</span>}
+            {currentPage<totalPages ? <Link href={pageHref(currentPage+1)} className="rounded-lg bg-violet-700 px-3 py-2 text-sm font-semibold text-white">Siguiente</Link> : <span className="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-400">Siguiente</span>}
+          </div>
+        </nav>}
       </div>
     </main>
   );
