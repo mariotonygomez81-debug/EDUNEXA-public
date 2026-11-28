@@ -322,6 +322,37 @@ export default function PlatformOperationsOverview() {
       setIncidentError(cause instanceof Error?cause.message:"No se pudo construir la comparación del incidente.");
     } finally { setIncidentLoading(false); }
   },[]);
+  const exportIncidentComparison = useCallback(() => {
+    if(!selectedIncident || incidentTimeline.length===0) return;
+    const columns=[
+      "incidente_evento_inicial_id","secuencia","evento_id","accion",
+      "objetivo_tipo","objetivo_id","institucion_id","request_id",
+      "fecha_anterior","fecha_actual","resultado_anterior","resultado_actual",
+      "actor_anterior","actor_actual","motivo_anterior","motivo_actual",
+      "metadata_redactada_anterior","metadata_redactada_actual",
+    ];
+    const cell=(value:unknown)=>{
+      let content=value==null?"":typeof value==="string"?value:JSON.stringify(value);
+      if(/^[=+\\-@\\t\\r]/.test(content)) content="'"+content;
+      return '"'+content.replace(/"/g,'""')+'"';
+    };
+    const rows=incidentTimeline.map((entry,index)=>{
+      const previous=index>0?incidentTimeline[index-1]:null;
+      return [
+        selectedIncident.id,index+1,entry.id,entry.action,entry.target_type,entry.target_id,
+        entry.institution_id,entry.request_id,previous?.occurred_at??"",entry.occurred_at,
+        previous?.outcome??"",entry.outcome,previous?.actor_user_id??"",entry.actor_user_id,
+        previous?.reason??"",entry.reason,previous?.metadata_redacted??{},entry.metadata_redacted??{},
+      ];
+    });
+    const csv="\\uFEFF"+[columns,...rows].map(row=>row.map(cell).join(",")).join("\\r\\n");
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const anchor=document.createElement("a");
+    anchor.href=url;
+    anchor.download="edunexa-comparacion-incidente-"+selectedIncident.id+".csv";
+    document.body.appendChild(anchor);anchor.click();anchor.remove();URL.revokeObjectURL(url);
+  },[selectedIncident,incidentTimeline]);
   const visible = filter==="all"?items:items.filter(item=>item.lane===filter);
   const laneLabel = (lane: Item["lane"]) => lane==="pending"?"Pendiente":lane==="running"?"En curso":"Requiere acción";
   const kindLabel = (kind: Item["kind"]) => ({clone:"Clonación",delegation:"Acceso delegado",copilot:"Copiloto EDUNEXA",superadmin:"Privilegios globales"}[kind]);
@@ -382,7 +413,7 @@ export default function PlatformOperationsOverview() {
             {incidentError&&selectedIncident===null&&<p role="alert" className="text-xs text-rose-200">{incidentError}</p>}
           </div>
           {selectedIncident?.id===event.id&&<div className="mt-3 space-y-3 rounded-lg border border-cyan-200/15 bg-cyan-950/20 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-xs font-bold text-cyan-100">Detalle del incidente · evento {selectedIncident.id}</h4><button type="button" onClick={()=>{setSelectedIncident(null);setIncidentTimeline([]);}} className="text-xs text-slate-400 hover:text-white">Cerrar detalle</button></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-xs font-bold text-cyan-100">Detalle del incidente · evento {selectedIncident.id}</h4><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={exportIncidentComparison} disabled={incidentTimeline.length===0} className="inline-flex items-center gap-1 rounded-md border border-emerald-200/20 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-100 disabled:opacity-40"><Download size={12}/>Exportar comparación CSV</button><button type="button" onClick={()=>{setSelectedIncident(null);setIncidentTimeline([]);}} className="text-xs text-slate-400 hover:text-white">Cerrar detalle</button></div></div>
             <dl className="grid gap-2 text-xs sm:grid-cols-2">
               <div><dt className="text-slate-500">Fecha</dt><dd className="mt-0.5 break-words text-slate-200">{date(selectedIncident.occurred_at)}</dd></div>
               <div><dt className="text-slate-500">Acción</dt><dd className="mt-0.5 break-words text-slate-200">{selectedIncident.action}</dd></div>
