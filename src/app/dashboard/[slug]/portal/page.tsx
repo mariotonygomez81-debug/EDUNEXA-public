@@ -142,6 +142,78 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
     );
   });
 
+  type FamilyClassroom = { id: string; division_id: string; title: string; course_name: string; division_name: string; subject_name: string | null };
+  type FamilyAssignment = { id: string; title: string; instructions: string | null; due_at: string | null; published_at: string | null };
+  type FamilySubmission = { assignment_id: string; student_id: string; submitted_at: string | null; score: number | null; feedback: string | null };
+  const familyLearningItems: {
+    studentId: string; studentName: string; classroomId: string; classroomTitle: string;
+    courseLabel: string; assignmentId: string; title: string; instructions: string | null;
+    dueAt: string | null; submittedAt: string | null; score: number | null; feedback: string | null;
+    state: "pending" | "submitted" | "graded";
+  }[] = [];
+  if (tutorStudents.length) {
+    const { data: accessibleClassrooms, error: classroomError } = await supabase.rpc(
+      "list_accessible_classrooms", { p_institution_id: institution.id },
+    );
+    if (!classroomError && accessibleClassrooms?.length) {
+      const classrooms = accessibleClassrooms as FamilyClassroom[];
+      const relevantClassrooms = classrooms.filter((classroom) =>
+        tutorStudents.some((student) => student.division_id === classroom.division_id),
+      );
+      const classroomDetails = await Promise.all(relevantClassrooms.map(async (classroom) => {
+        const [{ data: overview }, { data: submissions }] = await Promise.all([
+          supabase.rpc("get_classroom_overview", { p_classroom_id: classroom.id }),
+          supabase.rpc("list_classroom_submissions", { p_classroom_id: classroom.id }),
+        ]);
+        return {
+          classroom,
+          assignments: ((overview as { assignments?: FamilyAssignment[] } | null)?.assignments ?? []),
+          submissions: (submissions ?? []) as FamilySubmission[],
+        };
+      }));
+      for (const { classroom, assignments, submissions } of classroomDetails) {
+        const linkedStudents = tutorStudents.filter((student) => student.division_id === classroom.division_id);
+        for (const student of linkedStudents) {
+          for (const assignment of assignments) {
+            const submission = submissions.find((item) =>
+              item.assignment_id === assignment.id && item.student_id === student.student_id,
+            );
+            const state = submission?.score !== null && submission?.score !== undefined
+              ? "graded" as const
+              : submission ? "submitted" as const : "pending" as const;
+            familyLearningItems.push({
+              studentId: student.student_id,
+              studentName: `${student.first_name} ${student.last_name}`,
+              classroomId: classroom.id,
+              classroomTitle: classroom.title,
+              courseLabel: [classroom.course_name, classroom.division_name, classroom.subject_name].filter(Boolean).join(" · "),
+              assignmentId: assignment.id,
+              title: assignment.title,
+              instructions: assignment.instructions,
+              dueAt: assignment.due_at,
+              submittedAt: submission?.submitted_at ?? null,
+              score: submission?.score ?? null,
+              feedback: submission?.feedback ?? null,
+              state,
+            });
+          }
+        }
+      }
+    }
+  }
+  familyLearningItems.sort((a, b) => {
+    const aPending = a.state === "pending" ? 0 : 1;
+    const bPending = b.state === "pending" ? 0 : 1;
+    if (aPending !== bPending) return aPending - bPending;
+    if (a.dueAt && b.dueAt) return a.dueAt.localeCompare(b.dueAt);
+    if (a.dueAt) return -1;
+    if (b.dueAt) return 1;
+    return (b.submittedAt ?? "").localeCompare(a.submittedAt ?? "");
+  });
+  const familyPendingCount = familyLearningItems.filter((item) => item.state === "pending").length;
+  const familySubmittedCount = familyLearningItems.filter((item) => item.state === "submitted").length;
+  const familyGradedCount = familyLearningItems.filter((item) => item.state === "graded").length;
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -202,6 +274,59 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
             </div>
           </Link>
         </section>
+
+        {!error && tutorStudents.length > 0 ? (
+          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="rounded-xl bg-amber-100 p-3 text-amber-800"><BookOpen size={21}/></div>
+                  <div>
+                    <h2 className="font-semibold text-slate-900">Actividades y entregas de tu familia</h2>
+                    <p className="text-xs text-slate-500">Seguimiento de tareas publicadas en las aulas de tus hijos</p>
+                  </div>
+                </div>
+              </div>
+              <Link href={`/dashboard/${slug}/classroom`} className="text-sm font-semibold text-violet-700 hover:text-violet-900">Abrir aulas virtuales →</Link>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-amber-50 p-3"><p className="text-xs text-amber-800">Pendientes</p><p className="mt-1 text-2xl font-bold text-amber-950">{familyPendingCount}</p></div>
+              <div className="rounded-xl bg-sky-50 p-3"><p className="text-xs text-sky-800">Entregadas</p><p className="mt-1 text-2xl font-bold text-sky-950">{familySubmittedCount}</p></div>
+              <div className="rounded-xl bg-emerald-50 p-3"><p className="text-xs text-emerald-800">Calificadas</p><p className="mt-1 text-2xl font-bold text-emerald-950">{familyGradedCount}</p></div>
+            </div>
+            {familyLearningItems.length ? (
+              <div className="divide-y divide-slate-100">
+                {familyLearningItems.slice(0, 24).map((item) => {
+                  const overdue = item.state === "pending" && item.dueAt && new Date(item.dueAt).getTime() < Date.now();
+                  const stateLabel = item.state === "graded" ? "Calificada" : item.state === "submitted" ? "Entregada" : overdue ? "Pendiente · vencida" : "Pendiente";
+                  const stateStyle = item.state === "graded" ? "bg-emerald-100 text-emerald-800" : item.state === "submitted" ? "bg-sky-100 text-sky-800" : overdue ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800";
+                  return (
+                    <article key={`${item.studentId}-${item.assignmentId}`} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-semibold text-slate-900">{item.title}</h3>
+                          <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${stateStyle}`}>{stateLabel}</span>
+                        </div>
+                        <p className="mt-1 text-xs font-medium text-violet-700">{item.studentName} · {item.courseLabel}</p>
+                        {item.instructions ? <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-slate-600">{item.instructions}</p> : null}
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                          <span>{item.dueAt ? `Entrega hasta: ${dateTimeLabel(item.dueAt)}` : "Sin fecha límite"}</span>
+                          {item.submittedAt ? <span>Entregada: {dateTimeLabel(item.submittedAt)}</span> : null}
+                          {item.score !== null ? <span className="font-semibold text-emerald-700">Calificación: {item.score}</span> : null}
+                        </div>
+                        {item.feedback ? <p className="mt-2 rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-900">Devolución docente: {item.feedback}</p> : null}
+                      </div>
+                      <Link href={`/dashboard/${slug}/classroom/${item.classroomId}?section=work`} className="inline-flex shrink-0 items-center justify-center rounded-lg border border-violet-200 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50">Ver actividad</Link>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Todavía no hay actividades publicadas en las aulas vinculadas a tus hijos.</p>
+            )}
+            {familyLearningItems.length > 24 ? <p className="text-xs text-slate-400">Se muestran las 24 actividades prioritarias de {familyLearningItems.length} disponibles.</p> : null}
+          </section>
+        ) : null}
 
         {error ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="alert">
