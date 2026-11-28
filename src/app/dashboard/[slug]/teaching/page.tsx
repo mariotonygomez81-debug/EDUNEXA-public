@@ -136,6 +136,10 @@ export default async function MyTeachingPage({ params }: { params: Promise<{ slu
 
         
         {isTeacher ? (
+          <section className="rounded-2xl border border-violet-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-violet-700">Acompañamiento pedagógico</p><h2 className="mt-1 font-semibold text-slate-900">Observaciones trimestrales</h2><p className="mt-1 text-sm text-slate-500">Registrá una devolución integral por alumno y período para complementar el seguimiento académico y los boletines.</p><Link href={`/dashboard/${slug}/teaching/observations`} className="mt-4 inline-flex rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800">Registrar observaciones</Link></section>
+        ) : null}
+
+        {isTeacher ? (
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <article className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-indigo-700">Centro de informes</p><h2 className="mt-2 font-semibold text-slate-900">Informes académicos y conductuales</h2><p className="mt-1 text-sm text-slate-600">Accedé a reportes de alumno, calificaciones, convivencia, asistencia y boletines desde un solo lugar.</p><Link href={`/dashboard/${slug}/teaching/reports`} className="mt-4 inline-flex rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-800">Abrir centro de informes</Link></article>
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-indigo-700">Informes docentes</p><h2 className="mt-2 font-semibold text-slate-900">Reportes de asistencia</h2><p className="mt-1 text-sm text-slate-500">Consultá porcentajes, ausencias, llegadas tarde y evolución por alumno o división.</p><Link href={`/dashboard/${slug}/attendance/reports`} className="mt-4 inline-flex rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-800 hover:bg-indigo-50">Abrir reportes</Link></article>
