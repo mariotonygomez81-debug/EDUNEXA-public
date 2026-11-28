@@ -19,13 +19,16 @@ export async function createAnnouncement(formData: FormData) {
   const title = field(formData, "title");
   const body = field(formData, "body");
   const audience = field(formData, "audience");
+  const expiresAtInput = field(formData, "expires_at");
+  const expiresAt = expiresAtInput ? new Date(expiresAtInput) : null;
   const divisionId = field(formData, "division_id");
 
   if (!/^[a-z0-9-]{2,80}$/i.test(slug) ||
       title.length < 3 || title.length > 160 ||
       body.length < 1 || body.length > 10000 ||
       !["institution", "staff", "families", "students", "course"].includes(audience) ||
-      (audience === "course" && !/^[0-9a-f-]{36}$/i.test(divisionId))) {
+      (audience === "course" && !/^[0-9a-f-]{36}$/i.test(divisionId)) ||
+      (expiresAtInput && (!expiresAt || Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()))) {
     back(slug, "error=invalid");
   }
 
@@ -51,6 +54,7 @@ export async function createAnnouncement(formData: FormData) {
     p_body: body,
     p_audience: audience,
     ...(audience === "course" ? { p_division_id: divisionId } : {}),
+    p_expires_at: expiresAt ? expiresAt.toISOString() : null,
   };
   const { error } = await supabase.rpc("create_announcement", args);
 

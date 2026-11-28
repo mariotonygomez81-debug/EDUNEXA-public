@@ -116,7 +116,7 @@ export default async function AnnouncementsPage({
               : query.error === "scope"
                 ? "No podés publicar en ese público o división. Verificá tu alcance institucional."
                 : query.error === "invalid"
-                  ? "Revisá el título, el contenido y el público seleccionado."
+                  ? "Revisá el título, el contenido, el público y la fecha de vencimiento."
                   : "No se pudo publicar el anuncio. Verificá los datos y volvé a intentarlo."}
           </div>
         ) : null}
@@ -194,6 +194,14 @@ export default async function AnnouncementsPage({
                 ) : null}
               </label>
 
+              <label className="block text-sm font-medium text-slate-700">
+                Fecha y hora de vencimiento (opcional)
+                <input name="expires_at" type="datetime-local"
+                  className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal"/>
+                <span className="mt-1 block text-xs font-normal text-slate-500">
+                  Al llegar ese momento, el anuncio deja de estar disponible para los destinatarios. Si lo dejás vacío, no vence automáticamente.
+                </span>
+              </label>
               <p className="text-xs leading-5 text-slate-500">
                 Los anuncios se publican inmediatamente. Los avisos vencidos o no publicados no se muestran a los destinatarios.
               </p>
