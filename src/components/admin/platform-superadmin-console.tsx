@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PlatformOperationsPanel from "@/components/admin/platform-operations-panel";
+import PlatformOperationsOverview from "@/components/admin/platform-operations-overview";
 import PlatformGovernancePanel from "@/components/admin/platform-governance-panel";
 import PlatformInstitutionAdminsPanel from "@/components/admin/platform-institution-admins-panel";
 import {
@@ -312,6 +313,8 @@ export default function PlatformSuperadminConsole({ institutions, loadError }: P
       </div>
     </section>
 
+
+    <PlatformOperationsOverview />
 
     <PlatformInstitutionAdminsPanel institutions={institutions} />
 
