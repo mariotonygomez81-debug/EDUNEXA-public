@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  ArrowLeft, ArrowRight, BookOpen, BookOpenCheck, Plus,
+  ArrowLeft, ArrowRight, BookOpen, BookOpenCheck, CalendarClock, Plus,
   GraduationCap, Layers3, LockKeyhole, ShieldCheck, Users, Settings2, UserPlus,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -95,6 +95,7 @@ export default async function ClassroomPage({ params }: { params: Promise<{ slug
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {isStudent && !isTeacher ? <Link href={`/join/classroom?school=${encodeURIComponent(slug)}`} className="inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-white px-4 py-2.5 text-sm font-semibold text-cyan-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-cyan-50"><UserPlus size={16}/> Ingresar con código o QR</Link> : null}
+              {isTeacher ? <Link href={`/dashboard/${slug}/classroom/agenda`} className="inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2.5 text-sm font-semibold text-cyan-900 shadow-sm transition hover:bg-cyan-100"><CalendarClock size={16}/> Agenda docente</Link> : null}
               {isTeacher ? <Link href={`/dashboard/${slug}/classroom/review-queue`} className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-900 shadow-sm transition hover:bg-amber-100"><BookOpenCheck size={16}/> Entregas para corregir</Link> : null}
               {isTeacher ? <Link href={`/dashboard/${slug}/classroom/create`} className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-800"><Plus size={16}/> Crear nueva aula</Link> : null}
               <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm">
