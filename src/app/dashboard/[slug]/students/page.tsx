@@ -10,12 +10,14 @@ export default async function StudentsPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ error?: string; created?: string; q?: string; status?: string }>;
+  searchParams: Promise<{ error?: string; created?: string; q?: string; status?: string; page?: string }>;
 }) {
   const { slug } = await params;
-  const { error, created, q, status } = await searchParams;
+  const { error, created, q, status, page: pageParam } = await searchParams;
   const search = (q ?? "").replace(/[^a-zA-Z0-9À-ÿ\s_-]/g, "").trim().slice(0, 80);
   const statusFilter = ["active", "inactive", "graduated", "withdrawn"].includes(status ?? "") ? status! : "";
+  const pageSize = 50;
+  const requestedPage = Math.max(1, Math.min(2000, Number(pageParam) || 1));
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -40,16 +42,37 @@ export default async function StudentsPage({
   if (!permissions.has("students.read")) redirect(`/dashboard/${slug}`);
   const canManageStudents = permissions.has("students.manage");
 
-  let studentsQuery = supabase
-    .from("students")
-    .select("id,student_number,first_name,last_name,birth_date,email,status,created_at")
-    .eq("institution_id", institution.id)
-    .order("last_name", { ascending: true })
-    .order("first_name", { ascending: true })
-    .limit(100);
-  if (search) studentsQuery = studentsQuery.or("first_name.ilike.%"+search+"%,last_name.ilike.%"+search+"%,student_number.ilike.%"+search+"%");
-  if (statusFilter) studentsQuery = studentsQuery.eq("status", statusFilter);
-  const { data: students, error: queryError } = await studentsQuery;
+  const fetchStudentsPage = (page: number) => {
+    let query = supabase
+      .from("students")
+      .select("id,student_number,first_name,last_name,birth_date,email,status,created_at", { count: "exact" })
+      .eq("institution_id", institution.id)
+      .order("last_name", { ascending: true })
+      .order("first_name", { ascending: true })
+      .order("id", { ascending: true })
+      .range((page - 1) * pageSize, page * pageSize - 1);
+    if (search) query = query.or("first_name.ilike.%"+search+"%,last_name.ilike.%"+search+"%,student_number.ilike.%"+search+"%");
+    if (statusFilter) query = query.eq("status", statusFilter);
+    return query;
+  };
+  let { data: students, error: queryError, count: totalStudents } = await fetchStudentsPage(requestedPage);
+  const totalPages = Math.max(1, Math.ceil((totalStudents ?? 0) / pageSize));
+  const currentPage = Math.min(requestedPage, totalPages);
+  if (!queryError && currentPage !== requestedPage) {
+    const corrected = await fetchStudentsPage(currentPage);
+    students = corrected.data;
+    queryError = corrected.error;
+    totalStudents = corrected.count;
+  }
+  const firstVisible = totalStudents ? (currentPage - 1) * pageSize + 1 : 0;
+  const lastVisible = Math.min(currentPage * pageSize, totalStudents ?? 0);
+  const pageHref = (page: number) => {
+    const params = new URLSearchParams();
+    if (search) params.set("q", search);
+    if (statusFilter) params.set("status", statusFilter);
+    params.set("page", String(page));
+    return `/dashboard/${slug}/students?${params.toString()}`;
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-800 sm:px-8">
@@ -69,7 +92,7 @@ export default async function StudentsPage({
               </div>
             </div>
             <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              <Users size={17} /> {students?.length ?? 0} registros visibles
+              <Users size={17} /> {totalStudents ?? 0} alumnos registrados
             </div>
           </div>
         </header>
@@ -104,7 +127,7 @@ export default async function StudentsPage({
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <h2 className="font-semibold">Listado de alumnos</h2>
-              <span className="text-xs text-slate-400">Máximo 100 registros por consulta</span>
+              <span className="text-xs text-slate-400">Mostrando {firstVisible}–{lastVisible} de {totalStudents ?? 0}</span>
             </div>
             {queryError ? (
               <div className="p-8 text-center text-sm text-rose-700">
@@ -145,6 +168,17 @@ export default async function StudentsPage({
                 <p className="mt-1 text-sm text-slate-500">Los legajos aparecerán según los permisos de tu perfil y las divisiones asignadas.</p>
               </div>
             )}
+            {(totalPages > 1) && <nav aria-label="Paginación de alumnos" className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4">
+              <p className="text-xs text-slate-500">Página {currentPage} de {totalPages}</p>
+              <div className="flex gap-2">
+                {currentPage > 1
+                  ? <Link href={pageHref(currentPage - 1)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Anterior</Link>
+                  : <span className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-300">Anterior</span>}
+                {currentPage < totalPages
+                  ? <Link href={pageHref(currentPage + 1)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Siguiente</Link>
+                  : <span className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-300">Siguiente</span>}
+              </div>
+            </nav>}
           </section>
 
           {canManageStudents && (
