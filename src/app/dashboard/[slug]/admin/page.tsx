@@ -24,6 +24,7 @@ const groups = [
   { title: "Operación del administrador", description: "Configuración, matrícula masiva y protección de datos.", items: [
     { title: "Datos y parámetros institucionales", detail: "Identidad del colegio, niveles y orientaciones educativas.", href: "admin/configuracion", icon: Settings2 },
     { title: "Importación masiva de alumnos", detail: "Vista previa de Excel y matriculación por división.", href: "admin/importacion", icon: FileSpreadsheet },
+    { title: "Regularización de matrículas", detail: "Detectar alumnos activos sin matrícula vigente y abrir su legajo para resolverlo.", href: "admin/matricula", icon: GraduationCap },
     { title: "Respaldos por ciclo lectivo", detail: "Crear, descargar y restaurar paquetes EDUNEXA.", href: "admin/respaldo", icon: ShieldCheck },
     { title: "Historial de operaciones", detail: "Consultar cambios administrativos y responsables.", href: "admin/auditoria", icon: History },
   ]},
