@@ -123,20 +123,20 @@ export default async function ClassroomFollowUpPage({
   const summary = {
     students: progress.length,
     pending: progress.filter((item) => item.missing.length > 0).length,
-    corrections: progress.filter((item) => item.corrections.length > 0).length,
-    complete: progress.filter((item) => item.missing.length === 0 && item.corrections.length === 0).length,
+    corrections: progress.filter((item) => item.corrections.length > 0 || item.failedReview > 0).length,
+    complete: progress.filter((item) => item.missing.length === 0 && item.corrections.length === 0 && item.failedReview === 0 && item.awaitingReview === 0).length,
   };
   const visible = progress.filter((item) => {
     if (filter === "pending") return item.missing.length > 0;
-    if (filter === "correction") return item.corrections.length > 0;
-    if (filter === "complete") return item.missing.length === 0 && item.corrections.length === 0;
+    if (filter === "correction") return item.corrections.length > 0 || item.failedReview > 0;
+    if (filter === "complete") return item.missing.length === 0 && item.corrections.length === 0 && item.failedReview === 0 && item.awaitingReview === 0;
     return true;
   });
 
   const filterItems: { id: Filter; label: string; count: number }[] = [
     { id: "all", label: "Todos", count: summary.students },
     { id: "pending", label: "Con actividades pendientes", count: summary.pending },
-    { id: "correction", label: "Con trabajos para corregir", count: summary.corrections },
+    { id: "correction", label: "Con trabajos observados", count: summary.corrections },
     { id: "complete", label: "Seguimiento al día", count: summary.complete },
   ];
 
