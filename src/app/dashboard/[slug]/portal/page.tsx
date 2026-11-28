@@ -652,6 +652,7 @@ export default async function StudentFamilyPortal({ params }: { params: Promise<
                     className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                     <BookOpen size={15} /> Aula virtual
                   </Link>
+                  {student.is_self ? <Link href={`/dashboard/${slug}/portal/materials`} className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100"><FileText size={15}/> Biblioteca de estudio</Link> : null}
                   <Link href={`/dashboard/${slug}/messages?student=${student.student_id}`}
                     className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100">
                     <MessageCircle size={15} /> Ver mensajería del alumno
