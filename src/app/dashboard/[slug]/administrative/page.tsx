@@ -164,10 +164,14 @@ export default async function AdministrativeWorkspace({
                 <label className="grid gap-1 text-xs font-semibold text-slate-600">Estado
                   <select name="status" defaultValue={record.status} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"><option value="open">Pendiente</option><option value="in_progress">En proceso</option><option value="closed">Cerrado</option></select>
                 </label>
+                <label className="grid gap-1 text-xs font-semibold text-slate-600">Fecha límite
+                  <input type="date" name="due_date" min={record.record_date} defaultValue={record.due_date ?? ""} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"/>
+                  <span className="font-normal text-slate-500">Podés reprogramarla o quitarla.</span>
+                </label>
                 <label className="grid gap-1 text-xs font-semibold text-slate-600">Nueva actuación (obligatoria)
                   <input name="resolution_notes" required minLength={5} maxLength={1000} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Qué se gestionó, resultado o motivo del cambio"/>
                 </label>
-                <button className="rounded-lg border border-violet-200 px-4 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-50">Registrar actuación</button>
+                <button className="rounded-lg border border-violet-200 px-4 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-50">Guardar seguimiento</button>
               </form>}
             </article>
           )) : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500"><FileText size={30} className="mx-auto mb-3 text-slate-300"/>No hay registros que coincidan con la búsqueda.</div>}

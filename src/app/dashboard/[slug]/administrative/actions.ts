@@ -76,18 +76,26 @@ export async function updateAdministrativeRecord(formData: FormData) {
   }
   const {supabase,institution,membership}=await context(slug);
   const {data:current,error:readError}=await supabase.from("administrative_records")
-    .select("status,resolution_notes").eq("id",id).eq("institution_id",institution.id).maybeSingle();
+    .select("status,resolution_notes,due_date,record_date").eq("id",id).eq("institution_id",institution.id).maybeSingle();
   if(readError || !current) redirect(`/dashboard/${slug}/administrative?error=update`);
   const timestamp=new Intl.DateTimeFormat("es-AR",{
     dateStyle:"short",timeStyle:"short",timeZone:"America/Argentina/Buenos_Aires"
   }).format(new Date());
   const statusLabel:Record<string,string>={open:"Pendiente",in_progress:"En proceso",closed:"Cerrado"};
-  const entry=`[${timestamp}] ${statusLabel[current.status] ?? current.status} → ${statusLabel[status]}. ${resolutionNotes}`;
+  const dueDateChanged=(current.due_date ?? "") !== dueDate;
+  if(dueDate && (!isValidDate(dueDate) || dueDate<current.record_date)) {
+    redirect(`/dashboard/${slug}/administrative?error=invalid`);
+  }
+  const dueDateNote=dueDateChanged
+    ? ` Fecha límite: ${current.due_date ?? "sin fecha"} → ${dueDate || "sin fecha"}.`
+    : "";
+  const entry=`[${timestamp}] ${statusLabel[current.status] ?? current.status} → ${statusLabel[status]}.${dueDateNote} ${resolutionNotes}`;
   const previousNotes=current.resolution_notes?.trim();
   const history=[previousNotes,entry].filter(Boolean).join("\n\n");
   if(history.length>3000) redirect(`/dashboard/${slug}/administrative?error=history_full`);
   const {error}=await supabase.from("administrative_records").update({
     status,
+    due_date:dueDate || null,
     resolution_notes:history,
     updated_by_membership_id:membership.id,
   }).eq("id",id).eq("institution_id",institution.id);
