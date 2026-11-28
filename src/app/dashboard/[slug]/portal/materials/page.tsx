@@ -61,7 +61,7 @@ export default async function StudentMaterialsLibrary({ params }: { params: Prom
       const overview = overviewData as Overview | null;
       const files = (fileData ?? []) as ClassroomFile[];
       const resources = (resourceData ?? []) as Resource[];
-      const signedFiles = await Promise.all(files.filter((file) => file.purpose === "material" && file.material_id).map(async (file) => {
+      const signedFiles = await Promise.all(files.filter((file) => file.material_id).map(async (file) => {
         const { data } = await supabase.storage.from("classroom-files").createSignedUrl(file.object_path, 300, { download: true });
         return { file, url: data?.signedUrl ?? null };
       }));
