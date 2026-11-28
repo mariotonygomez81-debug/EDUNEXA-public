@@ -14,6 +14,12 @@ type AlertItem = {
   tone: "warning" | "critical" | "neutral";
 };
 type ApiRow = Record<string, unknown>;
+type AuditEvent = {
+  id: string; occurred_at: string; actor_user_id: string; action: string;
+  target_type: string; target_id: string | null; institution_id: string | null;
+  reason: string; request_id: string; outcome: string;
+  metadata_redacted: Record<string, unknown>;
+};
 const str = (value: unknown) => typeof value === "string" ? value : "";
 const date = (value: string) => {
   const parsed = new Date(value);
@@ -37,7 +43,7 @@ const statusText: Record<string,string> = {
 
 export default function PlatformOperationsOverview() {
   const [items,setItems] = useState<Item[]>([]);
-  const [alerts,setAlerts] = useState<AlertItem[]>([]);
+  const [alerts,setAlerts] = useState<AlertItem[]>([]);\n  const [auditEvents,setAuditEvents] = useState<AuditEvent[]>([]);
   const [loading,setLoading] = useState(false);
   const [error,setError] = useState("");
   const [filter,setFilter] = useState<"all"|"pending"|"running"|"attention">("all");
@@ -45,10 +51,10 @@ export default function PlatformOperationsOverview() {
   const refresh = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const paths = ["/api/platform/clones","/api/platform/delegations","/api/platform/copilot/plans","/api/platform/superadmins/requests?limit=100"];
+      const paths = ["/api/platform/clones","/api/platform/delegations","/api/platform/copilot/plans","/api/platform/superadmins/requests?limit=100","/api/platform/audit?limit=100"];
       const responses = await Promise.all(paths.map(path => fetch(path,{cache:"no-store"})));
       if (responses.some(response => !response.ok)) throw new Error("No se pudo recuperar el estado completo de las operaciones globales. No se muestran resultados parciales.");
-      const [cloneData,delegationData,planData,requestData] = await Promise.all(responses.map(response => response.json()));
+      const [cloneData,delegationData,planData,requestData,auditData] = await Promise.all(responses.map(response => response.json()));\n      const auditRows = Array.isArray(auditData.events) ? auditData.events as AuditEvent[] : [];
       const next: Item[] = [];
       const nextAlerts: AlertItem[] = [];
       const add = (row: ApiRow, kind: Item["kind"], title: string, detail: string, href: string) => {
@@ -116,10 +122,10 @@ export default function PlatformOperationsOverview() {
         const rank=(item:AlertItem)=>item.tone==="critical"?0:item.group==="expiry"?1:item.group==="action"?2:3;
         return rank(a)-rank(b) || new Date(a.timestamp).getTime()-new Date(b.timestamp).getTime();
       });
-      setItems(next); setAlerts(nextAlerts);
+      setItems(next); setAlerts(nextAlerts); setAuditEvents(auditRows);
     } catch (cause) {
       setError(cause instanceof Error?cause.message:"No se pudo actualizar el seguimiento.");
-      setItems([]); setAlerts([]);
+      setItems([]); setAlerts([]); setAuditEvents([]);
     } finally { setLoading(false); }
   },[]);
 
@@ -135,6 +141,19 @@ export default function PlatformOperationsOverview() {
     failed:alerts.filter(item=>item.group==="failed").length,
     action:alerts.filter(item=>item.group==="action").length,
   }),[alerts]);
+  const incidents = useMemo(() => {
+    const failed = auditEvents.filter(event => event.outcome === "failed");
+    return failed.map(event => {
+      const related = auditEvents.filter(candidate => {
+        if (candidate.target_type !== event.target_type) return false;
+        if (event.target_id) return candidate.target_id === event.target_id
+          && new Date(candidate.occurred_at).getTime() >= new Date(event.occurred_at).getTime();
+        return candidate.request_id === event.request_id
+          && new Date(candidate.occurred_at).getTime() >= new Date(event.occurred_at).getTime();
+      }).sort((a,b) => new Date(a.occurred_at).getTime()-new Date(b.occurred_at).getTime());
+      return { event, related };
+    }).sort((a,b) => new Date(b.event.occurred_at).getTime()-new Date(a.event.occurred_at).getTime());
+  },[auditEvents]);
   const visible = filter==="all"?items:items.filter(item=>item.lane===filter);
   const laneLabel = (lane: Item["lane"]) => lane==="pending"?"Pendiente":lane==="running"?"En curso":"Requiere acción";
   const kindLabel = (kind: Item["kind"]) => ({clone:"Clonación",delegation:"Acceso delegado",copilot:"Copiloto EDUNEXA",superadmin:"Privilegios globales"}[kind]);
@@ -148,6 +167,32 @@ export default function PlatformOperationsOverview() {
       <button type="button" onClick={()=>void refresh()} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 disabled:opacity-50">{loading?<Loader2 size={14} className="animate-spin"/>:<RefreshCw size={14}/>}Actualizar</button>
     </header>
     {error&&<p role="alert" className="rounded-lg border border-rose-200/20 bg-rose-200/5 p-3 text-sm text-rose-100">{error}</p>}
+
+    <section className="space-y-3 rounded-xl border border-rose-200/15 bg-rose-950/10 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div><h3 className="text-sm font-bold text-white">Historial de resolución de incidentes</h3>
+          <p className="mt-1 text-xs text-slate-400">Cada incidente parte de un evento fallido y reúne los eventos posteriores del mismo objetivo en la bitácora global.</p></div>
+        <span className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-slate-400">{incidents.length} incidente{incidents.length===1?"":"s"}</span>
+      </div>
+      {incidents.length===0
+        ? <p className="rounded-lg border border-white/10 p-4 text-center text-xs text-slate-400">No hay eventos fallidos en los últimos 100 registros de auditoría consultados.</p>
+        : <div className="space-y-3">{incidents.map(({event,related})=><article key={event.id} className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div><p className="text-sm font-semibold text-rose-100">{event.action}</p>
+              <p className="mt-1 break-all text-[10px] text-slate-500">{event.target_type} · {event.target_id||"Objetivo no identificado"}</p></div>
+            <span className="rounded-full border border-rose-200/20 bg-rose-200/10 px-2 py-1 text-[10px] text-rose-100">Inicio fallido</span>
+          </div>
+          <p className="mt-1 text-xs text-slate-400">{event.reason||"Sin motivo registrado"} · {date(event.occurred_at)}</p>
+          <ol className="mt-3 space-y-2 border-l border-white/10 pl-3">
+            {related.map((entry,index)=><li key={entry.id} className="relative">
+              <p className={"text-xs font-semibold "+(entry.outcome==="failed"?"text-rose-200":entry.outcome==="success"?"text-emerald-200":"text-slate-200")}>{index===0?"Evento inicial":entry.outcome==="success"?"Resultado correcto":entry.outcome==="failed"?"Nuevo fallo":entry.outcome==="started"?"Operación iniciada":"Evento relacionado"} · {entry.action}</p>
+              <p className="mt-0.5 text-[10px] text-slate-500">{date(entry.occurred_at)} · Actor {entry.actor_user_id}</p>
+            </li>)}
+          </ol>
+          {related.length===1&&<p className="mt-2 text-[10px] text-amber-200/80">Sin eventos posteriores asociados en el tramo consultado de auditoría.</p>}
+        </article>)}</div>}
+      <p className="text-[10px] leading-5 text-slate-600">Alcance: últimos 100 eventos globales disponibles. La relación se establece por tipo e identificador exactos del objetivo; no se presume que dos operaciones distintas estén vinculadas. La ausencia de eventos posteriores no demuestra que el incidente siga abierto.</p>
+    </section>
 
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-bold text-white">Alertas que requieren seguimiento</h3><p className="mt-1 text-xs text-slate-500">Las solicitudes pendientes se ordenan de la más antigua a la más reciente.</p></div><span className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-slate-400">{alerts.length} alerta{alerts.length===1?"":"s"}</span></div>
