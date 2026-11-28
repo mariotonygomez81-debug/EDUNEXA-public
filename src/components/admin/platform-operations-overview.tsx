@@ -46,6 +46,7 @@ export default function PlatformOperationsOverview() {
   const [alerts,setAlerts] = useState<AlertItem[]>([]);
   const [auditEvents,setAuditEvents] = useState<AuditEvent[]>([]);
   const [selectedIncident,setSelectedIncident] = useState<AuditEvent|null>(null);
+  const [incidentTimeline,setIncidentTimeline] = useState<AuditEvent[]>([]);
   const [incidentLoading,setIncidentLoading] = useState(false);
   const [incidentError,setIncidentError] = useState("");
   const [auditAction,setAuditAction] = useState("");
@@ -266,17 +267,59 @@ export default function PlatformOperationsOverview() {
     }).sort((a,b) => new Date(b.event.occurred_at).getTime()-new Date(a.event.occurred_at).getTime());
   },[periodEvents]);
   const openIncident = useCallback(async (eventId: string) => {
-    setIncidentLoading(true); setIncidentError("");
+    setIncidentLoading(true); setIncidentError(""); setSelectedIncident(null); setIncidentTimeline([]);
     try {
-      const response = await fetch("/api/platform/audit/"+encodeURIComponent(eventId),{cache:"no-store"});
-      if (!response.ok) throw new Error("No se pudo recuperar el detalle de auditoría del incidente.");
-      const payload = await response.json() as { event?: AuditEvent | AuditEvent[] | null };
-      const detail = Array.isArray(payload.event) ? payload.event[0] : payload.event;
+      const detailResponse = await fetch("/api/platform/audit/"+encodeURIComponent(eventId),{cache:"no-store"});
+      if (!detailResponse.ok) throw new Error("No se pudo recuperar el detalle de auditoría del incidente.");
+      const detailPayload = await detailResponse.json() as { event?: AuditEvent | AuditEvent[] | null };
+      const detail = Array.isArray(detailPayload.event) ? detailPayload.event[0] : detailPayload.event;
       if (!detail || detail.id !== eventId) throw new Error("El evento no está disponible en el detalle de auditoría.");
       setSelectedIncident(detail);
+
+      const relatedRows: AuditEvent[]=[];
+      let cursor: AuditEvent|null=null;
+      const failedAt=new Date(detail.occurred_at).getTime();
+      while(true) {
+        const params=new URLSearchParams({limit:"100"});
+        if(cursor) {params.set("before",cursor.occurred_at);params.set("beforeId",cursor.id);}
+        const response=await fetch("/api/platform/audit?"+params.toString(),{cache:"no-store"});
+        if(!response.ok) throw new Error("No se pudo recuperar la cronología completa del objetivo.");
+        const payload=await response.json() as {events?:AuditEvent[]};
+        const batch=Array.isArray(payload.events)?payload.events:[];
+        if(batch.length===0) break;
+        const matching=batch.filter(candidate=>{
+          const at=new Date(candidate.occurred_at).getTime();
+          if(at<failedAt)return false;
+          if(detail.target_id) return candidate.target_type===detail.target_type && candidate.target_id===detail.target_id;
+          return Boolean(detail.request_id) && candidate.request_id===detail.request_id;
+        });
+        relatedRows.push(...matching);
+        const oldest=batch[batch.length-1];
+        if(new Date(oldest.occurred_at).getTime()<failedAt || batch.length<100) break;
+        if(cursor && oldest.id===cursor.id && oldest.occurred_at===cursor.occurred_at) {
+          throw new Error("El cursor de auditoría no avanzó; no se puede garantizar una cronología completa.");
+        }
+        cursor=oldest;
+      }
+      const unique=new Map<string,AuditEvent>();
+      for(const row of relatedRows) unique.set(row.id,row);
+      unique.set(detail.id,detail);
+      const ordered=[...unique.values()].sort((a,b)=>new Date(a.occurred_at).getTime()-new Date(b.occurred_at).getTime()
+        || a.id.localeCompare(b.id));
+      const detailed=await Promise.all(ordered.map(async row=>{
+        if(row.id===detail.id)return detail;
+        try {
+          const response=await fetch("/api/platform/audit/"+encodeURIComponent(row.id),{cache:"no-store"});
+          if(!response.ok)return row;
+          const payload=await response.json() as {event?:AuditEvent|AuditEvent[]|null};
+          const event=Array.isArray(payload.event)?payload.event[0]:payload.event;
+          return event?.id===row.id?event:row;
+        } catch {return row;}
+      }));
+      setIncidentTimeline(detailed);
     } catch (cause) {
-      setSelectedIncident(null);
-      setIncidentError(cause instanceof Error?cause.message:"No se pudo abrir el incidente.");
+      setIncidentTimeline([]);
+      setIncidentError(cause instanceof Error?cause.message:"No se pudo construir la comparación del incidente.");
     } finally { setIncidentLoading(false); }
   },[]);
   const visible = filter==="all"?items:items.filter(item=>item.lane===filter);
@@ -339,7 +382,7 @@ export default function PlatformOperationsOverview() {
             {incidentError&&selectedIncident===null&&<p role="alert" className="text-xs text-rose-200">{incidentError}</p>}
           </div>
           {selectedIncident?.id===event.id&&<div className="mt-3 space-y-3 rounded-lg border border-cyan-200/15 bg-cyan-950/20 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-xs font-bold text-cyan-100">Detalle del incidente · evento {selectedIncident.id}</h4><button type="button" onClick={()=>setSelectedIncident(null)} className="text-xs text-slate-400 hover:text-white">Cerrar detalle</button></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-xs font-bold text-cyan-100">Detalle del incidente · evento {selectedIncident.id}</h4><button type="button" onClick={()=>{setSelectedIncident(null);setIncidentTimeline([]);}} className="text-xs text-slate-400 hover:text-white">Cerrar detalle</button></div>
             <dl className="grid gap-2 text-xs sm:grid-cols-2">
               <div><dt className="text-slate-500">Fecha</dt><dd className="mt-0.5 break-words text-slate-200">{date(selectedIncident.occurred_at)}</dd></div>
               <div><dt className="text-slate-500">Acción</dt><dd className="mt-0.5 break-words text-slate-200">{selectedIncident.action}</dd></div>
@@ -352,6 +395,29 @@ export default function PlatformOperationsOverview() {
             </dl>
             <div><h5 className="text-xs font-semibold text-slate-300">Metadata redactada</h5>
               <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-black/30 p-3 text-[10px] leading-5 text-slate-300">{JSON.stringify(selectedIncident.metadata_redacted??{},null,2)}</pre>
+            </div>            <div className="space-y-2 border-t border-white/10 pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2"><h5 className="text-xs font-bold text-cyan-100">Comparación cronológica del incidente</h5><span className="text-[10px] text-slate-500">{incidentTimeline.length} evento{incidentTimeline.length===1?"":"s"} relacionados</span></div>
+              <p className="text-[10px] text-slate-500">Se comparan eventos del mismo objetivo exacto; si no hay objetivo identificado, se utiliza el mismo request ID. Cada valor se contrasta con el evento inmediatamente anterior.</p>
+              {incidentTimeline.length===0?<p className="text-xs text-amber-200">No se pudo recuperar una cronología relacionada completa.</p>:<div className="space-y-3">{incidentTimeline.map((entry,index)=>{
+                const previous=index>0?incidentTimeline[index-1]:null;
+                const fields:[string,string,string][]=[
+                  ["Resultado",previous?.outcome??"—",entry.outcome??"—"],
+                  ["Actor",previous?.actor_user_id??"—",entry.actor_user_id??"—"],
+                  ["Fecha",previous?date(previous.occurred_at):"—",date(entry.occurred_at)],
+                  ["Motivo",previous?.reason??"—",entry.reason??"—"],
+                  ["Metadata redactada",previous?JSON.stringify(previous.metadata_redacted??{}):"—",JSON.stringify(entry.metadata_redacted??{})],
+                ];
+                return <article key={entry.id} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-semibold text-white">{index===0?"Evento fallido inicial":entry.outcome==="success"?"Evento posterior · correcto":entry.outcome==="failed"?"Evento posterior · fallido":"Evento posterior · "+entry.outcome}</p><span className="text-[10px] text-slate-500">{date(entry.occurred_at)}</span></div>
+                  <p className="mt-1 break-all text-[10px] text-slate-400">{entry.action} · {entry.target_type} · {entry.target_id||entry.request_id||"Sin identificador"}</p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">{fields.map(([label,before,after])=><div key={label} className="rounded-md border border-white/5 p-2">
+                    <p className="text-[10px] font-semibold text-slate-400">{label} {before!==after&&previous?<span className="text-amber-200">· Cambió</span>:null}</p>
+                    <p className="mt-1 break-all whitespace-pre-wrap text-[10px] text-slate-500">Anterior: {before}</p>
+                    <p className="mt-1 break-all whitespace-pre-wrap text-[10px] text-slate-200">Actual: {after}</p>
+                  </div>)}</div>
+                  <p className="mt-2 break-all text-[10px] text-slate-500">Actor: {entry.actor_user_id||"—"} · Request ID: {entry.request_id||"—"} · Institución: {entry.institution_id||"—"}</p>
+                </article>;
+              })}</div>}
             </div>
           </div>}
         </article>)}</div>}
