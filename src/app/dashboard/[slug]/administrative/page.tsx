@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BookOpenCheck, ClipboardCheck, FileText, Megaphone, MessagesSquare, PlusCircle, UserPlus } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, ClipboardCheck, FileArchive, FileText, Megaphone, MessagesSquare, PlusCircle, UserPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMembershipPermissions } from "@/lib/auth/permissions";
 import { createAdministrativeRecord, updateAdministrativeRecord } from "./actions";
@@ -89,6 +89,11 @@ export default async function AdministrativeWorkspace({
             <h2 className="font-semibold text-slate-900">Invitaciones y accesos</h2>
             <p className="mt-1 text-sm leading-5 text-slate-600">Invitá personal, asigná perfiles y habilitá las cuentas que completaron su registro</p>
             <span className="mt-3 inline-flex text-sm font-semibold text-cyan-800">Administrar usuarios →</span>
+          </Link>}          {permissions.has("admin_documents.read") && <Link href={`/dashboard/${slug}/admin-documents`} className="group rounded-2xl border border-violet-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md">
+            <div className="mb-3 inline-flex rounded-xl bg-violet-50 p-3 text-violet-700"><FileArchive size={21}/></div>
+            <h2 className="font-semibold text-slate-900">Archivo documental</h2>
+            <p className="mt-1 text-sm leading-5 text-slate-600">Consultá documentos institucionales y gestioná archivos privados de personal, compras, finanzas y mantenimiento según tus permisos.</p>
+            <span className="mt-3 inline-flex text-sm font-semibold text-violet-800">Abrir archivo documental →</span>
           </Link>}
         </section>
 
